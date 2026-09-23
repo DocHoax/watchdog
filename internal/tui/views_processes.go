@@ -93,9 +93,9 @@ func (m Model) renderProcessDetails(p model.ProcessInfo) string {
 	sb.WriteString(SubTitleStyle.Render(fmt.Sprintf("🔍 Process Details: %s (PID: %d, PPID: %d)", p.Name, p.PID, p.PPID)) + "\n")
 	sb.WriteString(fmt.Sprintf("  User: %-12s | Status: %-10s | CPU: %5.1f%% | Memory: %5.1f%% (RSS: %s, VMS: %s)\n",
 		p.Username, p.Status, p.CPUPercent, p.MemoryPercent, FormatBytes(p.MemoryRSS), FormatBytes(p.MemoryVMS)))
-	sb.WriteString(fmt.Sprintf("  Threads: %-8d | Started: %s | CPU Time: %s (User: %s, Sys: %s)\n",
-		p.NumThreads, p.CreateTime.Format("2006-01-02 15:04:05"),
-		FormatDuration(p.CPUTimeTotal), FormatDuration(p.CPUTimeUser), FormatDuration(p.CPUTimeSystem)))
+	sb.WriteString(fmt.Sprintf("  Threads: %-8d | Nice: %-4d | Started: %s | I/O: Read %s/s, Write %s/s\n",
+		p.NumThreads, p.Nice, p.CreateTime.Format("2006-01-02 15:04:05"),
+		FormatBytes(uint64(p.ReadBytesSec)), FormatBytes(uint64(p.WriteBytesSec))))
 	if p.CommandLine != "" {
 		sb.WriteString(fmt.Sprintf("  Command: %s\n", TruncateString(p.CommandLine, m.width-16)))
 	}
