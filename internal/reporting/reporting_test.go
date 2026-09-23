@@ -43,7 +43,7 @@ func createSampleSnapshot() *model.SystemSnapshot {
 			UsedBytes:   250 * 1024 * 1024 * 1024,
 			FreeBytes:   250 * 1024 * 1024 * 1024,
 			UsedPercent: 50.0,
-			IOCounters: []model.DiskIOInfo{
+			IOCounters: []model.DiskIOCounters{
 				{
 					Name:      "sda",
 					ReadRate:  1024 * 1024 * 5,
@@ -81,16 +81,16 @@ func TestBuildReportDataAndJSON(t *testing.T) {
 	snap := createSampleSnapshot()
 	diag := &model.DiagnosticReport{
 		GeneratedAt:    time.Now(),
-		OverallStatus:  model.StatusHealthy,
+		OverallStatus:  model.StatusPass,
 		PassedChecks:   10,
 		WarningChecks:  0,
 		CriticalChecks: 0,
 		Results: []model.DiagnosticResult{
 			{
-				Category: "CPU",
-				RuleName: "CPU Utilization",
-				Status:   model.StatusHealthy,
-				Message:  "CPU utilization within nominal bounds",
+				Category:    "CPU",
+				Name:        "CPU Utilization",
+				Status:      model.StatusPass,
+				Description: "CPU utilization within nominal bounds",
 			},
 		},
 	}
@@ -132,16 +132,16 @@ func TestGenerateTerminal(t *testing.T) {
 	snap := createSampleSnapshot()
 	diag := &model.DiagnosticReport{
 		GeneratedAt:    time.Now(),
-		OverallStatus:  model.StatusHealthy,
+		OverallStatus:  model.StatusPass,
 		PassedChecks:   8,
 		WarningChecks:  0,
 		CriticalChecks: 0,
 		Results: []model.DiagnosticResult{
 			{
-				Category: "Memory",
-				RuleName: "RAM Saturation",
-				Status:   model.StatusHealthy,
-				Message:  "Memory healthy",
+				Category:    "Memory",
+				Name:        "RAM Saturation",
+				Status:      model.StatusPass,
+				Description: "Memory healthy",
 			},
 		},
 	}
@@ -170,22 +170,22 @@ func TestGenerateHTML(t *testing.T) {
 		CriticalChecks: 0,
 		Results: []model.DiagnosticResult{
 			{
-				Category:    "Disk",
-				RuleName:    "Root Partition Space",
-				Status:      model.StatusWarning,
-				Message:     "Disk space at 82%",
-				Remediation: "Clean up /var/log",
+				Category:       "Disk",
+				Name:           "Root Partition Space",
+				Status:         model.StatusWarning,
+				Description:    "Disk space at 82%",
+				Recommendation: "Clean up /var/log",
 			},
 		},
 	}
 
 	alerts := []model.AlertEvent{
 		{
-			ID:          1,
+			ID:          "alert-1",
 			RuleName:    "High Disk Space",
 			MetricName:  "disk_used_pct",
 			Severity:    model.SeverityWarning,
-			Status:      model.AlertStatusActive,
+			IsActive:    true,
 			ActualValue: 82.0,
 			Threshold:   80.0,
 			Message:     "Disk space exceeded 80%",

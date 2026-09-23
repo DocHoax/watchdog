@@ -60,7 +60,7 @@ func GenerateHTML(data *model.ReportData, opts HTMLReportOptions) ([]byte, error
 
 	if data.Diagnostics != nil {
 		switch data.Diagnostics.OverallStatus {
-		case model.StatusCritical:
+		case model.StatusFail:
 			tmplData.HealthClass = "critical"
 			tmplData.HealthLabel = "CRITICAL"
 		case model.StatusWarning:
@@ -120,7 +120,7 @@ func GenerateHTML(data *model.ReportData, opts HTMLReportOptions) ([]byte, error
 		},
 		"statusClass": func(st model.DiagnosticStatus) string {
 			switch st {
-			case model.StatusCritical:
+			case model.StatusFail:
 				return "badge-critical"
 			case model.StatusWarning:
 				return "badge-warning"
@@ -428,7 +428,7 @@ const htmlTemplate = `<!DOCTYPE html>
               <th>Status</th>
               <th>Category</th>
               <th>Rule</th>
-              <th>Message</th>
+              <th>Description</th>
               <th>Remediation / Action</th>
             </tr>
           </thead>
@@ -437,9 +437,9 @@ const htmlTemplate = `<!DOCTYPE html>
             <tr>
               <td><span class="badge {{statusClass .Status}}">{{.Status}}</span></td>
               <td><strong>{{.Category}}</strong></td>
-              <td>{{.RuleName}}</td>
-              <td>{{.Message}}</td>
-              <td>{{if .Remediation}}<span style="color: var(--accent-blue);">{{.Remediation}}</span>{{else}}<span style="color: var(--text-muted);">-</span>{{end}}</td>
+              <td>{{.Name}}</td>
+              <td>{{.Description}}</td>
+              <td>{{if .Recommendation}}<span style="color: var(--accent-blue);">{{.Recommendation}}</span>{{else}}<span style="color: var(--text-muted);">-</span>{{end}}</td>
             </tr>
             {{end}}
           </tbody>
@@ -551,7 +551,7 @@ const htmlTemplate = `<!DOCTYPE html>
               <td><strong>{{.Name}}</strong></td>
               <td>{{.Username}}</td>
               <td><strong>{{formatFloat .CPUPercent}}%</strong></td>
-              <td>{{formatFloat .MemoryPercent}}%</td>
+              <td>{{formatFloat (float64 .MemoryPercent)}}%</td>
               <td>{{formatBytes .MemoryRSS}}</td>
               <td>{{.NumThreads}}</td>
               <td class="code-tag">{{truncate .CommandLine 60}}</td>

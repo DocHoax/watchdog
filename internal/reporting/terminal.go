@@ -3,7 +3,6 @@ package reporting
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/watchdog-cli/watchdog/pkg/model"
 )
@@ -80,7 +79,7 @@ func GenerateTerminal(data *model.ReportData) string {
 		sb.WriteString(colorBold + colorWhite + "--- [ 2. AUTOMATED DIAGNOSTICS ] ---\n" + colorReset)
 		statusColor := colorGreen
 		switch data.Diagnostics.OverallStatus {
-		case model.StatusCritical:
+		case model.StatusFail:
 			statusColor = colorRed
 		case model.StatusWarning:
 			statusColor = colorYellow
@@ -91,15 +90,15 @@ func GenerateTerminal(data *model.ReportData) string {
 
 		for _, check := range data.Diagnostics.Results {
 			icon := colorGreen + "[PASS]" + colorReset
-			if check.Status == model.StatusCritical {
+			if check.Status == model.StatusFail {
 				icon = colorRed + colorBold + "[CRIT]" + colorReset
 			} else if check.Status == model.StatusWarning {
 				icon = colorYellow + colorBold + "[WARN]" + colorReset
 			}
 
-			sb.WriteString(fmt.Sprintf("  %s %-24s : %s\n", icon, check.RuleName, check.Message))
-			if (check.Status == model.StatusWarning || check.Status == model.StatusCritical) && check.Remediation != "" {
-				sb.WriteString(fmt.Sprintf("         %s-> Action:%s %s\n", colorCyan, colorReset, check.Remediation))
+			sb.WriteString(fmt.Sprintf("  %s %-24s : %s\n", icon, check.Name, check.Description))
+			if (check.Status == model.StatusWarning || check.Status == model.StatusFail) && check.Recommendation != "" {
+				sb.WriteString(fmt.Sprintf("         %s-> Action:%s %s\n", colorCyan, colorReset, check.Recommendation))
 			}
 		}
 		sb.WriteString("\n")
