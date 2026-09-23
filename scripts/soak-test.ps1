@@ -96,8 +96,11 @@ try {
     }
 
     Write-Host "🎉 Zero failures detected. System stability verified." -ForegroundColor Green
-
-} finally {
+}
+catch {
+    Write-Host "❌ Error occurred during soak test: $_" -ForegroundColor Red
+}
+finally {
     if ($proc -and -not $proc.HasExited) {
         Write-Host "🛑 Stopping server process (PID $($proc.Id))..." -ForegroundColor Yellow
         Stop-Process -Id $proc.Id -Force
