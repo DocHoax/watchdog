@@ -13,7 +13,7 @@ import (
 // Run initializes and executes the interactive Bubbletea TUI application.
 func Run(
 	cfg *config.Config,
-	col *collector.Collector,
+	col *collector.Manager,
 	store storage.Storage,
 	diagEng *diagnostics.Engine,
 	alertEng *alerts.Engine,
