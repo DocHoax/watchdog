@@ -67,7 +67,7 @@ func BenchmarkAnomaly_FeedSnapshot(b *testing.B) {
 		},
 		Disk: &model.DiskInfo{
 			UsedPercent: 70.0,
-			IOCounters: []model.DiskIOInfo{
+			IOCounters: []model.DiskIOCounters{
 				{ReadRate: 1024 * 1024, WriteRate: 2048 * 1024},
 			},
 		},

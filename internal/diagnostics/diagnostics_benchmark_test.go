@@ -64,9 +64,9 @@ func createBenchmarkSnapshot() *model.SystemSnapshot {
 			ZombieCount:  0,
 		},
 		Docker: &model.DockerSummary{
-			TotalContainers:   12,
-			RunningContainers: 10,
-			StoppedContainers: 2,
+			ContainersTotal: 12,
+			RunningCount:    10,
+			StoppedCount:    2,
 		},
 	}
 }
