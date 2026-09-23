@@ -253,7 +253,10 @@ func Load(path string) (*Config, string, error) {
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// No config file found; return default
+			if path != "" {
+				return nil, resolvedPath, fmt.Errorf("config file %s does not exist", resolvedPath)
+			}
+			// No config file found during auto-discovery; return default
 			return cfg, resolvedPath, nil
 		}
 		return nil, resolvedPath, fmt.Errorf("error reading config file %s: %w", resolvedPath, err)
