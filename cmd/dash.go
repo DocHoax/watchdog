@@ -44,7 +44,7 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	var store storage.Storage
 	if cfg.Storage.Enabled && dashRemote == "" {
 		var err error
-		store, err = storage.NewSQLiteStorage(cfg.Storage.DBPath)
+		store, err = storage.NewSQLiteStorage(storage.Config{Path: cfg.Storage.DBPath})
 		if err != nil {
 			logger.Warnf("Unable to initialize SQLite storage (%s): %v; proceeding with in-memory mode", cfg.Storage.DBPath, err)
 		} else {
@@ -52,10 +52,10 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	col := collector.NewManager(cfg)
+	col := collector.NewDefaultManager(cfg)
 	diagEng := diagnostics.NewEngine(cfg)
 	alertEng := alerts.NewEngine(cfg, store)
-	anomDet := anomaly.NewDetector(cfg)
+	anomDet := anomaly.NewDetector(&cfg.Anomaly)
 
 	// Pre-seed anomaly detector from history if storage is available
 	if store != nil {
