@@ -78,9 +78,16 @@ func TestConfigValidation(t *testing.T) {
 }
 
 func TestLoadNonExistent(t *testing.T) {
-	cfg, _, err := Load("/path/that/does/not/exist/watchdog_test.yaml")
+	// Explicit non-existent path should return an error
+	_, _, err := Load("/path/that/does/not/exist/watchdog_test.yaml")
+	if err == nil {
+		t.Fatalf("Expected error when explicit config path does not exist")
+	}
+
+	// Auto-discovery with empty string should fall back gracefully to default config
+	cfg, _, err := Load("")
 	if err != nil {
-		t.Fatalf("Expected default config on missing file, got error: %v", err)
+		t.Fatalf("Expected default config on auto-discovery, got error: %v", err)
 	}
 	if cfg == nil {
 		t.Fatalf("Expected non-nil default config")
