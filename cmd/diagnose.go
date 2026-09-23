@@ -41,7 +41,7 @@ Optionally provides automated remediation recommendations or interactive fixes.`
 
 func runDiagnose(cmd *cobra.Command, args []string) error {
 	cfg := globalCfg
-	col := collector.NewManager(cfg)
+	col := collector.NewDefaultManager(cfg)
 
 	if diagTimeout <= 0 {
 		diagTimeout = 10 * time.Second
@@ -50,7 +50,7 @@ func runDiagnose(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	logger.Infof("Collecting system snapshot for diagnostic evaluation...")
-	snap, err := col.Collect(ctx)
+	snap, err := col.CollectAll(ctx)
 	if err != nil {
 		logger.Warnf("Partial metrics collection: %v", err)
 	}
