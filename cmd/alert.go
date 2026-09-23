@@ -22,19 +22,33 @@ var (
 )
 
 var alertCmd = &cobra.Command{
-	Use:     "alert",
+	Use:     "alert [command]",
 	Aliases: []string{"alerts"},
 	Short:   "Manage and inspect threshold alerts and firing events",
-	Long:    `Query active firing alerts, inspect historical alert events, or test threshold rules.`,
+	Long:    `Query active firing alerts, inspect historical alert events, or dispatch synthetic test alerts.`,
+	Example: `  # List all currently active and firing alerts
+  watchdog alert list
+
+  # Query past 20 historical alert events from SQLite storage
+  watchdog alert history --limit 20
+
+  # Trigger a synthetic test alert to verify notification channels
+  watchdog alert test`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAlertList(cmd, args)
 	},
 }
 
 var alertListCmd = &cobra.Command{
-	Use:   "list",
+	Use:   "list [flags]",
 	Short: "List currently active and firing alerts",
-	RunE:  runAlertList,
+	Long:  `Evaluates all active threshold rules against current system state and lists firing alerts.`,
+	Example: `  # List firing alerts in terminal format
+  watchdog alert list
+
+  # List firing alerts in JSON format for automated monitoring scripts
+  watchdog alert list --json`,
+	RunE: runAlertList,
 }
 
 func runAlertList(cmd *cobra.Command, args []string) error {
@@ -66,7 +80,7 @@ func runAlertList(cmd *cobra.Command, args []string) error {
 	if alertJSON {
 		data, err := json.MarshalIndent(active, "", "  ")
 		if err != nil {
-			return err
+			return NewExitError(ExitGeneralError, "failed to marshal JSON: %w", err)
 		}
 		fmt.Println(string(data))
 		return nil
@@ -94,17 +108,23 @@ func runAlertList(cmd *cobra.Command, args []string) error {
 }
 
 var alertHistoryCmd = &cobra.Command{
-	Use:   "history",
+	Use:   "history [flags]",
 	Short: "Query past alert event history from SQLite storage",
+	Long:  `Retrieves historical alert records, state transitions, and resolution timestamps from local database.`,
+	Example: `  # Show latest 50 alert records
+  watchdog alert history
+
+  # Show latest 10 alert records in JSON format
+  watchdog alert history --limit 10 --json`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := globalCfg
 		if !cfg.Storage.Enabled {
-			return fmt.Errorf("storage is disabled in configuration")
+			return NewExitError(ExitConfigError, "storage is disabled in configuration")
 		}
 
 		store, err := storage.NewSQLiteStorage(storage.Config{Path: cfg.Storage.DBPath})
 		if err != nil {
-			return fmt.Errorf("failed to open storage: %w", err)
+			return NewExitError(ExitGeneralError, "failed to open storage: %w", err)
 		}
 		defer store.Close()
 
@@ -117,13 +137,13 @@ var alertHistoryCmd = &cobra.Command{
 
 		history, err := store.GetAlertHistory(ctx, alertLimit, 0)
 		if err != nil {
-			return fmt.Errorf("failed to read alert history: %w", err)
+			return NewExitError(ExitGeneralError, "failed to read alert history: %w", err)
 		}
 
 		if alertJSON {
 			data, err := json.MarshalIndent(history, "", "  ")
 			if err != nil {
-				return err
+				return NewExitError(ExitGeneralError, "failed to marshal JSON: %w", err)
 			}
 			fmt.Println(string(data))
 			return nil
@@ -157,6 +177,9 @@ var alertHistoryCmd = &cobra.Command{
 var alertTestCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Trigger a synthetic test alert to verify notifications and engine",
+	Long:  `Dispatches an in-memory synthetic alert event and writes it to storage to test alerting pipelines.`,
+	Example: `  # Fire a synthetic test alert
+  watchdog alert test`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("🔔 Dispatching synthetic test alert...")
 		testAlert := model.AlertEvent{

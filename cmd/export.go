@@ -25,10 +25,18 @@ var (
 )
 
 var exportCmd = &cobra.Command{
-	Use:   "export",
+	Use:   "export [flags]",
 	Short: "Export system metrics or history in JSON or CSV",
-	Long: `Exports real-time or historical metric series from local storage.
-Supports JSON object arrays or CSV flat files suitable for external graphing and SIEM systems.`,
+	Long: `Exports live snapshot data or historical time-series metric series from local storage.
+Supports JSON formatted object arrays and tabular CSV output.`,
+	Example: `  # Export a real-time full system snapshot to JSON
+  watchdog export --format json
+
+  # Export historical CPU usage over the past 2 hours as CSV
+  watchdog export --metric cpu_usage_pct --since 2h --format csv --output ./cpu.csv
+
+  # Export the latest 500 records of memory usage to a JSON file
+  watchdog export --metric memory_used_pct --limit 500 --output /tmp/memory.json`,
 	RunE: runExport,
 }
 
@@ -44,7 +52,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 		// Query specific metric from storage
 		store, err := storage.NewSQLiteStorage(storage.Config{Path: cfg.Storage.DBPath})
 		if err != nil {
-			return fmt.Errorf("failed to open storage: %w", err)
+			return NewExitError(ExitGeneralError, "failed to open storage: %w", err)
 		}
 		defer store.Close()
 
@@ -60,14 +68,14 @@ func runExport(cmd *cobra.Command, args []string) error {
 			Limit:     exportLimit,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to query metric %s: %w", exportMetric, err)
+			return NewExitError(ExitGeneralError, "failed to query metric %s: %w", exportMetric, err)
 		}
 
 		switch format {
 		case "json":
 			outputBytes, err = json.MarshalIndent(pts, "", "  ")
 			if err != nil {
-				return err
+				return NewExitError(ExitGeneralError, "failed to marshal JSON: %w", err)
 			}
 		case "csv":
 			var sb strings.Builder
@@ -82,29 +90,29 @@ func runExport(cmd *cobra.Command, args []string) error {
 			}
 			outputBytes = []byte(sb.String())
 		default:
-			return fmt.Errorf("unsupported format %q for metric export (use json or csv)", exportFormat)
+			return NewExitError(ExitUsageError, "unsupported format %q for metric export (use json or csv)", exportFormat)
 		}
 	} else {
 		// Live single snapshot export
 		col := collector.NewDefaultManager(cfg)
 		snap, err := col.CollectAll(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to collect snapshot: %w", err)
+			return NewExitError(ExitGeneralError, "failed to collect snapshot: %w", err)
 		}
 
 		switch format {
 		case "json":
 			outputBytes, err = json.MarshalIndent(snap, "", "  ")
 			if err != nil {
-				return err
+				return NewExitError(ExitGeneralError, "failed to marshal JSON: %w", err)
 			}
 		case "csv":
 			outputBytes, err = reporting.GenerateSnapshotsCSV([]*model.SystemSnapshot{snap})
 			if err != nil {
-				return fmt.Errorf("failed to generate CSV: %w", err)
+				return NewExitError(ExitGeneralError, "failed to generate CSV: %w", err)
 			}
 		default:
-			return fmt.Errorf("unsupported format %q; use json or csv", exportFormat)
+			return NewExitError(ExitUsageError, "unsupported format %q; use json or csv", exportFormat)
 		}
 	}
 
@@ -115,7 +123,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 			_ = os.MkdirAll(dir, 0755)
 		}
 		if err := os.WriteFile(exportOutput, outputBytes, 0644); err != nil {
-			return fmt.Errorf("failed to write output to %s: %w", exportOutput, err)
+			return NewExitError(ExitGeneralError, "failed to write output to %s: %w", exportOutput, err)
 		}
 		fmt.Printf("✓ Exported %d bytes to %s\n", len(outputBytes), exportOutput)
 	}
