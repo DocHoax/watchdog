@@ -109,7 +109,7 @@ func runDiagnose(cmd *cobra.Command, args []string) error {
 	}
 
 	if report.OverallStatus == model.StatusFail {
-		os.Exit(1)
+		return fmt.Errorf("system diagnostics detected %d critical issue(s)", report.CriticalChecks)
 	}
 
 	return nil
