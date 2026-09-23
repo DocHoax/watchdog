@@ -84,6 +84,11 @@ func runReport(cmd *cobra.Command, args []string) error {
 	anomDetector := anomaly.NewDetector(&cfg.Anomaly)
 	anomReport := anomDetector.FeedSnapshot(snap)
 
+	var historySnaps []*model.SystemSnapshot
+	if snap != nil {
+		historySnaps = append(historySnaps, snap)
+	}
+
 	// Build unified ReportData
 	title := reportTitle
 	if title == "" {
