@@ -158,13 +158,18 @@ func (e *EWMATracker) Value() float64 {
 
 // CalculateZScore computes Z-score: (x - mean) / stddev.
 func CalculateZScore(val, mean, stddev float64) float64 {
-	if stddev <= 1e-6 {
-		if math.Abs(val-mean) > 1e-6 {
-			return math.Inf(1)
-		}
+	diff := val - mean
+	if math.Abs(diff) < 1e-6 {
 		return 0
 	}
-	return (val - mean) / stddev
+	if stddev <= 1e-6 {
+		effectiveStd := 0.05 * math.Abs(mean)
+		if effectiveStd < 1e-3 {
+			effectiveStd = 1.0
+		}
+		return diff / effectiveStd
+	}
+	return diff / stddev
 }
 
 // CalculateDeviationPct computes relative percentage change from baseline.

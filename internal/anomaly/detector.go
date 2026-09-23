@@ -108,8 +108,12 @@ func (d *Detector) Feed(metric string, value float64, ts time.Time) model.Anomal
 	score.DeviationPct = devPct
 
 	absZ := math.Abs(zScore)
-	if absZ >= d.zScoreThreshold && !math.IsInf(absZ, 1) {
+	if math.IsInf(absZ, 1) || absZ >= d.zScoreThreshold {
 		score.IsAnomaly = true
+		if math.IsInf(absZ, 1) {
+			score.ZScore = 99.0
+			absZ = 99.0
+		}
 		if absZ >= d.zScoreThreshold+2.0 {
 			score.Severity = model.SeverityCritical
 		} else {
@@ -122,7 +126,7 @@ func (d *Detector) Feed(metric string, value float64, ts time.Time) model.Anomal
 		}
 
 		score.Explanation = fmt.Sprintf("%s detected: %.2f (baseline mean: %.2f ± %.2f, Z: %+.2f, dev: %+.1f%%)",
-			direction, value, mean, stdDev, zScore, devPct)
+			direction, value, mean, stdDev, score.ZScore, devPct)
 	} else {
 		score.Severity = model.SeverityInfo
 		score.Explanation = fmt.Sprintf("Normal variation (mean: %.2f, Z: %+.2f)", mean, zScore)
