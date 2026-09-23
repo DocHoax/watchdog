@@ -80,7 +80,7 @@ func (l *Logger) SetJSONMode(enable bool) {
 	l.jsonMode = enable
 }
 
-func (l *Logger) log(lvl Level, msg string, keyvals ...interface{}) {
+func (l *Logger) log(lvl Level, msg string, keyvals ...any) {
 	if lvl < l.minLevel {
 		return
 	}
@@ -90,7 +90,7 @@ func (l *Logger) log(lvl Level, msg string, keyvals ...interface{}) {
 	now := time.Now()
 
 	if l.jsonMode {
-		payload := map[string]interface{}{
+		payload := map[string]any{
 			"time":  now.Format(time.RFC3339Nano),
 			"level": lvl.String(),
 			"msg":   msg,
@@ -138,27 +138,27 @@ func (l *Logger) log(lvl Level, msg string, keyvals ...interface{}) {
 }
 
 // Debug logs at debug level.
-func (l *Logger) Debug(msg string, keyvals ...interface{}) {
+func (l *Logger) Debug(msg string, keyvals ...any) {
 	l.log(LevelDebug, msg, keyvals...)
 }
 
 // Info logs at info level.
-func (l *Logger) Info(msg string, keyvals ...interface{}) {
+func (l *Logger) Info(msg string, keyvals ...any) {
 	l.log(LevelInfo, msg, keyvals...)
 }
 
 // Warn logs at warning level.
-func (l *Logger) Warn(msg string, keyvals ...interface{}) {
+func (l *Logger) Warn(msg string, keyvals ...any) {
 	l.log(LevelWarn, msg, keyvals...)
 }
 
 // Error logs at error level.
-func (l *Logger) Error(msg string, keyvals ...interface{}) {
+func (l *Logger) Error(msg string, keyvals ...any) {
 	l.log(LevelError, msg, keyvals...)
 }
 
 // Package-level delegations
-func Debug(msg string, keyvals ...interface{}) { defaultLogger.Debug(msg, keyvals...) }
-func Info(msg string, keyvals ...interface{})  { defaultLogger.Info(msg, keyvals...) }
-func Warn(msg string, keyvals ...interface{})  { defaultLogger.Warn(msg, keyvals...) }
-func Error(msg string, keyvals ...interface{}) { defaultLogger.Error(msg, keyvals...) }
+func Debug(msg string, keyvals ...any) { defaultLogger.Debug(msg, keyvals...) }
+func Info(msg string, keyvals ...any)  { defaultLogger.Info(msg, keyvals...) }
+func Warn(msg string, keyvals ...any)  { defaultLogger.Warn(msg, keyvals...) }
+func Error(msg string, keyvals ...any) { defaultLogger.Error(msg, keyvals...) }
