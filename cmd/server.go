@@ -106,7 +106,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 func init() {
 	serverCmd.Flags().IntVarP(&serverPort, "port", "p", 8443, "HTTP/HTTPS listen port")
-	serverCmd.Flags().StringVarP(&serverHost, "host", "H", "0.0.0.0", "bind IP interface address")
+	serverCmd.Flags().StringVarP(&serverHost, "host", "H", "127.0.0.1", "bind IP interface address (default: 127.0.0.1)")
 	serverCmd.Flags().StringVarP(&serverToken, "token", "t", "", "authentication token required for API endpoints")
 	serverCmd.Flags().StringVar(&serverTLSCert, "tls-cert", "", "path to TLS certificate file")
 	serverCmd.Flags().StringVar(&serverTLSKey, "tls-key", "", "path to TLS private key file")
