@@ -98,7 +98,16 @@ func GenerateHTML(data *model.ReportData, opts HTMLReportOptions) ([]byte, error
 	t, err := template.New("report").Funcs(template.FuncMap{
 		"formatBytes": formatBytes,
 		"formatRate":  func(f float64) string { return formatBytes(uint64(f)) },
-		"formatFloat": func(f float64) string { return fmt.Sprintf("%.1f", f) },
+		"formatFloat": func(v any) string {
+			switch val := v.(type) {
+			case float64:
+				return fmt.Sprintf("%.1f", val)
+			case float32:
+				return fmt.Sprintf("%.1f", val)
+			default:
+				return fmt.Sprintf("%v", val)
+			}
+		},
 		"formatDuration": func(d time.Duration) string {
 			days := int(d.Hours()) / 24
 			hours := int(d.Hours()) % 24
@@ -552,7 +561,7 @@ const htmlTemplate = `<!DOCTYPE html>
               <td><strong>{{.Name}}</strong></td>
               <td>{{.Username}}</td>
               <td><strong>{{formatFloat .CPUPercent}}%</strong></td>
-              <td>{{formatFloat (float64 .MemoryPercent)}}%</td>
+              <td>{{formatFloat .MemoryPercent}}%</td>
               <td>{{formatBytes .MemoryRSS}}</td>
               <td>{{.NumThreads}}</td>
               <td class="code-tag">{{truncate .CommandLine 60}}</td>
