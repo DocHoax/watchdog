@@ -73,7 +73,7 @@ func TestAnomalyDetectorSpike(t *testing.T) {
 
 	// Train baseline: 15 samples around 20.0 (e.g. 19.5, 20.5, 20.0...)
 	for i := 0; i < 15; i++ {
-		val := 20.0 + (float64(i%3) - 1.0)*0.5 // 19.5, 20.0, 20.5
+		val := 20.0 + (float64(i%3)-1.0)*0.5 // 19.5, 20.0, 20.5
 		score := detector.Feed("cpu_usage", val, now.Add(time.Duration(i)*time.Second))
 		if score.IsAnomaly {
 			t.Errorf("unexpected anomaly during baseline training at sample %d", i)

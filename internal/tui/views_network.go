@@ -38,7 +38,7 @@ func (m Model) renderNetworkView() string {
 				FormatRate(txRate),
 			))
 		}
-		sb.WriteString(CardStyle.Width(m.width - 4).Render(ifaceSb.String()) + "\n\n")
+		sb.WriteString(CardStyle.Width(m.width-4).Render(ifaceSb.String()) + "\n\n")
 	}
 
 	// Listening Ports Table
@@ -50,7 +50,7 @@ func (m Model) renderNetworkView() string {
 	} else {
 		var portsSb strings.Builder
 		header := fmt.Sprintf("  %-8s %-8s %-20s %-12s %-8s %s", "PORT", "PROTO", "BIND ADDRESS", "STATE", "PID", "PROCESS")
-		portsSb.WriteString(TableHeaderStyle.Width(m.width - 8).Render(header) + "\n")
+		portsSb.WriteString(TableHeaderStyle.Width(m.width-8).Render(header) + "\n")
 
 		maxRows := m.height - 20
 		if maxRows < 5 {
@@ -73,7 +73,7 @@ func (m Model) renderNetworkView() string {
 			)
 
 			if i == m.selectedPortIdx {
-				portsSb.WriteString(TableRowSelectedStyle.Width(m.width - 8).Render(row) + "\n")
+				portsSb.WriteString(TableRowSelectedStyle.Width(m.width-8).Render(row) + "\n")
 			} else {
 				portsSb.WriteString(row + "\n")
 			}

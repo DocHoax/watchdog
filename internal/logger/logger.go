@@ -36,12 +36,12 @@ func (l Level) String() string {
 
 // Logger is a structured concurrency-safe logger.
 type Logger struct {
-	mu        sync.Mutex
-	out       io.Writer
-	minLevel  Level
-	jsonMode  bool
-	noColor   bool
-	prefix    string
+	mu       sync.Mutex
+	out      io.Writer
+	minLevel Level
+	jsonMode bool
+	noColor  bool
+	prefix   string
 }
 
 var defaultLogger = New(os.Stderr, LevelInfo, false, false)

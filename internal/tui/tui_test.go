@@ -149,9 +149,9 @@ func TestTUI_SnapshotAndProcessManagement(t *testing.T) {
 			UsedPercent:    50.0,
 		},
 		Disk: &model.DiskInfo{
-			TotalBytes: 500 * 1024 * 1024 * 1024,
-			UsedBytes:  250 * 1024 * 1024 * 1024,
-			FreeBytes:  250 * 1024 * 1024 * 1024,
+			TotalBytes:  500 * 1024 * 1024 * 1024,
+			UsedBytes:   250 * 1024 * 1024 * 1024,
+			FreeBytes:   250 * 1024 * 1024 * 1024,
 			UsedPercent: 50.0,
 			IOCounters: []model.DiskIOCounters{
 				{Name: "sda", ReadRate: 1024 * 1024, WriteRate: 2 * 1024 * 1024},

@@ -21,8 +21,8 @@ var (
 
 // RootCmd is the base command for Watchdog.
 var RootCmd = &cobra.Command{
-	Use:   "watchdog [command] [flags]",
-	Short: "🐺 Watchdog: Enterprise-Grade System Monitoring & Diagnostics CLI",
+	Use:           "watchdog [command] [flags]",
+	Short:         "🐺 Watchdog: Enterprise-Grade System Monitoring & Diagnostics CLI",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Long: `Watchdog is a high-performance, cross-platform system monitoring,

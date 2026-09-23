@@ -16,12 +16,12 @@ func (m Model) renderContainersView() string {
 		if hasDocker && m.currentSnapshot.Docker.Error != "" {
 			dockerMsg = "Docker error: " + m.currentSnapshot.Docker.Error
 		}
-		sb.WriteString(CardStyle.Width(m.width - 4).Render(MutedStyle.Render(dockerMsg)) + "\n\n")
+		sb.WriteString(CardStyle.Width(m.width-4).Render(MutedStyle.Render(dockerMsg)) + "\n\n")
 	} else {
 		var dockerSb strings.Builder
 		header := fmt.Sprintf("  %-14s %-22s %-20s %-12s %-8s %-8s %s",
 			"CONTAINER ID", "NAME", "IMAGE", "STATUS", "CPU %", "MEM %", "PORTS")
-		dockerSb.WriteString(TableHeaderStyle.Width(m.width - 8).Render(header) + "\n")
+		dockerSb.WriteString(TableHeaderStyle.Width(m.width-8).Render(header) + "\n")
 
 		for _, c := range m.currentSnapshot.Docker.Containers {
 			cName := c.ID
@@ -46,7 +46,7 @@ func (m Model) renderContainersView() string {
 				TruncateString(ports, 24),
 			))
 		}
-		sb.WriteString(CardStyle.Width(m.width - 4).Render(dockerSb.String()) + "\n\n")
+		sb.WriteString(CardStyle.Width(m.width-4).Render(dockerSb.String()) + "\n\n")
 	}
 
 	// 2. Kubernetes Pods
@@ -62,7 +62,7 @@ func (m Model) renderContainersView() string {
 		var k8sSb strings.Builder
 		header := fmt.Sprintf("  %-16s %-26s %-12s %-10s %-16s %s",
 			"NAMESPACE", "POD NAME", "STATUS", "RESTARTS", "NODE", "AGE")
-		k8sSb.WriteString(TableHeaderStyle.Width(m.width - 8).Render(header) + "\n")
+		k8sSb.WriteString(TableHeaderStyle.Width(m.width-8).Render(header) + "\n")
 
 		for _, pod := range m.currentSnapshot.Kubernetes.Pods {
 			k8sSb.WriteString(fmt.Sprintf("  %-16s %-26s %-12s %-10d %-16s %s\n",

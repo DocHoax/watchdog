@@ -279,10 +279,10 @@ func (c *KubernetesCollector) collectEvents(ctx context.Context, summary *model.
 
 	var raw struct {
 		Items []struct {
-			Type    string `json:"type"`
-			Reason  string `json:"reason"`
-			Message string `json:"message"`
-			Count   int32  `json:"count"`
+			Type           string `json:"type"`
+			Reason         string `json:"reason"`
+			Message        string `json:"message"`
+			Count          int32  `json:"count"`
 			InvolvedObject struct {
 				Kind string `json:"kind"`
 				Name string `json:"name"`

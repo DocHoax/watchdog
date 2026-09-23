@@ -237,4 +237,3 @@ func KillProcess(pid int) error {
 	c := NewProcessCollector()
 	return c.KillProcess(int32(pid), os.Kill)
 }
-

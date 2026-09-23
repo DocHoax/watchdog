@@ -51,17 +51,17 @@ type K8sEvent struct {
 
 // K8sSummary represents cluster overview.
 type K8sSummary struct {
-	Available        bool            `json:"available" yaml:"available"`
-	ClusterName      string          `json:"cluster_name,omitempty" yaml:"cluster_name,omitempty"`
-	ServerVersion    string          `json:"server_version,omitempty" yaml:"server_version,omitempty"`
-	Nodes            []K8sNode       `json:"nodes" yaml:"nodes"`
-	Pods             []K8sPod        `json:"pods" yaml:"pods"`
-	Deployments      []K8sDeployment `json:"deployments" yaml:"deployments"`
-	RecentEvents     []K8sEvent      `json:"recent_events,omitempty" yaml:"recent_events,omitempty"`
-	TotalNodes       int             `json:"total_nodes" yaml:"total_nodes"`
-	ReadyNodes       int             `json:"ready_nodes" yaml:"ready_nodes"`
-	TotalPods        int             `json:"total_pods" yaml:"total_pods"`
-	RunningPods      int             `json:"running_pods" yaml:"running_pods"`
-	Error            string          `json:"error,omitempty" yaml:"error,omitempty"`
-	CollectedAt      time.Time       `json:"collected_at" yaml:"collected_at"`
+	Available     bool            `json:"available" yaml:"available"`
+	ClusterName   string          `json:"cluster_name,omitempty" yaml:"cluster_name,omitempty"`
+	ServerVersion string          `json:"server_version,omitempty" yaml:"server_version,omitempty"`
+	Nodes         []K8sNode       `json:"nodes" yaml:"nodes"`
+	Pods          []K8sPod        `json:"pods" yaml:"pods"`
+	Deployments   []K8sDeployment `json:"deployments" yaml:"deployments"`
+	RecentEvents  []K8sEvent      `json:"recent_events,omitempty" yaml:"recent_events,omitempty"`
+	TotalNodes    int             `json:"total_nodes" yaml:"total_nodes"`
+	ReadyNodes    int             `json:"ready_nodes" yaml:"ready_nodes"`
+	TotalPods     int             `json:"total_pods" yaml:"total_pods"`
+	RunningPods   int             `json:"running_pods" yaml:"running_pods"`
+	Error         string          `json:"error,omitempty" yaml:"error,omitempty"`
+	CollectedAt   time.Time       `json:"collected_at" yaml:"collected_at"`
 }

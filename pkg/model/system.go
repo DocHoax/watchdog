@@ -33,4 +33,3 @@ type SystemSnapshot struct {
 	Docker     *DockerSummary  `json:"docker,omitempty" yaml:"docker,omitempty"`
 	Kubernetes *K8sSummary     `json:"kubernetes,omitempty" yaml:"kubernetes,omitempty"`
 }
-

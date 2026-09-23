@@ -55,7 +55,7 @@ func (m Model) renderDiagnosticsView() string {
 
 	// Table Header
 	header := fmt.Sprintf("  %-8s %-16s %-26s %s", "STATUS", "CATEGORY", "CHECK NAME", "DESCRIPTION")
-	sb.WriteString(TableHeaderStyle.Width(m.width - 4).Render(header) + "\n")
+	sb.WriteString(TableHeaderStyle.Width(m.width-4).Render(header) + "\n")
 
 	// Diagnostic Check Rows
 	for i, check := range diag.Results {
@@ -68,7 +68,7 @@ func (m Model) renderDiagnosticsView() string {
 		)
 
 		if i == m.selectedDiagIdx {
-			sb.WriteString(TableRowSelectedStyle.Width(m.width - 4).Render(rowStr) + "\n")
+			sb.WriteString(TableRowSelectedStyle.Width(m.width-4).Render(rowStr) + "\n")
 		} else {
 			sb.WriteString(rowStr + "\n")
 		}

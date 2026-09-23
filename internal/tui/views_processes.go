@@ -33,12 +33,12 @@ func (m Model) renderProcessesView() string {
 		totalCount,
 		len(m.filteredProcs),
 	)
-	sb.WriteString(CardStyle.Width(m.width - 4).Render(filterBar) + "\n\n")
+	sb.WriteString(CardStyle.Width(m.width-4).Render(filterBar) + "\n\n")
 
 	// Table Header
 	header := fmt.Sprintf("  %-8s %-8s %-12s %-20s %-8s %-8s %-12s %-8s %s",
 		"PID", "PPID", "USER", "NAME", "CPU %", "MEM %", "RSS", "THREADS", "COMMAND")
-	sb.WriteString(TableHeaderStyle.Width(m.width - 4).Render(header) + "\n")
+	sb.WriteString(TableHeaderStyle.Width(m.width-4).Render(header) + "\n")
 
 	// Table Rows
 	if len(m.filteredProcs) == 0 {
@@ -71,7 +71,7 @@ func (m Model) renderProcessesView() string {
 				p.CPUPercent, p.MemoryPercent, FormatBytes(p.MemoryRSS), p.NumThreads, cmd)
 
 			if i == m.selectedProcIdx {
-				sb.WriteString(TableRowSelectedStyle.Width(m.width - 4).Render(rowStr) + "\n")
+				sb.WriteString(TableRowSelectedStyle.Width(m.width-4).Render(rowStr) + "\n")
 			} else {
 				sb.WriteString(rowStr + "\n")
 			}

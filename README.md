@@ -2,7 +2,7 @@
 
 > **Enterprise-Grade Cross-Platform System Health Monitoring, Diagnostics & Interactive TUI**
 
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.27.1+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)](https://github.com/watchdog-cli/watchdog)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 

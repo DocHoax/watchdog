@@ -94,16 +94,16 @@ func runDiagnose(cmd *cobra.Command, args []string) error {
 		report.OverallStatus = model.StatusPass
 		for _, r := range filtered {
 			switch r.Status {
-				case model.StatusPass:
-					report.PassedChecks++
-				case model.StatusWarning:
-					report.WarningChecks++
-					if report.OverallStatus != model.StatusFail {
-						report.OverallStatus = model.StatusWarning
-					}
-				case model.StatusFail:
-					report.CriticalChecks++
-					report.OverallStatus = model.StatusFail
+			case model.StatusPass:
+				report.PassedChecks++
+			case model.StatusWarning:
+				report.WarningChecks++
+				if report.OverallStatus != model.StatusFail {
+					report.OverallStatus = model.StatusWarning
+				}
+			case model.StatusFail:
+				report.CriticalChecks++
+				report.OverallStatus = model.StatusFail
 			}
 		}
 	}

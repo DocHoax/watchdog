@@ -129,7 +129,7 @@ func BenchmarkStorage_TimeRangeQuery100K(b *testing.B) {
 			idx := i + j
 			pts = append(pts, MetricPoint{
 				Timestamp: baseTime.Add(time.Duration(idx) * 10 * time.Second),
-				Metric:    fmt.Sprintf("metric_%d", (idx%5)),
+				Metric:    fmt.Sprintf("metric_%d", (idx % 5)),
 				Value:     float64(idx%100) + 0.5,
 				Hostname:  "bench-host",
 			})

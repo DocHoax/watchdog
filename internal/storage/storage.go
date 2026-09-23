@@ -18,18 +18,18 @@ type MetricPoint struct {
 
 // MetricAggregate represents aggregated statistics over a time window.
 type MetricAggregate struct {
-	Metric      string    `json:"metric"`
-	StartTime   time.Time `json:"start_time"`
-	EndTime     time.Time `json:"end_time"`
-	Count       int64     `json:"count"`
-	Min         float64   `json:"min"`
-	Max         float64   `json:"max"`
-	Avg         float64   `json:"avg"`
-	Sum         float64   `json:"sum"`
-	P50         float64   `json:"p50"`
-	P90         float64   `json:"p90"`
-	P99         float64   `json:"p99"`
-	StdDev      float64   `json:"std_dev"`
+	Metric    string    `json:"metric"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+	Count     int64     `json:"count"`
+	Min       float64   `json:"min"`
+	Max       float64   `json:"max"`
+	Avg       float64   `json:"avg"`
+	Sum       float64   `json:"sum"`
+	P50       float64   `json:"p50"`
+	P90       float64   `json:"p90"`
+	P99       float64   `json:"p99"`
+	StdDev    float64   `json:"std_dev"`
 }
 
 // TimeRangeQuery defines parameters for querying metric time-series.

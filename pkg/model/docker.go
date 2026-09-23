@@ -23,7 +23,7 @@ type DockerContainer struct {
 	ImageID      string          `json:"image_id" yaml:"image_id"`
 	Command      string          `json:"command" yaml:"command"`
 	Created      time.Time       `json:"created" yaml:"created"`
-	State        string          `json:"state" yaml:"state"` // running, exited, paused
+	State        string          `json:"state" yaml:"state"`   // running, exited, paused
 	Status       string          `json:"status" yaml:"status"` // "Up 2 hours"
 	Ports        []string        `json:"ports,omitempty" yaml:"ports,omitempty"`
 	RestartCount int             `json:"restart_count" yaml:"restart_count"`

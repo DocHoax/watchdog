@@ -11,7 +11,7 @@ func (m Model) renderAlertsView() string {
 	// Top Active Alerts Card
 	sb.WriteString(SubTitleStyle.Render("🚨 Active System Incidents & Alerts") + "\n")
 	if len(m.activeAlerts) == 0 {
-		sb.WriteString(CardStyle.Width(m.width - 4).Render(
+		sb.WriteString(CardStyle.Width(m.width-4).Render(
 			SuccessStyle.Render("✔ No active alert conditions detected. All metrics within nominal thresholds."),
 		) + "\n\n")
 	} else {
@@ -31,7 +31,7 @@ func (m Model) renderAlertsView() string {
 				a.FiredAt.Format("15:04:05"),
 			))
 		}
-		sb.WriteString(CardStyle.Width(m.width - 4).Render(alertsSb.String()) + "\n\n")
+		sb.WriteString(CardStyle.Width(m.width-4).Render(alertsSb.String()) + "\n\n")
 	}
 
 	// Statistical Anomaly Detection Section
