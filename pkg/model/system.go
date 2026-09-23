@@ -18,3 +18,19 @@ type SystemInfo struct {
 	HostID          string        `json:"host_id" yaml:"host_id"`
 	CollectedAt     time.Time     `json:"collected_at" yaml:"collected_at"`
 }
+
+// SystemSnapshot represents a complete point-in-time state of all system metrics.
+type SystemSnapshot struct {
+	Timestamp  time.Time       `json:"timestamp" yaml:"timestamp"`
+	System     *SystemInfo     `json:"system,omitempty" yaml:"system,omitempty"`
+	CPU        *CPUInfo        `json:"cpu,omitempty" yaml:"cpu,omitempty"`
+	Memory     *MemoryInfo     `json:"memory,omitempty" yaml:"memory,omitempty"`
+	Disk       *DiskInfo       `json:"disk,omitempty" yaml:"disk,omitempty"`
+	Network    *NetworkInfo    `json:"network,omitempty" yaml:"network,omitempty"`
+	Processes  *ProcessSummary `json:"processes,omitempty" yaml:"processes,omitempty"`
+	Services   []ServiceInfo   `json:"services,omitempty" yaml:"services,omitempty"`
+	Ports      []PortInfo      `json:"ports,omitempty" yaml:"ports,omitempty"`
+	Docker     *DockerSummary  `json:"docker,omitempty" yaml:"docker,omitempty"`
+	Kubernetes *K8sSummary     `json:"kubernetes,omitempty" yaml:"kubernetes,omitempty"`
+}
+
