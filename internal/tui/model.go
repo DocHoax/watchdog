@@ -56,7 +56,7 @@ type KillResultMsg struct {
 
 type Model struct {
 	cfg       *config.Config
-	collector *collector.Collector
+	collector *collector.Manager
 	storage   storage.Storage
 	diagEng   *diagnostics.Engine
 	alertEng  *alerts.Engine
@@ -115,7 +115,7 @@ type Model struct {
 
 func NewModel(
 	cfg *config.Config,
-	col *collector.Collector,
+	col *collector.Manager,
 	store storage.Storage,
 	diagEng *diagnostics.Engine,
 	alertEng *alerts.Engine,
@@ -151,10 +151,10 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) getTickInterval() time.Duration {
-	if m.cfg != nil && m.cfg.Collection.Interval > 0 {
-		return m.cfg.Collection.Interval
+	if m.cfg != nil && m.cfg.RefreshInterval > 0 {
+		return m.cfg.RefreshInterval
 	}
-	return 2 * time.Second
+	return 1 * time.Second
 }
 
 func tickCmd(d time.Duration) tea.Cmd {
@@ -168,7 +168,7 @@ func (m Model) fetchSnapshotCmd() tea.Cmd {
 		if m.collector == nil {
 			return nil
 		}
-		snap, err := m.collector.Collect(context.Background())
+		snap, err := m.collector.CollectAll(context.Background())
 		if err != nil {
 			return nil
 		}
@@ -181,7 +181,7 @@ func (m Model) runDiagnosticsCmd() tea.Cmd {
 		if m.diagEng == nil || m.collector == nil {
 			return nil
 		}
-		snap, _ := m.collector.Collect(context.Background())
+		snap, _ := m.collector.CollectAll(context.Background())
 		report := m.diagEng.Run(context.Background(), snap)
 		return DiagResultMsg(report)
 	}
@@ -208,20 +208,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Anomaly evaluation
 			if m.anomDet != nil {
-				m.anomalyReport = m.anomDet.Evaluate(msg)
+				m.anomalyReport = m.anomDet.FeedSnapshot(msg)
 			}
 
 			// Alert evaluation
 			if m.alertEng != nil {
-				activeAlerts, _ := m.alertEng.Evaluate(msg)
-				m.activeAlerts = activeAlerts
+				_, _, _ = m.alertEng.Evaluate(context.Background(), msg)
+				m.activeAlerts = m.alertEng.GetActiveAlerts()
 			}
 
 			// Ports
-			if m.collector != nil {
-				if ports, err := m.collector.CollectPorts(context.Background()); err == nil {
-					m.ports = ports
-				}
+			if msg.Ports != nil {
+				m.ports = msg.Ports
 			}
 		}
 
