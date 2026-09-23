@@ -30,19 +30,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Wait for server ready
-sleep 1
+# Wait for server ready and initial collection
 READY=0
-for i in $(seq 1 10); do
+for i in $(seq 1 15); do
     if curl -s -f "http://${HOST}:${PORT}/health" >/dev/null 2>&1; then
-        READY=1
-        break
+        if curl -s -f -H "Authorization: Bearer ${TOKEN}" "http://${HOST}:${PORT}/api/v1/snapshot" >/dev/null 2>&1; then
+            READY=1
+            break
+        fi
     fi
     sleep 0.5
 done
 
 if [ "$READY" -ne 1 ]; then
-    echo "❌ Failed to start Watchdog server within 5 seconds. Log dump:"
+    echo "❌ Failed to start Watchdog server within 8 seconds. Log dump:"
     cat "${LOG_FILE}"
     exit 1
 fi
