@@ -51,7 +51,7 @@ func runReport(cmd *cobra.Command, args []string) error {
 	var store storage.Storage
 	if cfg.Storage.Enabled {
 		var err error
-		store, err = storage.NewSQLiteStorage(cfg.Storage.DBPath)
+		store, err = storage.NewSQLiteStorage(storage.Config{Path: cfg.Storage.DBPath})
 		if err != nil {
 			logger.Warnf("Storage unavailable: %v", err)
 		} else {
@@ -60,8 +60,8 @@ func runReport(cmd *cobra.Command, args []string) error {
 	}
 
 	// 1. Metrics Snapshot
-	col := collector.NewManager(cfg)
-	snap, err := col.Collect(ctx)
+	col := collector.NewDefaultManager(cfg)
+	snap, err := col.CollectAll(ctx)
 	if err != nil {
 		logger.Warnf("Partial metrics collected: %v", err)
 	}
@@ -77,19 +77,12 @@ func runReport(cmd *cobra.Command, args []string) error {
 
 	// 3. Alerts
 	alertEngine := alerts.NewEngine(cfg, store)
-	activeAlerts := alertEngine.Evaluate(ctx, snap)
+	_, _, _ = alertEngine.Evaluate(ctx, snap)
+	activeAlerts := alertEngine.GetActiveAlerts()
 
 	// 4. Anomalies
-	anomDetector := anomaly.NewDetector(cfg)
-	var historySnaps []*model.SystemSnapshot
-	if store != nil && reportHistoryDur > 0 {
-		start := time.Now().Add(-reportHistoryDur)
-		historySnaps, _ = store.GetSnapshots(ctx, start, time.Now(), 500)
-		for _, s := range historySnaps {
-			anomDetector.FeedSnapshot(s)
-		}
-	}
-	anomReport := anomDetector.Detect(snap)
+	anomDetector := anomaly.NewDetector(&cfg.Anomaly)
+	anomReport := anomDetector.FeedSnapshot(snap)
 
 	// Build unified ReportData
 	title := reportTitle

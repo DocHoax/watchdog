@@ -61,7 +61,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 	var store storage.Storage
 	if cfg.Storage.Enabled {
 		var err error
-		store, err = storage.NewSQLiteStorage(cfg.Storage.DBPath)
+		store, err = storage.NewSQLiteStorage(storage.Config{Path: cfg.Storage.DBPath})
 		if err != nil {
 			logger.Warnf("Storage initialization warning: %v; running without persistent storage", err)
 		} else {
@@ -69,10 +69,10 @@ func runServer(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	col := collector.NewManager(cfg)
+	col := collector.NewDefaultManager(cfg)
 	diagEng := diagnostics.NewEngine(cfg)
 	alertEng := alerts.NewEngine(cfg, store)
-	anomDet := anomaly.NewDetector(cfg)
+	anomDet := anomaly.NewDetector(&cfg.Anomaly)
 
 	srv := server.NewServer(cfg, col, store, diagEng, alertEng, anomDet)
 
