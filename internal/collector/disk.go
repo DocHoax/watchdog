@@ -66,7 +66,7 @@ func (c *DiskCollector) GetDiskInfo(ctx context.Context) (*model.DiskInfo, error
 			Device:      p.Device,
 			Mountpoint:  p.Mountpoint,
 			FSType:      p.Fstype,
-			Opts:        p.Opts,
+			Opts:        strings.Join(p.Opts, ","),
 			TotalBytes:  u.Total,
 			UsedBytes:   u.Used,
 			FreeBytes:   u.Free,

@@ -8,6 +8,11 @@ import (
 	"github.com/watchdog-cli/watchdog/pkg/model"
 )
 
+// GetProcessTree retrieves the complete process hierarchy.
+func (c *ProcessCollector) GetProcessTree(ctx context.Context) ([]*model.ProcessInfo, error) {
+	return c.BuildProcessTree(ctx, "")
+}
+
 // BuildProcessTree constructs a tree hierarchy of processes.
 func (c *ProcessCollector) BuildProcessTree(ctx context.Context, filter string) ([]*model.ProcessInfo, error) {
 	summary, err := c.GetProcesses(ctx, 0, "pid", "")

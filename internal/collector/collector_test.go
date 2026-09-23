@@ -29,8 +29,8 @@ func TestSystemCollector(t *testing.T) {
 	if sys.OS == "" {
 		t.Errorf("expected non-empty OS")
 	}
-	if sys.Architecture == "" {
-		t.Errorf("expected non-empty Architecture")
+	if sys.KernelArch == "" {
+		t.Errorf("expected non-empty KernelArch")
 	}
 
 	res, err := c.Collect(ctx)
