@@ -143,7 +143,8 @@ func (b *BuiltinRulesEvaluator) Evaluate(snapshot *model.SystemSnapshot, cfg *co
 				})
 			}
 
-			if memThresh > 0 && p.MemoryPercent >= memThresh {
+			memPct := float64(p.MemoryPercent)
+			if memThresh > 0 && memPct >= memThresh {
 				ruleID := fmt.Sprintf("builtin-proc-mem-%d", p.PID)
 				results = append(results, EvaluatedAlert{
 					RuleID:      ruleID,
@@ -151,11 +152,11 @@ func (b *BuiltinRulesEvaluator) Evaluate(snapshot *model.SystemSnapshot, cfg *co
 					MetricName:  "process_mem_pct",
 					Severity:    model.SeverityWarning,
 					Triggered:   true,
-					ActualValue: p.MemoryPercent,
+					ActualValue: memPct,
 					Threshold:   memThresh,
 					Duration:    0,
 					Cooldown:    cfg.Alerts.Process.Cooldown,
-					Message:     fmt.Sprintf("Process '%s' (PID %d) is consuming %.1f%% RAM (threshold: %.1f%%)", p.Name, p.PID, p.MemoryPercent, memThresh),
+					Message:     fmt.Sprintf("Process '%s' (PID %d) is consuming %.1f%% RAM (threshold: %.1f%%)", p.Name, p.PID, memPct, memThresh),
 				})
 			}
 		}
@@ -165,8 +166,8 @@ func (b *BuiltinRulesEvaluator) Evaluate(snapshot *model.SystemSnapshot, cfg *co
 	if cfg.Alerts.Network.Enabled && snapshot.Network != nil {
 		thresh := cfg.Alerts.Network.Threshold
 		var totalErrors uint64
-		for _, iface := range snapshot.Network.Interfaces {
-			totalErrors += iface.ErrorsIn + iface.ErrorsOut + iface.DropIn + iface.DropOut
+		for _, io := range snapshot.Network.IOStats {
+			totalErrors += io.ErrIn + io.ErrOut + io.DropIn + io.DropOut
 		}
 
 		if totalErrors > uint64(thresh) {
