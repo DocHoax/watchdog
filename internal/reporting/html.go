@@ -13,10 +13,10 @@ import (
 
 // HTMLReportOptions configures HTML rendering parameters.
 type HTMLReportOptions struct {
-	Title           string
-	History         []*model.SystemSnapshot
-	IncludeCharts   bool
-	IncludeRawJSON  bool
+	Title          string
+	History        []*model.SystemSnapshot
+	IncludeCharts  bool
+	IncludeRawJSON bool
 }
 
 // GenerateHTML renders a standalone HTML dashboard report.
@@ -97,6 +97,7 @@ func GenerateHTML(data *model.ReportData, opts HTMLReportOptions) ([]byte, error
 
 	t, err := template.New("report").Funcs(template.FuncMap{
 		"formatBytes": formatBytes,
+		"formatRate":  func(f float64) string { return formatBytes(uint64(f)) },
 		"formatFloat": func(f float64) string { return fmt.Sprintf("%.1f", f) },
 		"formatDuration": func(d time.Duration) string {
 			days := int(d.Hours()) / 24
@@ -407,8 +408,8 @@ const htmlTemplate = `<!DOCTYPE html>
           <span class="card-title">Network I/O</span>
           <span>🌐 Throughput</span>
         </div>
-        <div class="card-value">{{formatBytes (uint64 .Data.Network.TotalRxRate)}}/s</div>
-        <div class="card-subtext">Rx Rate: {{formatBytes (uint64 .Data.Network.TotalRxRate)}}/s | Tx Rate: {{formatBytes (uint64 .Data.Network.TotalTxRate)}}/s</div>
+        <div class="card-value">{{formatRate .Data.Network.TotalRxRate}}/s</div>
+        <div class="card-subtext">Rx Rate: {{formatRate .Data.Network.TotalRxRate}}/s | Tx Rate: {{formatRate .Data.Network.TotalTxRate}}/s</div>
         <div class="card-subtext">Total Rx: {{formatBytes .Data.Network.TotalBytesRecv}} | Total Tx: {{formatBytes .Data.Network.TotalBytesSent}}</div>
         {{if .NetRxSparkline}}{{.NetRxSparkline}}{{end}}
       </div>
