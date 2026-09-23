@@ -75,16 +75,32 @@ func (d *Detector) getOrCreateStream(metric string) *MetricStream {
 func (d *Detector) Feed(metric string, value float64, ts time.Time) model.AnomalyScore {
 	stream := d.getOrCreateStream(metric)
 
+	if ts.IsZero() {
+		ts = time.Now()
+	}
+
+	// Handle non-finite float values (NaN, +Inf, -Inf) gracefully without corrupting internal state
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		mean := stream.window.Mean()
+		stdDev := stream.window.StdDev()
+		return model.AnomalyScore{
+			MetricName:   metric,
+			CurrentValue: value,
+			Mean:         mean,
+			StdDev:       stdDev,
+			EWMA:         stream.ewma.Value(),
+			DetectedAt:   ts,
+			Severity:     model.SeverityInfo,
+			Explanation:  "Ignored non-finite metric value (NaN/Inf)",
+		}
+	}
+
 	// Calculate prior statistics before adding new point (to prevent self-skewing baseline)
 	mean := stream.window.Mean()
 	stdDev := stream.window.StdDev()
 	count := stream.window.Count()
 	ewmaVal := stream.ewma.Update(value)
 	stream.window.Add(value)
-
-	if ts.IsZero() {
-		ts = time.Now()
-	}
 
 	score := model.AnomalyScore{
 		MetricName:   metric,
