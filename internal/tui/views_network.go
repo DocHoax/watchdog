@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"github.com/watchdog-cli/watchdog/pkg/model"
 )
 
 func (m Model) renderNetworkView() string {
@@ -13,6 +13,11 @@ func (m Model) renderNetworkView() string {
 	// Top Network Overview
 	if m.currentSnapshot != nil && m.currentSnapshot.Network != nil {
 		net := m.currentSnapshot.Network
+		ioMap := make(map[string]model.NetworkIOInfo)
+		for _, io := range net.IOStats {
+			ioMap[io.Name] = io
+		}
+
 		var ifaceSb strings.Builder
 		ifaceSb.WriteString(SubTitleStyle.Render("🌐 Active Network Interfaces & Throughput") + "\n")
 		ifaceSb.WriteString(MutedStyle.Render(fmt.Sprintf("  %-16s %-18s %-16s %-12s %-12s", "NAME", "IP ADDRESSES", "MAC", "RX RATE", "TX RATE")) + "\n")
@@ -20,12 +25,17 @@ func (m Model) renderNetworkView() string {
 
 		for _, iface := range net.Interfaces {
 			ips := strings.Join(iface.Addrs, ", ")
+			var rxRate, txRate float64
+			if io, ok := ioMap[iface.Name]; ok {
+				rxRate = io.RxRate
+				txRate = io.TxRate
+			}
 			ifaceSb.WriteString(fmt.Sprintf("  %-16s %-18s %-16s %-12s %-12s\n",
 				TruncateString(iface.Name, 14),
 				TruncateString(ips, 16),
 				TruncateString(iface.HardwareAddr, 14),
-				FormatRate(iface.RxRate),
-				FormatRate(iface.TxRate),
+				FormatRate(rxRate),
+				FormatRate(txRate),
 			))
 		}
 		sb.WriteString(CardStyle.Width(m.width - 4).Render(ifaceSb.String()) + "\n\n")
@@ -39,7 +49,7 @@ func (m Model) renderNetworkView() string {
 		))
 	} else {
 		var portsSb strings.Builder
-		header := fmt.Sprintf("  %-8s %-8s %-20s %-8s %-18s %s", "PORT", "PROTO", "INTERFACE / IP", "PID", "PROCESS", "SERVICE")
+		header := fmt.Sprintf("  %-8s %-8s %-20s %-12s %-8s %s", "PORT", "PROTO", "BIND ADDRESS", "STATE", "PID", "PROCESS")
 		portsSb.WriteString(TableHeaderStyle.Width(m.width - 8).Render(header) + "\n")
 
 		maxRows := m.height - 20
@@ -53,13 +63,13 @@ func (m Model) renderNetworkView() string {
 
 		for i := m.portScrollOff; i < end; i++ {
 			p := m.ports[i]
-			row := fmt.Sprintf("  %-8d %-8s %-20s %-8d %-18s %s",
+			row := fmt.Sprintf("  %-8d %-8s %-20s %-12s %-8d %s",
 				p.Port,
 				strings.ToUpper(p.Protocol),
-				TruncateString(p.Interface, 18),
+				TruncateString(p.BindAddress, 18),
+				TruncateString(p.State, 10),
 				p.PID,
-				TruncateString(p.ProcessName, 16),
-				TruncateString(p.Service, 20),
+				TruncateString(p.ProcessName, 24),
 			)
 
 			if i == m.selectedPortIdx {
