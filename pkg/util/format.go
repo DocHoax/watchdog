@@ -79,21 +79,18 @@ func RenderProgressBar(pct float64, width int) string {
 		pct = 100
 	}
 
-	filledLen := int((pct / 100.0) * float64(width))
-	if filledLen > width {
-		filledLen = width
-	}
+	filledLen := min(int((pct/100.0)*float64(width)), width)
 	emptyLen := width - filledLen
 
 	var sb strings.Builder
 	sb.WriteString("[")
-	for i := 0; i < filledLen; i++ {
+	for range filledLen {
 		sb.WriteString("■")
 	}
-	for i := 0; i < emptyLen; i++ {
+	for range emptyLen {
 		sb.WriteString(" ")
 	}
-	sb.WriteString(fmt.Sprintf("] %5.1f%%", pct))
+	fmt.Fprintf(&sb, "] %5.1f%%", pct)
 	return sb.String()
 }
 

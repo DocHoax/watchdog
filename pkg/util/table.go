@@ -56,7 +56,7 @@ func (t *TableWriter) Render(w io.Writer) {
 
 	// Print rows
 	for _, row := range t.rows {
-		for i := 0; i < colCount; i++ {
+		for i := range colCount {
 			val := ""
 			if i < len(row) {
 				val = row[i]
