@@ -53,11 +53,11 @@ func TestTUI_Helpers(t *testing.T) {
 
 	t.Run("Badges", func(t *testing.T) {
 		assert.NotEmpty(t, StatusBadge(model.StatusPass))
-		assert.NotEmpty(t, StatusBadge(model.StatusWarn))
+		assert.NotEmpty(t, StatusBadge(model.StatusWarning))
 		assert.NotEmpty(t, StatusBadge(model.StatusFail))
 		assert.NotEmpty(t, SeverityBadge(model.SeverityCritical))
-		assert.NotEmpty(t, SeverityBadge(model.SeverityHigh))
-		assert.NotEmpty(t, SeverityBadge(model.SeverityMedium))
+		assert.NotEmpty(t, SeverityBadge(model.SeverityWarning))
+		assert.NotEmpty(t, SeverityBadge(model.SeverityInfo))
 	})
 }
 
@@ -129,12 +129,12 @@ func TestTUI_SnapshotAndProcessManagement(t *testing.T) {
 
 	snap := &model.SystemSnapshot{
 		Timestamp: time.Now(),
-		System: &model.HostInfo{
+		System: &model.SystemInfo{
 			Hostname:        "test-node",
 			OS:              "linux",
 			Platform:        "ubuntu",
 			PlatformVersion: "22.04",
-			Uptime:          7200,
+			Uptime:          7200 * time.Second,
 			BootTime:        time.Now().Add(-2 * time.Hour),
 		},
 		CPU: &model.CPUInfo{
@@ -153,7 +153,7 @@ func TestTUI_SnapshotAndProcessManagement(t *testing.T) {
 			UsedBytes:  250 * 1024 * 1024 * 1024,
 			FreeBytes:  250 * 1024 * 1024 * 1024,
 			UsedPercent: 50.0,
-			IOCounters: []model.DiskIOInfo{
+			IOCounters: []model.DiskIOCounters{
 				{Name: "sda", ReadRate: 1024 * 1024, WriteRate: 2 * 1024 * 1024},
 			},
 		},
