@@ -18,15 +18,23 @@ func createBenchmarkTUIModel() Model {
 	var procs []model.ProcessInfo
 	for i := 1; i <= 100; i++ {
 		procs = append(procs, model.ProcessInfo{
-			PID:           i * 100,
+			PID:           int32(i * 100),
 			Name:          fmt.Sprintf("process_%d", i),
 			CPUPercent:    float64(i%20) + 0.5,
-			MemoryPercent: float64(i%15) + 0.2,
+			MemoryPercent: float32(i%15) + 0.2,
 			MemoryRSS:     uint64(i) * 10 * 1024 * 1024,
-			User:          "system",
-			State:         "R",
-			ThreadCount:   4,
+			Username:      "system",
+			Status:        "Running",
+			NumThreads:    4,
 			CommandLine:   fmt.Sprintf("/usr/bin/process_%d --config=/etc/conf.yaml", i),
+		})
+	}
+
+	var cores []model.CPUCoreInfo
+	for i := 0; i < 8; i++ {
+		cores = append(cores, model.CPUCoreInfo{
+			Index:    i,
+			UsagePct: 50.0 + float64(i*5),
 		})
 	}
 
@@ -41,7 +49,7 @@ func createBenchmarkTUIModel() Model {
 			OverallUsage:  58.5,
 			PhysicalCores: 8,
 			LogicalCores:  16,
-			CoreUsage:     []float64{50, 60, 70, 80, 55, 65, 45, 75},
+			Cores:         cores,
 			LoadAverage: model.LoadAvg{
 				Load1:  2.5,
 				Load5:  2.1,
