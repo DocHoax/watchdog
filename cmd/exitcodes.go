@@ -60,6 +60,7 @@ func WrapExitError(code int, err error) error {
 }
 
 // GetExitCode extracts the exit code from an error or returns ExitGeneralError (1) by default.
+// It also intelligently categorizes standard Cobra/pflag CLI usage errors as ExitUsageError (2).
 func GetExitCode(err error) int {
 	if err == nil {
 		return ExitSuccess
@@ -68,5 +69,21 @@ func GetExitCode(err error) int {
 	if errors.As(err, &exitErr) {
 		return exitErr.Code
 	}
+
+	msg := err.Error()
+	// Standard cobra and pflag error detection
+	if strings.Contains(msg, "unknown flag") ||
+		strings.Contains(msg, "unknown shorthand flag") ||
+		strings.Contains(msg, "flag needs an argument") ||
+		strings.Contains(msg, "invalid argument") ||
+		strings.Contains(msg, "unknown command") ||
+		strings.Contains(msg, "accepts ") ||
+		strings.Contains(msg, "requires at least") ||
+		strings.Contains(msg, "requires at most") ||
+		strings.Contains(msg, "exact ") ||
+		strings.Contains(msg, "only valid args") {
+		return ExitUsageError
+	}
+
 	return ExitGeneralError
 }
