@@ -162,3 +162,8 @@ func Debug(msg string, keyvals ...any) { defaultLogger.Debug(msg, keyvals...) }
 func Info(msg string, keyvals ...any)  { defaultLogger.Info(msg, keyvals...) }
 func Warn(msg string, keyvals ...any)  { defaultLogger.Warn(msg, keyvals...) }
 func Error(msg string, keyvals ...any) { defaultLogger.Error(msg, keyvals...) }
+
+func Debugf(format string, args ...any) { defaultLogger.Debug(fmt.Sprintf(format, args...)) }
+func Infof(format string, args ...any)  { defaultLogger.Info(fmt.Sprintf(format, args...)) }
+func Warnf(format string, args ...any)  { defaultLogger.Warn(fmt.Sprintf(format, args...)) }
+func Errorf(format string, args ...any) { defaultLogger.Error(fmt.Sprintf(format, args...)) }

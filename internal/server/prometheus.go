@@ -72,11 +72,11 @@ func (e *PrometheusExporter) RenderMetrics() string {
 		sb.WriteString("# TYPE watchdog_cpu_cores_logical gauge\n")
 		sb.WriteString(fmt.Sprintf("watchdog_cpu_cores_logical %d\n", snap.CPU.LogicalCores))
 
-		if len(snap.CPU.PerCoreUsage) > 0 {
+		if len(snap.CPU.Cores) > 0 {
 			sb.WriteString("# HELP watchdog_cpu_core_usage_percent Per-core CPU utilization percentage\n")
 			sb.WriteString("# TYPE watchdog_cpu_core_usage_percent gauge\n")
-			for i, u := range snap.CPU.PerCoreUsage {
-				sb.WriteString(fmt.Sprintf("watchdog_cpu_core_usage_percent{core=\"%d\"} %.2f\n", i, u))
+			for _, core := range snap.CPU.Cores {
+				sb.WriteString(fmt.Sprintf("watchdog_cpu_core_usage_percent{core=\"%d\"} %.2f\n", core.Index, core.UsagePct))
 			}
 		}
 
