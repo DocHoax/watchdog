@@ -337,7 +337,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "k":
 			if m.activeTab == TabProcesses && len(m.filteredProcs) > 0 && m.selectedProcIdx < len(m.filteredProcs) {
 				p := m.filteredProcs[m.selectedProcIdx]
-				m.confirmKillPID = p.PID
+				m.confirmKillPID = int(p.PID)
 				m.SetStatus(fmt.Sprintf("Press 'y' to terminate PID %d (%s), or 'n' to cancel", p.PID, p.Name), 10*time.Second)
 			}
 
