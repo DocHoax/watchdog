@@ -29,15 +29,27 @@ var (
 )
 
 var reportCmd = &cobra.Command{
-	Use:     "report",
+	Use:     "report [flags]",
 	Aliases: []string{"generate-report", "export-report"},
 	Short:   "Generate rich standalone diagnostic reports (HTML, JSON, CSV, Terminal)",
 	Long: `Generates comprehensive, multi-format system health and diagnostic reports.
-Supports:
-- Standalone self-contained HTML reports with dark theme and inline SVG sparkline graphs
-- Structured JSON output for downstream SIEM / automation pipelines
-- Time-series metric snapshots in CSV format
-- Full terminal ANSI formatted executive summaries`,
+
+Supported Formats:
+  - html     : Standalone self-contained HTML report with dark theme and inline SVG sparklines
+  - json     : Structured full snapshot + diagnostics + alerts + anomalies JSON payload
+  - csv      : Time-series tabular snapshot metrics in CSV format
+  - terminal : Formatted ANSI terminal summary with system breakdown tables`,
+	Example: `  # Generate a standalone HTML report with charts and save to file
+  watchdog report --format html --output /tmp/watchdog-report.html
+
+  # Generate a raw JSON report and pipe directly to stdout
+  watchdog report --format json --output -
+
+  # Generate CSV metrics from the last 2 hours of historical data
+  watchdog report --format csv --history 2h --output ./metrics.csv
+
+  # Generate a terminal text summary with a custom title
+  watchdog report --format terminal --title "Production Web-01 Health Audit"`,
 	RunE: runReport,
 }
 
@@ -114,7 +126,7 @@ func runReport(cmd *cobra.Command, args []string) error {
 		}
 		outputBytes, err = reporting.GenerateHTML(reportData, opts)
 		if err != nil {
-			return fmt.Errorf("failed to generate HTML report: %w", err)
+			return NewExitError(ExitGeneralError, "failed to generate HTML report: %w", err)
 		}
 		if reportOutput == "" {
 			reportOutput = "watchdog-report.html"
@@ -123,7 +135,7 @@ func runReport(cmd *cobra.Command, args []string) error {
 	case "json":
 		outputBytes, err = reporting.GenerateJSON(reportData)
 		if err != nil {
-			return fmt.Errorf("failed to generate JSON report: %w", err)
+			return NewExitError(ExitGeneralError, "failed to generate JSON report: %w", err)
 		}
 
 	case "csv":
@@ -133,7 +145,7 @@ func runReport(cmd *cobra.Command, args []string) error {
 		}
 		outputBytes, err = reporting.GenerateSnapshotsCSV(snapsToExport)
 		if err != nil {
-			return fmt.Errorf("failed to generate CSV report: %w", err)
+			return NewExitError(ExitGeneralError, "failed to generate CSV report: %w", err)
 		}
 		if reportOutput == "" {
 			reportOutput = "watchdog-metrics.csv"
@@ -144,7 +156,7 @@ func runReport(cmd *cobra.Command, args []string) error {
 		outputBytes = []byte(outputStr)
 
 	default:
-		return fmt.Errorf("unsupported report format %q; use html, json, csv, or terminal", reportFormat)
+		return NewExitError(ExitUsageError, "unsupported report format %q; use html, json, csv, or terminal", reportFormat)
 	}
 
 	// Output target
@@ -156,7 +168,7 @@ func runReport(cmd *cobra.Command, args []string) error {
 			_ = os.MkdirAll(dir, 0755)
 		}
 		if err := os.WriteFile(reportOutput, outputBytes, 0644); err != nil {
-			return fmt.Errorf("failed to write report to %s: %w", reportOutput, err)
+			return NewExitError(ExitGeneralError, "failed to write report to %s: %w", reportOutput, err)
 		}
 		logger.Infof("Report successfully written to: %s (%d bytes)", reportOutput, len(outputBytes))
 		fmt.Printf("✓ Report saved to %s\n", reportOutput)

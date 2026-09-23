@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,22 +21,37 @@ var (
 	diagFix      bool
 	diagJSON     bool
 	diagPlain    bool
+	diagOutput   string
 	diagTimeout  time.Duration
 )
 
 var diagnoseCmd = &cobra.Command{
-	Use:     "diagnose",
+	Use:     "diagnose [flags]",
 	Aliases: []string{"diag", "check", "doctor"},
 	Short:   "Execute automated system health diagnostics and checks",
-	Long: `Runs an extensive suite of concurrent system health checks evaluating:
-- CPU saturation and core run-queue load average
-- RAM utilization, paging pressure, and swap exhaustion
-- Disk partition space utilization and filesystem inode limits
-- Network connectivity, gateway reachability, and DNS resolution latency
-- Process table anomalies, zombie tasks, and runaway rogue processes
-- Container runtime health, crash-loops, and pod stability
+	Long: `Runs an extensive suite of 35 concurrent heuristic system health checks evaluating:
+  - CPU: Core saturation, run-queue load average spikes, throttling.
+  - Memory: RAM exhaustion, swap usage surges, excessive paging pressure.
+  - Storage: Partition capacity (>85%/95%), rapid growth rate, filesystem inode exhaustion.
+  - Network: Default gateway ping, external reachability, DNS query resolution latency.
+  - Processes: High CPU/RAM runaway processes, zombie tasks, thread exhaustion.
+  - Containers: Docker runtime daemon availability, container crash-loops, OOM kills.
 
-Optionally provides automated remediation recommendations or interactive fixes.`,
+Optionally outputs JSON for CI/CD assertions and provides automated remediation action steps.`,
+	Example: `  # Run full system diagnostics with formatted ANSI output
+  watchdog diagnose
+
+  # Run only Memory and Storage checks
+  watchdog diagnose --category Memory
+
+  # Output diagnostic evaluation as JSON to a file (useful in automation/CI)
+  watchdog diagnose --json --output /tmp/diag.json
+
+  # Run diagnostics and print actionable remediation steps
+  watchdog diagnose --fix
+
+  # Increase probe timeout to 20 seconds for slow networks
+  watchdog diagnose --timeout 20s`,
 	RunE: runDiagnose,
 }
 
@@ -57,7 +74,7 @@ func runDiagnose(cmd *cobra.Command, args []string) error {
 	diagEngine := diagnostics.NewEngine(cfg)
 	report, err := diagEngine.Run(ctx, snap)
 	if err != nil {
-		return fmt.Errorf("diagnostic execution failed: %w", err)
+		return NewExitError(ExitGeneralError, "diagnostic execution failed: %w", err)
 	}
 
 	// Filter by category if requested
@@ -77,16 +94,16 @@ func runDiagnose(cmd *cobra.Command, args []string) error {
 		report.OverallStatus = model.StatusPass
 		for _, r := range filtered {
 			switch r.Status {
-			case model.StatusPass:
-				report.PassedChecks++
-			case model.StatusWarning:
-				report.WarningChecks++
-				if report.OverallStatus != model.StatusFail {
-					report.OverallStatus = model.StatusWarning
-				}
-			case model.StatusFail:
-				report.CriticalChecks++
-				report.OverallStatus = model.StatusFail
+				case model.StatusPass:
+					report.PassedChecks++
+				case model.StatusWarning:
+					report.WarningChecks++
+					if report.OverallStatus != model.StatusFail {
+						report.OverallStatus = model.StatusWarning
+					}
+				case model.StatusFail:
+					report.CriticalChecks++
+					report.OverallStatus = model.StatusFail
 			}
 		}
 	}
@@ -95,9 +112,19 @@ func runDiagnose(cmd *cobra.Command, args []string) error {
 	if diagJSON {
 		data, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
-			return err
+			return NewExitError(ExitGeneralError, "failed to marshal JSON: %w", err)
 		}
-		fmt.Println(string(data))
+		if diagOutput != "" && diagOutput != "-" {
+			if dir := filepath.Dir(diagOutput); dir != "." && dir != "" {
+				_ = os.MkdirAll(dir, 0755)
+			}
+			if err := os.WriteFile(diagOutput, data, 0644); err != nil {
+				return NewExitError(ExitGeneralError, "failed to write output: %w", err)
+			}
+			fmt.Printf("✓ Diagnostic JSON saved to %s\n", diagOutput)
+		} else {
+			fmt.Println(string(data))
+		}
 	} else {
 		renderDiagnosticResults(report, diagPlain)
 	}
@@ -108,7 +135,7 @@ func runDiagnose(cmd *cobra.Command, args []string) error {
 	}
 
 	if report.OverallStatus == model.StatusFail {
-		return fmt.Errorf("system diagnostics detected %d critical issue(s)", report.CriticalChecks)
+		return NewExitError(ExitGeneralError, "system diagnostics detected %d critical issue(s)", report.CriticalChecks)
 	}
 
 	return nil
@@ -233,6 +260,7 @@ func init() {
 	diagnoseCmd.Flags().StringVarP(&diagCategory, "category", "C", "", "filter checks by category (CPU, Memory, Disk, Network, Process, Docker)")
 	diagnoseCmd.Flags().BoolVarP(&diagFix, "fix", "F", false, "display actionable remediation steps for detected issues")
 	diagnoseCmd.Flags().BoolVar(&diagJSON, "json", false, "output diagnostic results in JSON format")
+	diagnoseCmd.Flags().StringVarP(&diagOutput, "output", "o", "", "write diagnostic output to destination file")
 	diagnoseCmd.Flags().BoolVar(&diagPlain, "plain", false, "disable ANSI styling for plaintext output")
 	diagnoseCmd.Flags().DurationVarP(&diagTimeout, "timeout", "t", 10*time.Second, "maximum execution timeout for all diagnostic checks")
 
