@@ -146,7 +146,7 @@ func (e *PrometheusExporter) RenderMetrics() string {
 			sb.WriteString("# HELP watchdog_disk_partition_used_percent Disk partition usage percentage\n")
 			sb.WriteString("# TYPE watchdog_disk_partition_used_percent gauge\n")
 			for _, p := range snap.Disk.Partitions {
-				escapedMount := strings.ReplaceAll(p.MountPoint, "\\", "\\\\")
+				escapedMount := strings.ReplaceAll(p.Mountpoint, "\\", "\\\\")
 				sb.WriteString(fmt.Sprintf("watchdog_disk_partition_used_percent{mount=\"%s\",fstype=\"%s\"} %.2f\n",
 					escapedMount, p.FSType, p.UsedPercent))
 			}
@@ -215,7 +215,7 @@ func (e *PrometheusExporter) RenderMetrics() string {
 	if snap.Docker != nil {
 		sb.WriteString("# HELP watchdog_docker_containers_total Total Docker containers discovered\n")
 		sb.WriteString("# TYPE watchdog_docker_containers_total gauge\n")
-		sb.WriteString(fmt.Sprintf("watchdog_docker_containers_total %d\n", snap.Docker.TotalCount))
+		sb.WriteString(fmt.Sprintf("watchdog_docker_containers_total %d\n", snap.Docker.ContainersTotal))
 
 		sb.WriteString("# HELP watchdog_docker_containers_running Running Docker containers\n")
 		sb.WriteString("# TYPE watchdog_docker_containers_running gauge\n")

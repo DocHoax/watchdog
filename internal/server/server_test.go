@@ -85,10 +85,8 @@ func TestServer_APIEndpointsAndAuth(t *testing.T) {
 	srv := NewServer(cfg, nil, nil, nil, nil, nil)
 	srv.latestSnapshot = sampleSnapshot()
 	srv.latestDiag = &model.DiagnosticReport{
-		Summary: model.DiagnosticSummary{
-			TotalChecks: 5,
-			Passed:      5,
-		},
+		TotalChecks:  5,
+		PassedChecks: 5,
 	}
 	srv.activeAlerts = []model.AlertEvent{
 		{RuleName: "HighCPU", Severity: model.SeverityWarning},
