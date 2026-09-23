@@ -16,14 +16,31 @@ var (
 )
 
 var configCmd = &cobra.Command{
-	Use:   "config",
+	Use:   "config [command]",
 	Short: "Manage Watchdog configuration files and settings",
-	Long:  `Inspect, initialize, validate, or display the resolved Watchdog configuration file.`,
+	Long:  `Inspect, initialize, validate, or display resolved Watchdog configuration settings.`,
+	Example: `  # Print the active configuration in YAML format
+  watchdog config show
+
+  # Print the active configuration file path on disk
+  watchdog config path
+
+  # Initialize a new default config file in $HOME/.watchdog/config.yaml
+  watchdog config init
+
+  # Validate the current configuration file syntax and rule thresholds
+  watchdog config validate`,
 }
 
 var configShowCmd = &cobra.Command{
-	Use:   "show",
+	Use:   "show [flags]",
 	Short: "Display active configuration in YAML or JSON",
+	Long:  `Renders the loaded configuration structure with all resolved default values.`,
+	Example: `  # Display configuration in YAML format
+  watchdog config show
+
+  # Display configuration in JSON format
+  watchdog config show --json`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := globalCfg
 		if cfg == nil {
@@ -33,7 +50,7 @@ var configShowCmd = &cobra.Command{
 		if configShowJSON {
 			data, err := json.MarshalIndent(cfg, "", "  ")
 			if err != nil {
-				return fmt.Errorf("failed to format JSON: %w", err)
+				return NewExitError(ExitConfigError, "failed to format JSON: %w", err)
 			}
 			fmt.Println(string(data))
 			return nil
@@ -41,7 +58,7 @@ var configShowCmd = &cobra.Command{
 
 		data, err := yaml.Marshal(cfg)
 		if err != nil {
-			return fmt.Errorf("failed to format YAML: %w", err)
+			return NewExitError(ExitConfigError, "failed to format YAML: %w", err)
 		}
 		fmt.Println(string(data))
 		return nil
@@ -51,6 +68,9 @@ var configShowCmd = &cobra.Command{
 var configPathCmd = &cobra.Command{
 	Use:   "path",
 	Short: "Print the active configuration file path",
+	Long:  `Outputs the filesystem path of the loaded configuration file, or the default path if no file was loaded.`,
+	Example: `  # Print config path
+  watchdog config path`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if loadedPath != "" {
 			fmt.Println(loadedPath)
@@ -61,9 +81,14 @@ var configPathCmd = &cobra.Command{
 }
 
 var configInitCmd = &cobra.Command{
-	Use:   "init [path]",
+	Use:   "init [path] [flags]",
 	Short: "Generate a new default configuration file",
-	Long:  `Creates a well-documented default configuration file at $HOME/.watchdog/config.yaml or the specified path.`,
+	Long:  `Creates a well-documented default configuration file at $HOME/.watchdog/config.yaml or the specified target path.`,
+	Example: `  # Initialize configuration at default location (~/.watchdog/config.yaml)
+  watchdog config init
+
+  # Initialize at custom path with overwrite
+  watchdog config init /etc/watchdog/config.yaml --force`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dest := config.GetDefaultConfigPath()
 		if len(args) > 0 {
@@ -71,12 +96,12 @@ var configInitCmd = &cobra.Command{
 		}
 
 		if _, err := os.Stat(dest); err == nil && !configInitForce {
-			return fmt.Errorf("config file already exists at %s (use --force to overwrite)", dest)
+			return NewExitError(ExitUsageError, "config file already exists at %s (use --force to overwrite)", dest)
 		}
 
 		cfg := config.DefaultConfig()
 		if err := cfg.Save(dest); err != nil {
-			return fmt.Errorf("failed to write config file: %w", err)
+			return NewExitError(ExitGeneralError, "failed to write config file: %w", err)
 		}
 
 		fmt.Printf("✓ Successfully created default configuration at: %s\n", dest)
@@ -86,15 +111,21 @@ var configInitCmd = &cobra.Command{
 
 var configValidateCmd = &cobra.Command{
 	Use:   "validate",
-	Short: "Validate the current configuration file syntax and values",
+	Short: "Validate current configuration file syntax and values",
+	Long:  `Checks the configuration file for syntax errors, missing fields, and out-of-range thresholds.`,
+	Example: `  # Validate default configuration
+  watchdog config validate
+
+  # Validate specific configuration file
+  watchdog --config /etc/watchdog.yaml config validate`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := globalCfg
 		if cfg == nil {
-			return fmt.Errorf("no configuration loaded")
+			return NewExitError(ExitConfigError, "no configuration loaded")
 		}
 
 		if err := cfg.Validate(); err != nil {
-			return fmt.Errorf("configuration validation failed: %w", err)
+			return NewExitError(ExitConfigError, "configuration validation failed: %w", err)
 		}
 
 		fmt.Println("✓ Configuration is valid.")

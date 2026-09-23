@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	// Version is the current version of Watchdog.
+	// Version is the current semantic version of Watchdog.
 	Version = "1.0.0"
 	// Commit is the git commit hash at build time.
 	Commit = "dev"
@@ -33,9 +33,17 @@ type VersionInfo struct {
 }
 
 var versionCmd = &cobra.Command{
-	Use:   "version",
+	Use:   "version [flags]",
 	Short: "Print Watchdog version and build information",
-	Long:  `Displays version, git commit, build date, Go compiler version, and target platform.`,
+	Long:  `Displays semantic version number, git commit hash, build timestamp, Go runtime version, target architecture, and compiler.`,
+	Example: `  # Print human-readable version summary
+  watchdog version
+
+  # Print only the semantic version string (e.g. for scripts/CI)
+  watchdog version --short
+
+  # Print version details formatted as JSON
+  watchdog version --json`,
 	Run: func(cmd *cobra.Command, args []string) {
 		info := VersionInfo{
 			Version:   Version,
