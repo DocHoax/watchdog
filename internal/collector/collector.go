@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/watchdog-cli/watchdog/internal/config"
 	"github.com/watchdog-cli/watchdog/pkg/model"
 )
 
@@ -30,12 +31,50 @@ type Manager struct {
 	statuses   map[string]*Status
 }
 
-// NewManager creates a new collector manager.
+// NewManager creates a new empty collector manager.
 func NewManager() *Manager {
 	return &Manager{
 		collectors: make(map[string]Collector),
 		statuses:   make(map[string]*Status),
 	}
+}
+
+// NewDefaultManager creates a new collector manager populated with standard collectors based on configuration.
+func NewDefaultManager(cfg *config.Config) *Manager {
+	m := NewManager()
+
+	// Always register host system collector
+	m.Register(NewSystemCollector())
+
+	if cfg == nil || cfg.Collectors.CPU {
+		m.Register(NewCPUCollector())
+	}
+	if cfg == nil || cfg.Collectors.Memory {
+		m.Register(NewMemoryCollector())
+	}
+	if cfg == nil || cfg.Collectors.Disk {
+		m.Register(NewDiskCollector())
+	}
+	if cfg == nil || cfg.Collectors.Network {
+		m.Register(NewNetworkCollector())
+	}
+	if cfg == nil || cfg.Collectors.Process {
+		m.Register(NewProcessCollector())
+	}
+	if cfg == nil || cfg.Collectors.Service {
+		m.Register(NewServiceCollector())
+	}
+	if cfg == nil || cfg.Collectors.Port {
+		m.Register(NewPortCollector())
+	}
+	if cfg == nil || cfg.Collectors.Docker {
+		m.Register(NewDockerCollector())
+	}
+	if cfg != nil && cfg.Collectors.Kubernetes {
+		m.Register(NewKubernetesCollector())
+	}
+
+	return m
 }
 
 // Register adds a collector to the manager.
