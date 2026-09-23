@@ -60,11 +60,16 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	// Pre-seed anomaly detector from history if storage is available
 	if store != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		snaps, err := store.GetSnapshots(ctx, time.Now().Add(-2*time.Hour), time.Now(), 100)
+		pts, err := store.QueryMetrics(ctx, storage.TimeRangeQuery{
+			Metric:    "cpu_usage_pct",
+			StartTime: time.Now().Add(-2 * time.Hour),
+			EndTime:   time.Now(),
+			Limit:     100,
+		})
 		cancel()
 		if err == nil {
-			for _, s := range snaps {
-				anomDet.FeedSnapshot(s)
+			for _, p := range pts {
+				anomDet.Feed(p.Metric, p.Value, p.Timestamp)
 			}
 		}
 	}
