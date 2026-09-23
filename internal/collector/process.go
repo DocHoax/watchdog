@@ -231,3 +231,10 @@ func (c *ProcessCollector) KillProcess(pid int32, sig os.Signal) error {
 
 	return nil
 }
+
+// KillProcess is a convenience function to terminate a process by PID.
+func KillProcess(pid int) error {
+	c := NewProcessCollector()
+	return c.KillProcess(int32(pid), os.Kill)
+}
+
