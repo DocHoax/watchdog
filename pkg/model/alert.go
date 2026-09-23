@@ -2,6 +2,15 @@ package model
 
 import "time"
 
+// AlertStatus represents the state of an alert.
+type AlertStatus string
+
+const (
+	AlertStatusActive   AlertStatus = "ACTIVE"
+	AlertStatusResolved AlertStatus = "RESOLVED"
+	AlertStatusSilenced AlertStatus = "SILENCED"
+)
+
 // AlertRule defines conditions to trigger an alert.
 type AlertRule struct {
 	ID        string   `json:"id" yaml:"id"`
