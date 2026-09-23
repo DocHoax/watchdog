@@ -182,7 +182,7 @@ func (m Model) runDiagnosticsCmd() tea.Cmd {
 			return nil
 		}
 		snap, _ := m.collector.CollectAll(context.Background())
-		report := m.diagEng.Run(context.Background(), snap)
+		report, _ := m.diagEng.Run(context.Background(), snap)
 		return DiagResultMsg(report)
 	}
 }
