@@ -26,17 +26,30 @@ var (
 )
 
 var serverCmd = &cobra.Command{
-	Use:     "server",
+	Use:     "server [flags]",
 	Aliases: []string{"serve", "daemon"},
 	Short:   "Start the Watchdog HTTP REST API & Prometheus metrics server",
 	Long: `Launches the Watchdog headless background server daemon.
-Exposes:
-- GET /health               : Unauthenticated uptime & health status probe
-- GET /metrics              : Prometheus text format metrics exporter
-- GET /api/v1/snapshot      : Authenticated real-time full system snapshot JSON
-- GET /api/v1/diagnostics   : Authenticated on-demand automated diagnostic report JSON
-- GET /api/v1/alerts        : Authenticated active and historical alert events JSON
-- GET /api/v1/anomalies     : Authenticated statistical anomaly detection scores JSON`,
+
+Exposed Endpoints:
+  - GET /health               : Unauthenticated uptime & health status probe
+  - GET /metrics              : Prometheus text-format scrape exporter
+  - GET /api/v1/snapshot      : Authenticated real-time full system snapshot JSON
+  - GET /api/v1/diagnostics   : Authenticated on-demand automated diagnostic report JSON
+  - GET /api/v1/alerts        : Authenticated active and historical alert events JSON
+  - GET /api/v1/anomalies     : Authenticated statistical anomaly detection scores JSON
+  - GET /debug/pprof/*        : Runtime CPU/memory diagnostic profiling endpoints`,
+	Example: `  # Start the server listening on localhost:8443
+  watchdog server --port 8443 --host 127.0.0.1
+
+  # Start with Bearer token authentication required for API routes
+  watchdog server --port 8443 --token s3cr3t-t0k3n
+
+  # Run with TLS encryption using HTTPS certificates
+  watchdog server --port 8443 --tls-cert /etc/ssl/cert.pem --tls-key /etc/ssl/key.pem
+
+  # Run in background with JSON structured logging
+  watchdog server --json-logs --port 9090`,
 	RunE: runServer,
 }
 
@@ -97,7 +110,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 	fmt.Printf("📊 Prometheus metrics available at: http://%s:%d/metrics\n", cfg.Agent.BindAddress, cfg.Agent.Port)
 
 	if err := srv.Start(ctx); err != nil {
-		return fmt.Errorf("server error: %w", err)
+		return NewExitError(ExitNetworkError, "server error: %w", err)
 	}
 
 	logger.Infof("Server stopped cleanly.")

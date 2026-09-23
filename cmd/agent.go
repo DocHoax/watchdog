@@ -25,11 +25,27 @@ var (
 )
 
 var agentCmd = &cobra.Command{
-	Use:   "agent",
+	Use:   "agent [flags]",
 	Short: "Run Watchdog as a lightweight background monitoring agent",
 	Long: `Starts Watchdog in headless agent daemon mode for server nodes, containers, and Kubernetes pods.
-Periodically samples host health metrics, persists time-series history to local SQLite,
-evaluates temporal threshold alerts, trains online anomaly detection, and serves Prometheus metrics.`,
+
+Key Functions:
+  - Periodically samples host health metrics at the configured interval.
+  - Persists time-series history to local SQLite database in WAL mode.
+  - Continuously evaluates threshold alert rules and sends notifications.
+  - Continuously trains online statistical anomaly detection.
+  - Exposes HTTP REST API and Prometheus scrape exporter.`,
+	Example: `  # Start agent with default 2-second collection interval
+  watchdog agent
+
+  # Start agent with 5-second interval on port 9090
+  watchdog agent --interval 5s --port 9090
+
+  # Start agent secured with API bearer token
+  watchdog agent --port 8443 --token s3cr3t-t0k3n
+
+  # Run agent with structured JSON logging for container logs
+  watchdog agent --json-logs --quiet`,
 	RunE: runAgent,
 }
 
@@ -69,13 +85,16 @@ func runAgent(cmd *cobra.Command, args []string) error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		<-sigChan
-		logger.Infof("Agent received stop signal, exiting...")
+		sig := <-sigChan
+		logger.Infof("Agent received stop signal (%v), exiting...", sig)
 		cancel()
 	}()
 
 	fmt.Printf("🐺 Watchdog Agent active (interval: %v, port: %d)\n", cfg.RefreshInterval, cfg.Agent.Port)
-	return srv.Start(ctx)
+	if err := srv.Start(ctx); err != nil {
+		return NewExitError(ExitNetworkError, "agent server failed: %w", err)
+	}
+	return nil
 }
 
 func init() {
