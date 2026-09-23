@@ -21,6 +21,7 @@ type Detector struct {
 	mu              sync.RWMutex
 	cfg             *config.AnomalyConfig
 	streams         map[string]*MetricStream
+	windowSize      int
 	minSampleCount  int
 	zScoreThreshold float64
 	alpha           float64
@@ -47,6 +48,7 @@ func NewDetector(cfg *config.AnomalyConfig) *Detector {
 	return &Detector{
 		cfg:             cfg,
 		streams:         make(map[string]*MetricStream),
+		windowSize:      windowSize,
 		minSampleCount:  10, // Require minimum 10 samples before flagging anomalies
 		zScoreThreshold: zScoreThresh,
 		alpha:           alpha,
@@ -60,12 +62,8 @@ func (d *Detector) getOrCreateStream(metric string) *MetricStream {
 
 	stream, exists := d.streams[metric]
 	if !exists {
-		capSize := 60
-		if d.cfg != nil && d.cfg.WindowSize > 0 {
-			capSize = d.cfg.WindowSize
-		}
 		stream = &MetricStream{
-			window: NewRollingWindow(capSize),
+			window: NewRollingWindow(d.windowSize),
 			ewma:   NewEWMATracker(d.alpha),
 		}
 		d.streams[metric] = stream
