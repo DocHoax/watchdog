@@ -32,7 +32,8 @@ try {
                 $ready = $true
                 break
             }
-        } catch {
+        }
+        catch {
             Start-Sleep -Milliseconds 500
         }
     }
@@ -57,25 +58,37 @@ try {
         try {
             $null = Invoke-RestMethod -Uri "http://${HostAddress}:${Port}/health" -TimeoutSec 2
             $totalRequests++
-        } catch { $failedRequests++ }
+        }
+        catch {
+            $failedRequests++
+        }
 
         # Metrics
         try {
             $null = Invoke-WebRequest -Uri "http://${HostAddress}:${Port}/metrics" -TimeoutSec 2
             $totalRequests++
-        } catch { $failedRequests++ }
+        }
+        catch {
+            $failedRequests++
+        }
 
         # Protected Snapshot
         try {
             $null = Invoke-RestMethod -Uri "http://${HostAddress}:${Port}/api/v1/snapshot" -Headers $authHeader -TimeoutSec 2
             $totalRequests++
-        } catch { $failedRequests++ }
+        }
+        catch {
+            $failedRequests++
+        }
 
         # Protected Diagnostics
         try {
             $null = Invoke-RestMethod -Uri "http://${HostAddress}:${Port}/api/v1/diagnostics" -Headers $authHeader -TimeoutSec 2
             $totalRequests++
-        } catch { $failedRequests++ }
+        }
+        catch {
+            $failedRequests++
+        }
 
         Start-Sleep -Milliseconds 250
     }
