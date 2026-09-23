@@ -1,0 +1,2 @@
+timestamp,cpu_overall_usage,cpu_load1,cpu_load5,cpu_load15,memory_used_pct,memory_used_bytes,memory_total_bytes,swap_used_pct,disk_used_pct,disk_read_bytes_sec,disk_write_bytes_sec,net_rx_bytes_sec,net_tx_bytes_sec,processes_total,processes_zombies
+2026-09-23T22:39:44+01:00,98.80,0.00,0.00,0.00,91.00,7248465920,7955767296,30.50,90.48,0.00,0.00,0.00,0.00,304,0
