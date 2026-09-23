@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -134,7 +133,7 @@ func TestServer_APIEndpointsAndAuth(t *testing.T) {
 	diag, err := client.FetchDiagnostics(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, diag)
-	assert.Equal(t, 5, diag.Summary.TotalChecks)
+	assert.Equal(t, 5, diag.TotalChecks)
 
 	// 6. Alerts via Client
 	activeAlerts, err := client.FetchAlerts(context.Background())
