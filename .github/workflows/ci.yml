@@ -21,7 +21,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version: '1.22'
           check-latest: true
           cache: true
 
@@ -52,7 +52,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version: '1.22'
           cache: true
 
       - name: Run Tests with Coverage (Linux/macOS with -race)
@@ -89,7 +89,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version: '1.22'
           cache: true
 
       - name: Compile for ${{ matrix.target.os }}/${{ matrix.target.arch }}
