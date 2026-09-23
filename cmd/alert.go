@@ -80,10 +80,14 @@ func runAlertList(cmd *cobra.Command, args []string) error {
 	fmt.Printf("\n🚨 %d ACTIVE ALERT(S) FIRING:\n", len(active))
 	fmt.Println(strings.Repeat("-", 80))
 	for i, a := range active {
-		fmt.Printf("[%d] Rule: %s | Severity: %s | Status: %s\n", i+1, a.RuleName, a.Severity, a.Status)
-		fmt.Printf("    Metric : %s = %.2f (Threshold: %.2f)\n", a.Metric, a.MetricValue, a.Threshold)
+		statusStr := "ACTIVE"
+		if !a.IsActive {
+			statusStr = "RESOLVED"
+		}
+		fmt.Printf("[%d] Rule: %s | Severity: %s | Status: %s\n", i+1, a.RuleName, a.Severity, statusStr)
+		fmt.Printf("    Metric : %s = %.2f (Threshold: %.2f)\n", a.MetricName, a.ActualValue, a.Threshold)
 		fmt.Printf("    Message: %s\n", a.Message)
-		fmt.Printf("    Since  : %s (%s ago)\n\n", a.TriggeredAt.Format("2006-01-02 15:04:05"), time.Since(a.TriggeredAt).Truncate(time.Second))
+		fmt.Printf("    Since  : %s (%s ago)\n\n", a.FiredAt.Format("2006-01-02 15:04:05"), time.Since(a.FiredAt).Truncate(time.Second))
 	}
 
 	return nil
@@ -138,7 +142,7 @@ var alertHistoryCmd = &cobra.Command{
 				resolvedStr = fmt.Sprintf("Resolved (%s)", h.ResolvedAt.Format("15:04:05"))
 			}
 			fmt.Printf("%s | %-12s | %-8s | %-20s | %s\n",
-				h.TriggeredAt.Format("2006-01-02 15:04:05"),
+				h.FiredAt.Format("2006-01-02 15:04:05"),
 				h.RuleName,
 				h.Severity,
 				resolvedStr,
@@ -156,16 +160,16 @@ var alertTestCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("🔔 Dispatching synthetic test alert...")
 		testAlert := model.AlertEvent{
-			ID:           "test-" + time.Now().Format("20060102150405"),
-			RuleName:     "TestAlertRule",
-			Category:     "System",
-			Severity:     model.SeverityWarning,
-			Status:       model.AlertStatusFiring,
-			Metric:       "cpu_usage_pct",
-			MetricValue:  99.9,
-			Threshold:    90.0,
-			Message:      "Synthetic test alert generated via 'watchdog alert test'",
-			TriggeredAt:  time.Now(),
+			ID:          "test-" + time.Now().Format("20060102150405"),
+			RuleID:      "test-rule",
+			RuleName:    "TestAlertRule",
+			Severity:    model.SeverityWarning,
+			MetricName:  "cpu_usage_pct",
+			ActualValue: 99.9,
+			Threshold:   90.0,
+			Message:     "Synthetic test alert generated via 'watchdog alert test'",
+			FiredAt:     time.Now(),
+			IsActive:    true,
 		}
 
 		cfg := globalCfg
