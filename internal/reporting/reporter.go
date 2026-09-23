@@ -1,6 +1,7 @@
 package reporting
 
 import (
+	"sort"
 	"time"
 
 	"github.com/watchdog-cli/watchdog/pkg/model"
@@ -51,12 +52,17 @@ func BuildReportData(
 	if snap.Network != nil {
 		report.Network = *snap.Network
 	}
-	if snap.Processes != nil {
-		if len(snap.Processes.TopCPU) > 0 {
-			report.TopProcesses = snap.Processes.TopCPU
-		} else {
-			report.TopProcesses = snap.Processes.Processes
+	if snap.Processes != nil && len(snap.Processes.Processes) > 0 {
+		// Sort top processes by CPU descending
+		procsCopy := make([]model.ProcessInfo, len(snap.Processes.Processes))
+		copy(procsCopy, snap.Processes.Processes)
+		sort.Slice(procsCopy, func(i, j int) bool {
+			return procsCopy[i].CPUPercent > procsCopy[j].CPUPercent
+		})
+		if len(procsCopy) > 20 {
+			procsCopy = procsCopy[:20]
 		}
+		report.TopProcesses = procsCopy
 	}
 	if snap.Docker != nil {
 		report.Docker = snap.Docker

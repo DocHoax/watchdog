@@ -146,7 +146,7 @@ func GenerateAlertsCSV(alerts []model.AlertEvent) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	w := csv.NewWriter(buf)
 
-	header := []string{"id", "rule_id", "rule_name", "severity", "status", "metric_name", "actual_value", "threshold", "message", "fired_at", "resolved_at"}
+	header := []string{"id", "rule_id", "rule_name", "severity", "is_active", "metric_name", "actual_value", "threshold", "message", "fired_at", "resolved_at"}
 	if err := w.Write(header); err != nil {
 		return nil, err
 	}
@@ -157,12 +157,17 @@ func GenerateAlertsCSV(alerts []model.AlertEvent) ([]byte, error) {
 			resolvedAtStr = a.ResolvedAt.Format(time.RFC3339)
 		}
 
+		isActiveStr := "RESOLVED"
+		if a.IsActive {
+			isActiveStr = "ACTIVE"
+		}
+
 		row := []string{
-			fmt.Sprintf("%d", a.ID),
+			a.ID,
 			a.RuleID,
 			a.RuleName,
 			string(a.Severity),
-			string(a.Status),
+			isActiveStr,
 			a.MetricName,
 			fmt.Sprintf("%.2f", a.ActualValue),
 			fmt.Sprintf("%.2f", a.Threshold),
