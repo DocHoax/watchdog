@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  watchdog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: watchdog-cli/watchdog:latest
+    container_name: watchdog
+    restart: unless-stopped
+    pid: host
+    network_mode: host
+    environment:
+      - WATCHDOG_PROMETHEUS_PORT=9100
+      - WATCHDOG_PROMETHEUS_ENABLED=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - watchdog_data:/home/watchdog/.watchdog
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/watchdog", "diagnose", "--json"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  watchdog_data:
+    driver: local

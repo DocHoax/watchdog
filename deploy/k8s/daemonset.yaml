@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: watchdog-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: watchdog-agent
+  namespace: watchdog-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: watchdog-agent
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "nodes/metrics", "services", "endpoints", "pods", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets", "statefulsets", "deployments"]
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: watchdog-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: watchdog-agent
+subjects:
+  - kind: ServiceAccount
+    name: watchdog-agent
+    namespace: watchdog-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: watchdog
+  namespace: watchdog-system
+  labels:
+    app.kubernetes.io/name: watchdog
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: watchdog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: watchdog
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: watchdog-agent
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: watchdog
+          image: watchdog-cli/watchdog:latest
+          imagePullPolicy: IfNotPresent
+          args: ["serve", "--prometheus", "--port", "9100"]
+          ports:
+            - name: prometheus
+              containerPort: 9100
+              hostPort: 9100
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+            - name: var-run-docker
+              mountPath: /var/run/docker.sock
+              readOnly: true
+            - name: watchdog-storage
+              mountPath: /home/watchdog/.watchdog
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: var-run-docker
+          hostPath:
+            path: /var/run/docker.sock
+        - name: watchdog-storage
+          emptyDir: {}
