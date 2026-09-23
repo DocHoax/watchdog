@@ -24,7 +24,7 @@ func TestAnomaly_Scenario1_ConstantSeries(t *testing.T) {
 	metric := "cpu_constant"
 	val := 42.0
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		score := detector.Feed(metric, val, time.Now())
 		if i >= 10 { // After baseline establishment
 			assert.False(t, score.IsAnomaly, "constant series should never trigger anomaly at iteration %d", i)
@@ -47,7 +47,7 @@ func TestAnomaly_Scenario2_LinearRamp(t *testing.T) {
 	metric := "memory_ramp"
 
 	// Establish baseline around 100.0 with minor variance
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		detector.Feed(metric, 100.0+float64(i%3)*0.5, time.Now())
 	}
 
@@ -77,7 +77,7 @@ func TestAnomaly_Scenario3_StepJump(t *testing.T) {
 	metric := "disk_jump"
 
 	// Baseline at 50
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		v := 50.0 + float64(i%2)*0.2
 		detector.Feed(metric, v, time.Now())
 	}
@@ -101,7 +101,7 @@ func TestAnomaly_Scenario4_SingleSpikeAndRecovery(t *testing.T) {
 	metric := "network_spike"
 
 	// Baseline 10.0 ± 0.5
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		detector.Feed(metric, 10.0+float64(i%3)*0.5, time.Now())
 	}
 
@@ -110,7 +110,7 @@ func TestAnomaly_Scenario4_SingleSpikeAndRecovery(t *testing.T) {
 	assert.True(t, spike.IsAnomaly, "spike must be detected as anomaly")
 
 	// Return to baseline values
-	for i := 0; i < 15; i++ {
+	for i := range 15 {
 		detector.Feed(metric, 10.0+float64(i%3)*0.5, time.Now())
 	}
 
@@ -131,7 +131,7 @@ func TestAnomaly_Scenario5_PeriodicWave(t *testing.T) {
 	metric := "sine_wave"
 
 	// Sinusoidal wave between 40 and 60 (mean = 50, amplitude = 10)
-	for i := 0; i < 120; i++ {
+	for i := range 120 {
 		val := 50.0 + 10.0*math.Sin(float64(i)*2.0*math.Pi/20.0)
 		score := detector.Feed(metric, val, time.Now())
 		if i >= 40 {
@@ -153,7 +153,7 @@ func TestAnomaly_Scenario6_ZeroVariance(t *testing.T) {
 	metric := "zero_var"
 
 	// All zeros
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		score := detector.Feed(metric, 0.0, time.Now())
 		assert.False(t, math.IsNaN(score.Mean))
 		assert.False(t, math.IsNaN(score.StdDev))
@@ -174,7 +174,7 @@ func TestAnomaly_Scenario7_NegativeValues(t *testing.T) {
 	metric := "temp_negative"
 
 	// Baseline around -20.0
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		v := -20.0 + float64(i%3)*0.5
 		detector.Feed(metric, v, time.Now())
 	}
@@ -204,7 +204,7 @@ func TestAnomaly_Scenario8_HighVarianceNoise(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 	var falsePositives int
 
-	for i := 0; i < 150; i++ {
+	for i := range 150 {
 		// Normal distribution N(100, 15^2)
 		val := 100.0 + r.NormFloat64()*15.0
 		score := detector.Feed(metric, val, time.Now())
@@ -235,7 +235,7 @@ func TestAnomaly_Scenario9_EWMAResponse(t *testing.T) {
 	assert.InDelta(t, 136.0, val3, 1e-6)
 
 	// Continuous updates should asymptotically converge to 200
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		ewma.Update(200.0)
 	}
 	assert.InDelta(t, 200.0, ewma.Value(), 0.01)
@@ -253,7 +253,7 @@ func TestAnomaly_Scenario10_NaNAndInfHandling(t *testing.T) {
 	metric := "nan_test"
 
 	// Feed valid points
-	for i := 0; i < 15; i++ {
+	for i := range 15 {
 		detector.Feed(metric, 50.0+float64(i), time.Now())
 	}
 
