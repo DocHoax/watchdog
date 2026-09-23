@@ -56,8 +56,8 @@ func TestCPUCollector(t *testing.T) {
 		t.Fatalf("unexpected error collecting CPU info: %v", err)
 	}
 
-	if cpuInfo.CoresPhysical <= 0 && cpuInfo.CoresLogical <= 0 {
-		t.Errorf("expected positive core count, got phys=%d, log=%d", cpuInfo.CoresPhysical, cpuInfo.CoresLogical)
+	if cpuInfo.PhysicalCores <= 0 && cpuInfo.LogicalCores <= 0 {
+		t.Errorf("expected positive core count, got phys=%d, log=%d", cpuInfo.PhysicalCores, cpuInfo.LogicalCores)
 	}
 }
 

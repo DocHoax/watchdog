@@ -2,8 +2,6 @@ package collector
 
 import (
 	"context"
-
-	"github.com/watchdog-cli/watchdog/pkg/model"
 )
 
 // ServiceCollector gathers status of system services.
