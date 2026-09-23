@@ -21,16 +21,16 @@ func TestTUI_Helpers(t *testing.T) {
 
 	t.Run("FormatRate", func(t *testing.T) {
 		assert.Equal(t, "500 B/s", FormatRate(500))
-		assert.Equal(t, "1.0 KB/s", FormatRate(1000))
-		assert.Equal(t, "2.5 MB/s", FormatRate(2.5*1000*1000))
-		assert.Equal(t, "1.2 GB/s", FormatRate(1.2*1000*1000*1000))
+		assert.Equal(t, "1.0 KiB/s", FormatRate(1024))
+		assert.Equal(t, "2.0 MiB/s", FormatRate(2*1024*1024))
+		assert.Equal(t, "1.0 GiB/s", FormatRate(1024*1024*1024))
 	})
 
 	t.Run("FormatDuration", func(t *testing.T) {
 		assert.Equal(t, "45s", FormatDuration(45*time.Second))
 		assert.Equal(t, "12m 30s", FormatDuration(12*time.Minute+30*time.Second))
-		assert.Equal(t, "5h 15m", FormatDuration(5*time.Hour+15*time.Minute))
-		assert.Equal(t, "3d 4h", FormatDuration(76*time.Hour))
+		assert.Equal(t, "5h 15m 0s", FormatDuration(5*time.Hour+15*time.Minute))
+		assert.Equal(t, "3d 4h 0m", FormatDuration(76*time.Hour))
 	})
 
 	t.Run("TruncateString", func(t *testing.T) {
