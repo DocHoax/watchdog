@@ -25,7 +25,7 @@ The performance benchmarks were executed natively on the following test machine:
 |:---|:---|:---|:---|:---|:---|:---:|
 | **Collector Core Metrics** | < 500 allocs/op | **466 allocs/op** | 110,923,450 ns | 134,711 B | 466 | **PASS** |
 | **Collector Full Cycle** | < 10.0s cycle | **4.87s / cycle** | 4,875,632,300 ns | 21,229,360 B | 16,478 | **PASS** |
-| **Diagnostic Evaluation** | < 1.0s for 35 rules | **381.3 ms** | 381,347,967 ns | 12,330 B | 150 | **PASS** |
+| **Diagnostic Evaluation** | < 1.0s for 10 rules | **381.3 ms** | 381,347,967 ns | 12,330 B | 150 | **PASS** |
 | **Anomaly Stream (100 metrics)** | < 1.0 ms | **70.4 µs** (~704 ns/metric) | 70,439 ns | 5,605 B | 199 | **PASS** |
 | **Anomaly Snapshot Evaluation** | < 100 µs | **10.5 µs** (95,547 ops/sec) | 10,466 ns | 5,025 B | 27 | **PASS** |
 | **Alert Rule Evaluation** | < 50 µs | **1.98 µs** (505,561 ops/sec) | 1,978 ns | 736 B | 9 | **PASS** |
@@ -61,8 +61,8 @@ BenchmarkDiagnostics_EngineEvaluation-4   3     381347967 ns/op       12330 B/op
 ```
 
 - **Analysis**:
-  - The diagnostic engine concurrently evaluates 35 built-in diagnostic rules across CPU, memory, disk, network connectivity, DNS resolution, system services, and container health.
-  - Evaluation latency is dominated by real-world network probes (DNS lookup and ICMP/TCP ping checks), completing in **381.3 ms** across all 35 checks with only 150 allocations and 12.3 KB of memory consumed.
+  - The diagnostic engine concurrently evaluates 10 built-in diagnostic rules across CPU, memory, disk, network connectivity, DNS resolution, system services, and container health.
+  - Evaluation latency is dominated by real-world network probes (DNS lookup and ICMP/TCP ping checks), completing in **381.3 ms** across all 10 checks with only 150 allocations and 12.3 KB of memory consumed.
 
 ---
 
