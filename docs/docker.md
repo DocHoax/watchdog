@@ -75,6 +75,10 @@ The diagnostic engine continuously checks container stability:
 To monitor a host system from within a containerized Watchdog instance:
 
 ```bash
+# Build local container
+docker build -t watchdog:v1.0.0-rc.1 .
+
+# Run container with host metric access
 docker run -d \
   --name watchdog \
   --restart unless-stopped \
@@ -84,7 +88,7 @@ docker run -d \
   -v /sys:/host/sys:ro \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -v ~/.watchdog:/root/.watchdog \
-  watchdog-cli/watchdog:v1.0.0-rc.1 \
+  watchdog:v1.0.0-rc.1 \
   server --port 9100
 ```
 
