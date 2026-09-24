@@ -75,8 +75,8 @@ nfpms:
   - id: watchdog-packages
     package_name: watchdog
     vendor: "Watchdog CLI"
-    homepage: "https://github.com/watchdog-cli/watchdog"
-    maintainer: "Watchdog Core Team <core@watchdog-cli.dev>"
+    homepage: "https://github.com/DocHoax/watchdog"
+    maintainer: "Watchdog Contributors <https://github.com/DocHoax/watchdog>"
     description: "Enterprise-Grade System Monitoring & Diagnostics CLI"
     license: "MIT"
     formats:
