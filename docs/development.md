@@ -14,7 +14,7 @@ This document details the engineering guidelines, build toolchains, testing stan
 ### Clone & Dependencies
 ```bash
 # Clone the repository
-git clone https://github.com/watchdog-cli/watchdog.git
+git clone https://github.com/DocHoax/watchdog.git
 cd watchdog
 
 # Download and verify Go modules

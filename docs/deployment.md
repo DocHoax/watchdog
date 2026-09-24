@@ -10,12 +10,12 @@ Download the pre-compiled binary for your operating system and architecture from
 
 ```bash
 # Example for Linux AMD64
-curl -sSL https://github.com/watchdog-cli/watchdog/releases/latest/download/watchdog_Linux_x86_64.tar.gz | tar -xz
+curl -sSL https://github.com/DocHoax/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_linux_amd64.tar.gz | tar -xz
 sudo mv watchdog /usr/local/bin/
 sudo chmod +x /usr/local/bin/watchdog
 
 # Verify installation
-watchdog --version
+watchdog version
 ```
 
 ---
@@ -34,7 +34,7 @@ docker run -d \
   -v /proc:/host/proc:ro \
   -v /sys:/host/sys:ro \
   -v watchdog-data:/root/.watchdog \
-  watchdog-cli/watchdog:latest serve --prometheus --port 9100
+  watchdog:latest server --port 9100
 ```
 
 ---
@@ -51,7 +51,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/local/bin/watchdog serve --prometheus --port 9100
+ExecStart=/usr/local/bin/watchdog server --port 9100
 Restart=always
 RestartSec=5s
 LimitNOFILE=65536

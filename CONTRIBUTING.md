@@ -20,7 +20,7 @@ All contributors, maintainers, and community participants are expected to adhere
 ### Local Build and Testing
 ```bash
 # Clone the repository
-git clone https://github.com/watchdog-cli/watchdog.git
+git clone https://github.com/DocHoax/watchdog.git
 cd watchdog
 
 # Verify and download dependencies

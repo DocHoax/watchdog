@@ -16,7 +16,7 @@ Only the current major and minor release versions of Watchdog receive official s
 We take the security of Watchdog and its users seriously. If you believe you have discovered a security vulnerability in Watchdog, please report it responsibly:
 
 1. **Do NOT report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
-2. Report via private email to: **security@watchdog-cli.dev** or open a private [GitHub Security Advisory](https://github.com/watchdog-cli/watchdog/security/advisories/new).
+2. Report privately by opening a [GitHub Security Advisory](https://github.com/DocHoax/watchdog/security/advisories/new).
 3. Include the following details in your report:
    - Affected subsystem / package (e.g. `internal/server`, `internal/storage`, `cmd/dash`)
    - Nature of vulnerability (e.g. authentication bypass, path traversal, denial of service, injection)

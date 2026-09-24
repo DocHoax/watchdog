@@ -34,7 +34,7 @@ This Code of Conduct applies within all community spaces (GitHub repositories, i
 
 ## Reporting and Enforcement Guidelines
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leadership at **community@watchdog-cli.dev**. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported directly to the repository maintainers via GitHub private repository advisories or by contacting the project administrators at https://github.com/DocHoax/watchdog. All complaints will be reviewed and investigated promptly and fairly.
 
 Community leaders will follow these Community Impact Guidelines in determining the consequences for any action they deem in violation of this Code of Conduct:
 

@@ -2,9 +2,9 @@
 
 > **Enterprise-Grade, Cross-Platform System Observability, Automated Diagnostics & Real-Time Terminal Dashboard in Pure Go**
 
-[![Release](https://img.shields.io/badge/release-v1.0.0--rc.1-blue.svg?style=flat&logo=github)](https://github.com/watchdog-cli/watchdog/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.0--rc.1-blue.svg?style=flat&logo=github)](https://github.com/DocHoax/watchdog/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
-[![Zero CGO](https://img.shields.io/badge/CGO-disabled-success?style=flat)](https://github.com/watchdog-cli/watchdog)
+[![Zero CGO](https://img.shields.io/badge/CGO-disabled-success?style=flat)](https://github.com/DocHoax/watchdog)
 [![Platform Support](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat)](docs/platforms.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](LICENSE)
 
@@ -70,32 +70,62 @@ Watchdog is continuously verified across all major enterprise operating systems 
 ## 📦 Installation
 
 ### 1. Pre-Compiled Binary Releases
-Download official release candidate binaries from the [GitHub Releases](https://github.com/watchdog-cli/watchdog/releases) page:
+Download official release candidate archives for your operating system and architecture from the [GitHub Releases](https://github.com/DocHoax/watchdog/releases) page:
 
+#### Linux (AMD64 / ARM64)
 ```bash
-# Example: Linux AMD64
-curl -sSL https://github.com/watchdog-cli/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_linux_amd64.tar.gz | tar -xz
+# Download and extract binary
+curl -sSL https://github.com/DocHoax/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_linux_amd64.tar.gz | tar -xz
 sudo mv watchdog /usr/local/bin/
+sudo chmod +x /usr/local/bin/watchdog
 ```
 
-### 2. Install via Go Toolchain
+#### macOS (Apple Silicon / Intel)
 ```bash
-go install github.com/watchdog-cli/watchdog@v1.0.0-rc.1
+# macOS Apple Silicon (ARM64)
+curl -sSL https://github.com/DocHoax/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_darwin_arm64.tar.gz | tar -xz
+sudo mv watchdog /usr/local/bin/
+sudo chmod +x /usr/local/bin/watchdog
 ```
 
-### 3. Build from Source
+#### Windows (PowerShell)
+```powershell
+# Download and extract release archive
+Invoke-WebRequest -Uri "https://github.com/DocHoax/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_windows_amd64.zip" -OutFile "watchdog.zip"
+Expand-Archive -Path "watchdog.zip" -DestinationPath "$env:ProgramFiles\Watchdog" -Force
+$env:Path += ";$env:ProgramFiles\Watchdog"
+```
+
+#### Windows (Command Prompt / cmd.exe)
+```cmd
+curl.exe -L -o watchdog.zip "https://github.com/DocHoax/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_windows_amd64.zip"
+tar.exe -xf watchdog.zip
+watchdog.exe version
+```
+
+### 2. Build from Source
 ```bash
-git clone https://github.com/watchdog-cli/watchdog.git
+git clone https://github.com/DocHoax/watchdog.git
 cd watchdog
 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/watchdog .
 ./bin/watchdog version
 ```
 
+### 3. Local Go Install
+```bash
+# Clone and install binary directly to $GOPATH/bin
+git clone https://github.com/DocHoax/watchdog.git
+cd watchdog
+go install .
+```
+
 ### 4. Container Deployment
 ```bash
+# Build and run locally via Docker
+docker build -t watchdog:v1.0.0-rc.1 .
 docker run -it --rm --pid=host --net=host \
   -v /proc:/host/proc:ro -v /sys:/host/sys:ro \
-  watchdog-cli/watchdog:v1.0.0-rc.1 dash
+  watchdog:v1.0.0-rc.1 dash
 ```
 
 ---
