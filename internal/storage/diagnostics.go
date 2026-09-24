@@ -111,6 +111,9 @@ func (s *SQLiteStorage) GetDiagnosticHistory(ctx context.Context, limit int) ([]
 			GeneratedAt:    time.UnixMilli(ts),
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return reports, nil
 }

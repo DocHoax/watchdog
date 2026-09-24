@@ -51,11 +51,13 @@ func (m Model) renderDiagnosticsView() string {
 	)
 
 	summaryRow := lipgloss.JoinHorizontal(lipgloss.Top, statusCard, passedCard, warningCard, criticalCard)
-	sb.WriteString(summaryRow + "\n\n")
+	sb.WriteString(summaryRow)
+	sb.WriteString("\n\n")
 
 	// Table Header
 	header := fmt.Sprintf("  %-8s %-16s %-26s %s", "STATUS", "CATEGORY", "CHECK NAME", "DESCRIPTION")
-	sb.WriteString(TableHeaderStyle.Width(m.width-4).Render(header) + "\n")
+	sb.WriteString(TableHeaderStyle.Width(m.width - 4).Render(header))
+	sb.WriteString("\n")
 
 	// Diagnostic Check Rows
 	for i, check := range diag.Results {
@@ -68,9 +70,11 @@ func (m Model) renderDiagnosticsView() string {
 		)
 
 		if i == m.selectedDiagIdx {
-			sb.WriteString(TableRowSelectedStyle.Width(m.width-4).Render(rowStr) + "\n")
+			sb.WriteString(TableRowSelectedStyle.Width(m.width - 4).Render(rowStr))
+			sb.WriteString("\n")
 		} else {
-			sb.WriteString(rowStr + "\n")
+			sb.WriteString(rowStr)
+			sb.WriteString("\n")
 		}
 	}
 
@@ -78,7 +82,8 @@ func (m Model) renderDiagnosticsView() string {
 	if len(diag.Results) > 0 && m.selectedDiagIdx < len(diag.Results) {
 		selected := diag.Results[m.selectedDiagIdx]
 		inspector := m.renderDiagnosticDetail(selected)
-		sb.WriteString("\n" + CardStyle.Width(m.width-4).Render(inspector))
+		sb.WriteString("\n")
+		sb.WriteString(CardStyle.Width(m.width - 4).Render(inspector))
 	}
 
 	return sb.String()
