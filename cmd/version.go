@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -78,7 +79,7 @@ var versionCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("🐺 Watchdog v%s (%s)\n", info.Version, info.Commit)
+		fmt.Printf("🐺 Watchdog v%s (%s)\n", strings.TrimPrefix(info.Version, "v"), info.Commit)
 		fmt.Printf("   Build Date : %s\n", info.BuildDate)
 		if info.BuiltBy != "" {
 			fmt.Printf("   Built By   : %s\n", info.BuiltBy)
