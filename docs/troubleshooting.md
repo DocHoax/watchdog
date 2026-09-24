@@ -76,14 +76,11 @@ Watchdog returns strict, deterministic process exit codes to facilitate reliable
 
 ---
 
-### 6. Automated Diagnostic Remediation (`--fix`)
+### 6. Diagnostic Remediation Guidance (`--fix`)
 - **Symptom**: Diagnostic checks report `FAIL` or `WARN` for system health rules.
 - **Resolution**:
-  - Run the diagnostic engine with automated remediation:
+  - Run the diagnostic engine with actionable remediation advice displayed for each failing check:
     ```bash
     watchdog diagnose --fix
     ```
-  - Use `--dry-run` to preview remediation commands before execution:
-    ```bash
-    watchdog diagnose --fix --dry-run
-    ```
+  - Review the suggested remediation steps and run the recommended commands to resolve the bottleneck.
