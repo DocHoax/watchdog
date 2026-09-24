@@ -36,7 +36,7 @@ watchdog dash --theme nord
 │ │ Network RX: ▄▆█▇▅▃▂ ▄▆█▇▅▃             │  │ Network TX: ▂▄▆█▇▅▃▂ ▄▆█▇▅           │ │
 │ └─────────────────────────────────────────┘  └──────────────────────────────────────┘ │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
-│ Active Alerts: 0 firing | Diagnostics: 35/35 rules passing (HEALTHY)                  │
+│ Active Alerts: 0 firing | Diagnostics: 10/10 rules passing (HEALTHY)                  │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
 │ [Tab/1-6] Switch View  [j/k] Scroll  [/] Filter  [c/m/p] Sort  [k] Kill  [q] Quit     │
 └───────────────────────────────────────────────────────────────────────────────────────┘
@@ -76,7 +76,7 @@ watchdog dash --theme nord
 - **Kubernetes Pods**: Discovered pods, container statuses, restarts, node placement, and health states (`Running`, `CrashLoopBackOff`, `Pending`).
 
 ### Tab 6: Diagnostics & Alerts (`6`)
-- **Heuristic Rule Results**: Status badges (`PASS`, `WARN`, `CRIT`) for 35 system rules.
+- **Heuristic Rule Results**: Status badges (`PASS`, `WARN`, `CRIT`) for 10 system rules.
 - **Active Firing Alerts**: Threshold alerts with trigger duration and cooldown tracking.
 - **Anomaly Detection Stream**: Real-time statistical Z-score anomalies detected by the EWMA engine.
 - **Remediation Commands**: Direct terminal commands suggested to fix detected issues.
