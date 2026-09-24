@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -478,8 +479,12 @@ func (r *ProcessHealthRule) Evaluate(ctx context.Context, snapshot *model.System
 
 	zombieCount := snapshot.Processes.ZombieCount
 	var rogueProcs []string
+	currentPID := int32(os.Getpid())
 
 	for _, p := range snapshot.Processes.Processes {
+		if p.PID == currentPID {
+			continue // Exclude inspecting diagnostic process to avoid self-detection false positives
+		}
 		if p.CPUPercent >= 90.0 {
 			rogueProcs = append(rogueProcs, fmt.Sprintf("%s (PID %d: %.1f%% CPU)", p.Name, p.PID, p.CPUPercent))
 		}

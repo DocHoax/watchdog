@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -186,5 +187,60 @@ func (m *mockRule) Evaluate(ctx context.Context, snapshot *model.SystemSnapshot,
 		Status:      m.status,
 		Severity:    model.SeverityInfo,
 		Description: "Mock rule executed successfully",
+	}
+}
+
+func TestProcessHealthRule_ExcludesCurrentPID(t *testing.T) {
+	rule := &ProcessHealthRule{}
+	currentPID := int32(os.Getpid())
+
+	snapshot := &model.SystemSnapshot{
+		Timestamp: time.Now(),
+		Processes: &model.ProcessSummary{
+			TotalCount:  100,
+			ZombieCount: 0,
+			Processes: []model.ProcessInfo{
+				{
+					PID:        currentPID,
+					Name:       "watchdog.exe",
+					CPUPercent: 103.6,
+				},
+			},
+		},
+	}
+
+	res := rule.Evaluate(context.Background(), snapshot, config.DefaultConfig())
+	if res.Status != model.StatusPass {
+		t.Errorf("expected StatusPass when only current process has high CPU, got %s (desc: %s)", res.Status, res.Description)
+	}
+}
+
+func TestProcessHealthRule_DetectsOtherRogueProcess(t *testing.T) {
+	rule := &ProcessHealthRule{}
+	currentPID := int32(os.Getpid())
+
+	snapshot := &model.SystemSnapshot{
+		Timestamp: time.Now(),
+		Processes: &model.ProcessSummary{
+			TotalCount:  100,
+			ZombieCount: 0,
+			Processes: []model.ProcessInfo{
+				{
+					PID:        currentPID,
+					Name:       "watchdog.exe",
+					CPUPercent: 103.6,
+				},
+				{
+					PID:        currentPID + 9999,
+					Name:       "rogue_miner.exe",
+					CPUPercent: 95.5,
+				},
+			},
+		},
+	}
+
+	res := rule.Evaluate(context.Background(), snapshot, config.DefaultConfig())
+	if res.Status != model.StatusWarning {
+		t.Errorf("expected StatusWarning for external rogue process, got %s", res.Status)
 	}
 }
