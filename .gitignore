@@ -1,0 +1,29 @@
+# Binaries and build artifacts
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+coverage.txt
+profile.out
+
+# Database & runtime files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+watchdog.db
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
