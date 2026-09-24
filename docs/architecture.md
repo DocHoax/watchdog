@@ -27,7 +27,7 @@ The following block diagram illustrates the end-to-end data pipeline and concurr
          ▼                                 ▼                                 ▼
 ┌───────────────────┐             ┌───────────────────┐             ┌───────────────────┐
 │ Diagnostic Engine │             │  Alerting Engine  │             │  Anomaly Engine   │
-│ - 35 Heuristics   │             │ - Duration Window │             │ - EWMA Filter     │
+│ - 10 Heuristics   │             │ - Duration Window │             │ - EWMA Filter     │
 │ - Actionable Fix  │             │ - Cooldown Suppr. │             │ - Rolling Z-Score │
 │ - Severity Matrix │             │ - State Tracker   │             │ - Ring Buffer     │
 └────────┬──────────┘             └─────────┬─────────┘             └─────────┬─────────┘
@@ -65,8 +65,8 @@ The following block diagram illustrates the end-to-end data pipeline and concurr
 - **Automated Retention Worker**: Background pruning worker purges metric samples exceeding `retention_days` (default 7 days).
 
 ### 3. Diagnostic & Remediation Engine (`internal/diagnostics/`)
-- **Concurrent Rule Evaluation**: Evaluates 35 diagnostic heuristic rules across CPU, memory, disk I/O, inode saturation, DNS resolution, network sockets, process limits, and Docker containers.
-- **Actionable Remediation**: Generates platform-specific shell commands for automated or dry-run execution (`--fix`, `--dry-run`).
+- **Concurrent Rule Evaluation**: Evaluates 10 diagnostic heuristic rules across CPU, memory, swap, disk space, inode saturation, DNS resolution, network connectivity, process limits, and Docker containers.
+- **Actionable Remediation**: Formats and displays actionable diagnostic remediation advice (`--fix`).
 
 ### 4. Statistical Anomaly Detection Engine (`internal/anomaly/`)
 - **Rolling Ring Buffer**: Maintains a fixed $N=60$ sample circular buffer per metric stream.
