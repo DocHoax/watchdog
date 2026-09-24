@@ -65,8 +65,8 @@ Sample JSON schema structure:
   },
   "diagnostics": {
     "overall_status": "PASS",
-    "total_checks": 35,
-    "passed_checks": 35,
+    "total_checks": 10,
+    "passed_checks": 10,
     "warning_checks": 0,
     "critical_checks": 0
   },

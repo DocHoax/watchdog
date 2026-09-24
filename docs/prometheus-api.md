@@ -82,7 +82,7 @@ All REST API endpoints (except `/health`) require Bearer token authentication wh
 | `/api/v1/health` | `GET` | No | Health check alias |
 | `/metrics` | `GET` | No | Prometheus metric exposition |
 | `/api/v1/snapshot` | `GET` | **Bearer Token** | Complete raw host `SystemSnapshot` JSON payload |
-| `/api/v1/diagnostics` | `GET` | **Bearer Token** | Latest 35-rule diagnostic report |
+| `/api/v1/diagnostics` | `GET` | **Bearer Token** | Latest 10-rule diagnostic report |
 | `/api/v1/alerts` | `GET` | **Bearer Token** | Array of currently firing `AlertEvent` objects |
 | `/api/v1/anomalies` | `GET` | **Bearer Token** | Latest statistical anomaly score stream |
 
