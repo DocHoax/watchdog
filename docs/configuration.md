@@ -1,111 +1,178 @@
 # Watchdog Configuration Guide
 
-Watchdog loads its configuration hierarchically:
-1. Command-line flags (e.g., `--config <path>`)
-2. Local directory files (`./watchdog.yaml`, `./watchdog.yml`, `./.watchdog.yaml`)
-3. User home directory default (`~/.watchdog/config.yaml`)
-4. Built-in defaults
+Watchdog features a flexible, hierarchical configuration system loaded from YAML files, command-line arguments, or built-in defaults.
 
 ---
 
-## Full Configuration Reference (`watchdog.yaml`)
+## 🔍 Discovery & Precedence Order
+
+When starting up, Watchdog resolves configuration in the following order (highest to lowest priority):
+
+1. **Explicit CLI Flags** (e.g. `--config /etc/watchdog.yaml`, `--interval 500ms`)
+2. **Current Working Directory** (`./watchdog.yaml`, `./watchdog.yml`, `./.watchdog.yaml`)
+3. **User Home Directory** (`~/.watchdog/config.yaml`)
+4. **Compiled-in Production Defaults**
+
+---
+
+## 📄 Annotated `config.yaml` Reference
 
 ```yaml
-# Polling and refresh frequency for metrics
+# ==============================================================================
+# Watchdog Configuration File
+# Default path: ~/.watchdog/config.yaml
+# ==============================================================================
+
+# Global polling and refresh frequency for live terminal dashboard
 refresh_interval: 1s
 
-# Persistent SQLite metrics database
+# ------------------------------------------------------------------------------
+# Embedded Time-Series Storage Configuration
+# Pure Go SQLite engine (modernc.org/sqlite) in Write-Ahead Logging (WAL) mode
+# ------------------------------------------------------------------------------
 storage:
   enabled: true
-  db_path: "~/.watchdog/watchdog.db"
-  retention_days: 7
-  collection_interval: 10s
+  db_path: "~/.watchdog/watchdog.db" # Database file path on disk
+  retention_days: 7                 # Automatic data pruning retention window (in days)
+  collection_interval: 10s           # Metric sample write frequency to disk
 
-# Alert thresholds and trigger durations
+# ------------------------------------------------------------------------------
+# Threshold Alert Engine Configuration
+# Temporal rules with trigger duration tracking and hysteresis cooldowns
+# ------------------------------------------------------------------------------
 alerts:
   cpu:
     enabled: true
-    threshold: 90.0
-    duration: 30s
-    cooldown: 5m
+    threshold: 90.0                  # Aggregate CPU utilization percentage
+    duration: 30s                    # Sustained window required before firing
+    cooldown: 5m                     # Suppression cooldown after resolution
   memory:
     enabled: true
-    threshold: 85.0
+    threshold: 85.0                  # Physical RAM utilization percentage
     duration: 30s
     cooldown: 5m
   disk:
     enabled: true
-    threshold: 90.0
+    threshold: 90.0                  # Filesystem partition capacity percentage
     duration: 1m
     cooldown: 15m
   process:
     enabled: true
-    cpu_threshold: 80.0
-    memory_threshold: 70.0
+    cpu_threshold: 80.0              # Single-process CPU utilization percentage
+    memory_threshold: 70.0           # Single-process RAM percentage
     cooldown: 5m
   network:
     enabled: true
-    threshold: 100.0 # dropped or error packets
+    threshold: 100.0                 # Error / dropped packet counter threshold
     duration: 1m
     cooldown: 10m
 
-# Statistical anomaly detection
+# ------------------------------------------------------------------------------
+# Online Statistical Anomaly Detection
+# Real-time EWMA smoothing and rolling Z-score outlier detection
+# ------------------------------------------------------------------------------
 anomaly:
   enabled: true
-  z_score_threshold: 2.5
-  window_size: 60
-  alpha: 0.2
+  z_score_threshold: 2.5             # Number of standard deviations to trigger anomaly
+  window_size: 60                    # Rolling observation sample window size
+  alpha: 0.2                         # EWMA smoothing factor (0.0 < alpha <= 1.0)
 
-# Active metric collectors
+# ------------------------------------------------------------------------------
+# Subsystem Metric Collectors
+# Toggle individual hardware and OS collector modules
+# ------------------------------------------------------------------------------
 collectors:
-  cpu: true
-  memory: true
-  disk: true
-  network: true
-  process: true
-  service: true
-  port: true
-  docker: true
-  kubernetes: false
+  cpu: true                          # CPU usage, per-core metrics, load average
+  memory: true                       # RAM breakdown, swap utilization, memory paging
+  disk: true                         # Partition usage, read/write I/O throughput
+  network: true                      # Adapter throughput, packet counters, errors
+  process: true                      # Process list, thread counts, CPU/Mem rankings
+  service: true                      # systemd / Windows Services / launchd status
+  port: true                         # Open listening TCP/UDP sockets
+  docker: true                       # Docker container health, states, and limits
+  kubernetes: false                  # Kubernetes cluster node/pod diagnostics
 
-# Terminal UI Settings
+# ------------------------------------------------------------------------------
+# Interactive Terminal User Interface (TUI)
+# Bubble Tea and Lip Gloss presentation options
+# ------------------------------------------------------------------------------
 dashboard:
-  theme: "default" # "default", "monochrome", "nord", "solarized"
-  show_per_core_cpu: true
-  process_sort_by: "cpu" # "cpu", "memory", "pid", "name"
-  process_limit: 50
-  pause_on_start: false
+  theme: "default"                   # Options: default, dark, light, nord, monokai, solarized, dracula
+  show_per_core_cpu: true            # Display individual progress bars for each CPU core
+  process_sort_by: "cpu"             # Default process sort column: cpu, memory, pid, name
+  process_limit: 50                  # Maximum process rows rendered in table view
+  pause_on_start: false              # Launch dashboard in paused state
 
-# Prometheus Exporter
+# ------------------------------------------------------------------------------
+# Prometheus Metrics Exporter
+# Exposes OpenMetrics / Prometheus /metrics HTTP endpoint
+# ------------------------------------------------------------------------------
 prometheus:
-  enabled: false
-  port: 9100
-  path: "/metrics"
+  enabled: false                     # Enable background Prometheus exporter
+  port: 9100                         # Exporter listener TCP port
+  path: "/metrics"                   # Metric scraping endpoint URL path
 
-# Remote Agent Daemon
+# ------------------------------------------------------------------------------
+# Remote Agent Daemon Configuration
+# Secure telemetry streaming for multi-node monitoring
+# ------------------------------------------------------------------------------
 agent:
-  enabled: false
-  port: 8443
-  bind_address: "127.0.0.1" # Secure default (localhost only)
-  token: ""
-  tls_cert: ""
-  tls_key: ""
+  enabled: false                     # Enable remote agent listener
+  port: 8443                         # Remote agent TCP port
+  bind_address: "127.0.0.1"          # Secure default (use 0.0.0.0 for all interfaces)
+  token: ""                          # Mandatory Bearer token for authentication
+  tls_cert: ""                       # Optional path to TLS certificate PEM file
+  tls_key: ""                        # Optional path to TLS private key PEM file
 
-# Container & Orchestrator Discovery
+# ------------------------------------------------------------------------------
+# Container & Orchestration Discovery
+# ------------------------------------------------------------------------------
 docker:
-  enabled: true
-  host: "" # Defaults to unix:///var/run/docker.sock or npipe:////./pipe/docker_engine
+  enabled: true                      # Query Docker daemon
+  host: ""                           # Custom socket URL (defaults to platform socket)
+
 kubernetes:
-  enabled: false
-  kubeconfig: "" # Defaults to ~/.kube/config
-  namespace: ""
+  enabled: false                     # Query Kubernetes cluster
+  kubeconfig: ""                     # Path to kubeconfig (defaults to ~/.kube/config)
+  namespace: ""                      # Target namespace filter (empty for all)
 ```
 
 ---
 
-## Validation Rules
-- `refresh_interval`: Must be >= 100ms.
-- `storage.retention_days`: Must be >= 1.
-- `alerts.*.threshold`: Percentage values must be between 0.0 and 100.0.
-- `prometheus.port` and `agent.port`: Must be valid TCP ports (1-65535).
-- `agent.bind_address`: Defaults to loopback `127.0.0.1` to prevent unintended network exposure.
+## 🛡️ Validation Rules & Constraints
+
+Watchdog validates all configuration properties on startup or via `watchdog config validate`:
+
+| Setting | Constraint | Error Condition |
+| :--- | :--- | :--- |
+| `refresh_interval` | `>= 100ms` | Fails if refresh interval is too aggressive |
+| `storage.retention_days` | `>= 1` | Retention period must be at least 1 day |
+| `alerts.*.threshold` | `0.0 <= x <= 100.0` | Percentage thresholds must be bounded within 0–100% |
+| `anomaly.z_score_threshold` | `> 0.0` | Z-score threshold must be strictly positive |
+| `anomaly.alpha` | `0.0 < alpha <= 1.0` | EWMA alpha smoothing factor must be within `(0.0, 1.0]` |
+| `prometheus.port` | `1 <= port <= 65535` | Port must be a valid TCP port number |
+| `agent.port` | `1 <= port <= 65535` | Port must be a valid TCP port number |
+
+---
+
+## 🛠️ Configuration CLI Commands
+
+```bash
+# Generate a new default config file
+watchdog config init
+
+# Generate to a custom path (with overwrite flag)
+watchdog config init /etc/watchdog/config.yaml --force
+
+# Validate existing configuration
+watchdog config validate
+
+# Display loaded configuration in YAML
+watchdog config show
+
+# Display loaded configuration in JSON
+watchdog config show --json
+
+# Print the active configuration file path on disk
+watchdog config path
+```

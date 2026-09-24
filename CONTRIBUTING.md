@@ -6,54 +6,109 @@ Thank you for your interest in contributing to Watchdog! Watchdog is an enterpri
 
 ## Code of Conduct
 
-All contributors and maintainers are expected to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
+All contributors, maintainers, and community participants are expected to adhere to our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
 
 ## Development Setup
 
 ### Prerequisites
-- **Go 1.21+** (Go 1.22 recommended)
+- **Go 1.22+** (Go 1.22.x or later installed)
 - **Git**
-- **golangci-lint** (optional, recommended)
+- **golangci-lint** (optional, recommended for static analysis)
 
-### Getting Started
+### Local Build and Testing
 ```bash
-# Clone repository
+# Clone the repository
 git clone https://github.com/watchdog-cli/watchdog.git
 cd watchdog
 
-# Verify dependencies
+# Verify and download dependencies
 go mod download
 go mod verify
 
-# Run test suite
+# Run unit and race tests
 go test -v -race ./...
 
-# Build binary locally
-go build -o bin/watchdog .
+# Run static analysis
+go vet ./...
+
+# Build local binary
+go build -ldflags="-s -w" -o bin/watchdog .
+
+# Test the newly compiled binary
+./bin/watchdog version
 ```
 
 ---
 
-## Development Guidelines
+## Core Engineering Principles
 
-1. **Zero Cgo Policy**: Watchdog core must compile cleanly with `CGO_ENABLED=0` across Linux, macOS, and Windows.
-2. **Deterministic Exit Codes**: All CLI error pathways must map to the defined status codes in `cmd/exitcodes.go`.
-3. **Graceful Degradation**: Collectors and exporters must never crash or panic when hardware counters, OS APIs, or daemon sockets are unavailable or unprivileged.
-4. **Security by Default**:
-   - Never log sensitive tokens or secrets.
-   - Bind remote interfaces to `127.0.0.1` by default.
-   - Enforce authentication and TLS for all remote communications.
-5. **Code Style**:
-   - Run `gofmt -s -w .` before committing.
-   - Run `go vet ./...` to check for suspicious constructs.
+When contributing code to Watchdog, adhere to the following architecture rules:
+
+1. **Zero-CGO Policy**:
+   Watchdog must compile cleanly with `CGO_ENABLED=0` across Linux, macOS, and Windows. All embedded persistence (`modernc.org/sqlite`), TUI, and metric collectors must use pure Go and native platform APIs.
+
+2. **Deterministic Exit Codes**:
+   All CLI command errors must map to standard exit codes defined in `cmd/exitcodes.go`:
+   - `0`: Success / clean execution
+   - `1`: General runtime error / critical diagnostic failure / anomaly detected
+   - `2`: CLI argument / flag usage error
+   - `3`: Configuration parsing / validation error
+   - `4`: Authentication / authorization error
+   - `5`: Network / remote communication failure
+
+3. **Graceful Degradation**:
+   Metric collectors and remote probes must never panic or crash when run unprivileged or when external interfaces (Docker daemon, `/proc`, Windows WMI, Kubernetes API) are unavailable. Isolate errors and return partial metrics with clear diagnostic notices.
+
+4. **Secure by Default**:
+   - Remote HTTP daemon binds strictly to `127.0.0.1` by default.
+   - All REST API endpoints require Bearer token authentication evaluated with constant-time comparison (`crypto/subtle.ConstantTimeCompare`).
+   - Sensitive credentials, API keys, and environment tokens are masked in logs and reports.
+   - Non-destructive sampling: collectors perform read-only operations.
+
+5. **Performance & Resource Footprint**:
+   - Keep baseline idle overhead under 1% CPU utilization and 25 MB RSS memory footprint.
+   - Memory allocations in tight polling loops must be minimized.
 
 ---
 
 ## Submitting Pull Requests
 
-1. Fork the repository and create your feature branch: `git checkout -b feature/my-feature`.
-2. Commit your changes with clear, descriptive commit messages.
-3. Ensure all unit and integration tests pass: `go test -race ./...`.
-4. Open a Pull Request targeting the `main` branch.
+1. **Create an Issue**: For non-trivial features or architecture modifications, open a feature request or discussion before writing code.
+2. **Branching**: Branch from `main`:
+   ```bash
+   git checkout -b feature/your-feature-name
+   # or
+   git checkout -b fix/your-bug-name
+   ```
+3. **Coding Standards**:
+   - Format all Go source files: `gofmt -s -w .`
+   - Run `go vet ./...` and ensure zero warnings.
+   - Add unit tests for new logic under `internal/` or `cmd/`.
+4. **Commit Guidelines**: Write clear, descriptive commit messages summarizing the rationale and implementation.
+5. **Open Pull Request**: Fill out the [Pull Request Template](.github/pull_request_template.md) completely. Ensure CI checks pass.
+
+---
+
+## Repository Structure
+
+```
+watchdog/
+├── cmd/                # Cobra CLI commands, flags, and exit code routing
+├── internal/
+│   ├── alerts/         # Temporal threshold alerting and cooldown engine
+│   ├── anomaly/        # Statistical EWMA and rolling Z-score detection
+│   ├── collector/      # Cross-platform metric collection (OS, Docker, K8s)
+│   ├── config/         # YAML configuration parsing, defaults, and validation
+│   ├── diagnostics/    # Automated heuristic health rule evaluation
+│   ├── logger/         # Structured zero-allocation logger
+│   ├── reporting/      # HTML5, CSV, and JSON report generator
+│   ├── server/         # Prometheus /metrics exporter and REST API daemon
+│   ├── storage/        # Embedded zero-Cgo SQLite time-series database
+│   └── tui/            # Interactive Bubble Tea / Lipgloss terminal UI
+├── pkg/
+│   └── model/          # Shared metric models, snapshots, and interfaces
+├── docs/               # Comprehensive technical documentation suite
+└── main.go             # Application entrypoint
+```
