@@ -30,7 +30,7 @@ automated diagnostics, statistical anomaly detection, SQLite storage engine, and
 
 Key Capabilities:
   - Interactive Terminal Dashboard: Multi-tab real-time CPU/RAM/Disk/Net/Process/Docker TUI.
-  - Automated Health Diagnostics: 35 concurrent heuristic rules with remediation advice.
+  - Automated Health Diagnostics: Concurrent heuristic rules with remediation advice.
   - Statistical Anomaly Detection: Real-time Z-score & EWMA anomaly scoring without ML dependencies.
   - Standalone Multi-Format Reports: Rich self-contained HTML (with inline charts), JSON, and CSV.
   - Headless Daemon & Prometheus: Production-ready HTTP REST API and Prometheus metrics exporter.`,

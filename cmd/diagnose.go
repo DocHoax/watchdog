@@ -29,7 +29,7 @@ var diagnoseCmd = &cobra.Command{
 	Use:     "diagnose [flags]",
 	Aliases: []string{"diag", "check", "doctor"},
 	Short:   "Execute automated system health diagnostics and checks",
-	Long: `Runs an extensive suite of 35 concurrent heuristic system health checks evaluating:
+	Long: `Runs an extensive suite of concurrent heuristic system health checks evaluating:
   - CPU: Core saturation, run-queue load average spikes, throttling.
   - Memory: RAM exhaustion, swap usage surges, excessive paging pressure.
   - Storage: Partition capacity (>85%/95%), rapid growth rate, filesystem inode exhaustion.
