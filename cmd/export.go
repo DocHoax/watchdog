@@ -1,4 +1,4 @@
-﻿package cmd
+package cmd
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/DocHoax/watchdog/internal/collector"
 	"github.com/DocHoax/watchdog/internal/reporting"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
+	"github.com/spf13/cobra"
 )
 
 var (

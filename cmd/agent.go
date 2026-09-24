@@ -1,4 +1,4 @@
-﻿package cmd
+package cmd
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/DocHoax/watchdog/internal/alerts"
 	"github.com/DocHoax/watchdog/internal/anomaly"
 	"github.com/DocHoax/watchdog/internal/collector"
@@ -16,6 +15,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/server"
 	"github.com/DocHoax/watchdog/internal/storage"
+	"github.com/spf13/cobra"
 )
 
 var (

@@ -1,4 +1,4 @@
-﻿package anomaly
+package anomaly
 
 import (
 	"fmt"

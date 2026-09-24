@@ -1,4 +1,4 @@
-﻿package collector
+package collector
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/DocHoax/watchdog/pkg/model"
+	"github.com/shirou/gopsutil/v4/disk"
 )
 
 // DiskCollector gathers partition usage and disk I/O metrics.

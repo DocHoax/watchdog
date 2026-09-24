@@ -1,4 +1,4 @@
-﻿package server
+package server
 
 import (
 	"bytes"
@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/DocHoax/watchdog/internal/config"
 	"github.com/DocHoax/watchdog/pkg/model"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupTestServerWithAuth(token string) (*Server, *httptest.Server) {

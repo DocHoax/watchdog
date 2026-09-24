@@ -1,15 +1,15 @@
-﻿package alerts
+package alerts
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/DocHoax/watchdog/internal/config"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Scenario 1: OK → ALERTING: threshold crossed, fires after duration

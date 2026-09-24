@@ -1,12 +1,12 @@
-﻿package tui
+package tui
 
 import (
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/DocHoax/watchdog/pkg/model"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // RenderProgressBar renders an ASCII/Unicode progress bar with custom colors.

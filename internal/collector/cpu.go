@@ -1,4 +1,4 @@
-﻿package collector
+package collector
 
 import (
 	"context"
@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DocHoax/watchdog/pkg/model"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/load"
 	"github.com/shirou/gopsutil/v4/sensors"
-	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // CPUCollector collects CPU metrics across cores.

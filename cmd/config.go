@@ -1,12 +1,12 @@
-﻿package cmd
+package cmd
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
 

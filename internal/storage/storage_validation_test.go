@@ -1,4 +1,4 @@
-﻿package storage
+package storage
 
 import (
 	"context"
@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DocHoax/watchdog/pkg/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // Scenario 1: WAL mode verification: check PRAGMA journal_mode

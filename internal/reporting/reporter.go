@@ -1,4 +1,4 @@
-﻿package reporting
+package reporting
 
 import (
 	"sort"

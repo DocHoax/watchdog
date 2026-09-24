@@ -1,4 +1,4 @@
-﻿package storage
+package storage
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/DocHoax/watchdog/pkg/model"
+	"github.com/google/uuid"
 )
 
 // SaveDiagnosticReport writes a diagnostic report to the database.

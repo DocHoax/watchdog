@@ -1,4 +1,4 @@
-﻿package tui
+package tui
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/DocHoax/watchdog/internal/alerts"
 	"github.com/DocHoax/watchdog/internal/anomaly"
 	"github.com/DocHoax/watchdog/internal/collector"
@@ -16,6 +14,8 @@ import (
 	"github.com/DocHoax/watchdog/internal/diagnostics"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Tab int
