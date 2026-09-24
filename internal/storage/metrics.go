@@ -194,11 +194,13 @@ func (s *SQLiteStorage) QueryMetrics(ctx context.Context, q TimeRangeQuery) ([]M
 		WHERE metric = ? AND timestamp >= ? AND timestamp <= ?
 		ORDER BY timestamp ASC
 	`
+	args := []any{q.Metric, startMs, endMs}
 	if q.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT %d", q.Limit)
+		query += " LIMIT ?"
+		args = append(args, q.Limit)
 	}
 
-	rows, err := s.db.QueryContext(ctx, query, q.Metric, startMs, endMs)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
