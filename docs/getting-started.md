@@ -25,7 +25,7 @@ This launches the full-screen terminal user interface (TUI) showing real-time CP
 ```bash
 ./watchdog diagnose --fix
 ```
-Watchdog inspects 35 system health rules (CPU saturation, memory paging, disk inode capacity, socket exhaustions, DNS latency, zombie processes) and prints actionable remediation advice for any detected warning or critical condition.
+Watchdog inspects 10 system health rules (CPU saturation, memory paging, disk inode capacity, socket exhaustions, DNS latency, zombie processes, container health) and prints actionable remediation advice for any detected warning or critical condition.
 
 ---
 
