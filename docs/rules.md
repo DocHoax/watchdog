@@ -8,16 +8,16 @@ Watchdog includes a built-in diagnostic rule engine that runs automated health c
 
 | Rule ID | Subsystem | Severity | Description | Remediation Advice |
 | :--- | :--- | :--- | :--- | :--- |
-| `CPU_HIGH_LOAD` | CPU | CRITICAL / WARNING | Overall CPU utilization exceeding 90% (CRITICAL) or 80% (WARNING) | Identify top CPU-consuming processes using `watchdog top` or `ps aux --sort=-%cpu`. Consider process reprioritization with `renice` or horizontal scaling. |
-| `MEM_SATURATION` | Memory | CRITICAL / WARNING | Available system memory < 10% (CRITICAL) or < 20% (WARNING) | Check for memory leaks in long-running services. Inspect top memory consumers and review swap thrashing. |
-| `SWAP_THRASH` | Memory | WARNING | Swap utilization > 50% with sustained active paging | System is under heavy memory pressure. Increase physical RAM or tune `vm.swappiness`. |
-| `DISK_SPACE_CRIT` | Disk | CRITICAL / WARNING | Root or data mount filesystem utilization > 95% (CRITICAL) or > 85% (WARNING) | Clean up stale log files (`/var/log`), prune container caches (`docker system prune`), or expand disk volumes. |
-| `DISK_IO_STALL` | Disk | WARNING | High disk queue latency and read/write I/O saturation | Identify I/O heavy processes using `iotop` or `watchdog diagnose --verbose`. Review storage IOPS limits. |
-| `NET_PACKET_LOSS` | Network | WARNING | Interface error or drop rate > 1% of total transmitted packets | Check network cabling, interface MTU configuration, or upstream router/switch buffer congestion. |
-| `PROC_ZOMBIE_LEAK` | Process | WARNING | Presence of defunct/zombie processes > 5 | Parent processes are failing to reap child processes with `waitpid()`. Inspect parent PID and restart service. |
-| `DNS_LATENCY_SLOW`| Network | WARNING | DNS resolution latency exceeding 250ms | Verify local `/etc/resolv.conf` nameservers, local DNS cache service (systemd-resolved/dnsmasq), and upstream latency. |
-| `DOCKER_CRASH_LOOP`| Docker | CRITICAL / WARNING | One or more containers restarting repeatedly or exited with non-zero status | Inspect container logs via `docker logs <container_id>`. Verify health check endpoints and resource limits. |
-| `K8S_POD_UNHEALTHY`| Kubernetes | CRITICAL / WARNING | Pods in `CrashLoopBackOff`, `ImagePullBackOff`, or `Pending` state | Check pod events via `kubectl describe pod <pod_name>` and examine container logs. |
+| `cpu-utilization` | CPU | CRITICAL / WARNING | Overall CPU utilization exceeding 90% (CRITICAL) or 75% (WARNING) | Identify top CPU-consuming processes using `watchdog dash` or sort by CPU (`c`). Scale or terminate rogue tasks. |
+| `cpu-load-average` | CPU | CRITICAL / WARNING | System load average exceeding 2.5x logical cores (CRITICAL) or 1.5x logical cores (WARNING) | Check I/O wait times, lock contention, or thread pool exhaustion. |
+| `memory-utilization` | Memory | CRITICAL / WARNING | RAM utilization exceeding 92% (CRITICAL) or 80% (WARNING) | Inspect high-memory processes with `watchdog top --sort memory` or increase host RAM. |
+| `swap-utilization` | Memory | CRITICAL / WARNING | Swap utilization exceeding 80% (CRITICAL) or 50% (WARNING) | Free physical RAM or resize swap space to prevent lockups. |
+| `disk-space` | Disk | CRITICAL / WARNING | Partition capacity exceeding 90% (CRITICAL) or 80% (WARNING) | Clean up stale log files (`/var/log`), prune temporary files, or expand disk volume. |
+| `disk-inodes` | Disk | CRITICAL / WARNING | Filesystem inode usage exceeding 95% (CRITICAL) or 85% (WARNING) | Delete large directories of small files, temp sessions, or orphaned caches. |
+| `dns-resolution` | Network | CRITICAL / WARNING | DNS resolution failed (CRITICAL) or latency > 500ms (WARNING) | Verify local `/etc/resolv.conf` or Windows DNS adapters and configure fallback nameservers. |
+| `network-connectivity` | Network | CRITICAL | Outbound TCP connectivity to reliable public endpoints unreachable | Verify network interface connection, default gateway route, and firewall rules. |
+| `process-health` | Process | WARNING | Rogue high-CPU processes (>=90%) or excessive zombie processes (>10) | Inspect parent processes failing to wait() on child exits or terminate runaway tasks. |
+| `docker-health` | Docker | CRITICAL | One or more containers with >= 5 restart failures | Inspect container logs with `docker logs <container>` to diagnose startup failure. |
 
 ---
 
