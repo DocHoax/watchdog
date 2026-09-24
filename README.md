@@ -15,7 +15,7 @@ Watchdog is an all-in-one system health monitoring, diagnostic automation, and l
 ## 🌟 Architectural Pillars
 
 - ⚡ **Zero-CGO & Pure Go**: Compiles to a single static binary with zero external runtime dependencies (`CGO_ENABLED=0`).
-- 🩺 **Automated 35-Rule Diagnostics**: Concurrently evaluates system saturation, inode exhaustion, DNS latency, paging spikes, and container health with actionable `--fix` remediation.
+- 🩺 **Automated 10-Rule Diagnostics**: Concurrently evaluates system saturation, inode exhaustion, DNS latency, paging spikes, and container health with actionable `--fix` remediation.
 - 🖥️ **Interactive 6-Tab AltScreen TUI**: Real-time terminal interface with per-core CPU bars, memory breakdown, sparkline history, process sorting/filtering/killing, and container states.
 - 🚨 **Temporal Alerting Engine**: Hysteresis-aware threshold alerts with verification duration windows, suppression cooldowns, and SQLite event auditing.
 - 📈 **Statistical Anomaly Detection**: Pure-Go online Exponentially Weighted Moving Average (EWMA) filtering and rolling $Z$-score metric evaluation ($Z \ge 2.5$).
@@ -136,11 +136,11 @@ docker run -it --rm --pid=host --net=host \
 # 1. Launch real-time Terminal Dashboard (TUI)
 watchdog dash
 
-# 2. Run automated diagnostic checks across 35 system rules
+# 2. Run automated diagnostic checks across 10 system rules
 watchdog diagnose
 
-# 3. Preview and execute automated diagnostic remediations
-watchdog diagnose --fix --dry-run
+# 3. Run diagnostic checks with actionable remediation advice
+watchdog diagnose --fix
 
 # 4. Generate a standalone, zero-dependency HTML5 health report
 watchdog report --format html --output health-report.html --history 2h
@@ -162,7 +162,7 @@ watchdog export --format csv --metric cpu_usage_pct --since 24h --output cpu_24h
 | Command | Subcommands / Aliases | Flags & Options | Description |
 | :--- | :--- | :--- | :--- |
 | **`watchdog dash`** | `dashboard`, `tui`, `top` | `-i, --interval`, `--per-core`, `--sort`, `--process-limit`, `--remote`, `--token` | Starts interactive full-screen AltScreen TUI. |
-| **`watchdog diagnose`** | `diag`, `check`, `doctor` | `-C, --category`, `-F, --fix`, `--dry-run`, `--json`, `--plain`, `-t, --timeout` | Evaluates 35 diagnostic health rules. |
+| **`watchdog diagnose`** | `diag`, `check`, `doctor` | `-C, --category`, `-F, --fix`, `--json`, `--plain`, `-t, --timeout` | Evaluates 10 diagnostic health rules. |
 | **`watchdog report`** | `generate-report`, `export-report` | `-f, --format (html\|json\|csv\|terminal)`, `-o, --output`, `-H, --history`, `-t, --title`, `--raw-json` | Generates point-in-time system health reports. |
 | **`watchdog server`** | `serve`, `daemon` | `-p, --port`, `-b, --host`, `--token`, `--tls-cert`, `--tls-key` | Runs Prometheus `/metrics` exporter and REST API. |
 | **`watchdog agent`** | — | `-p, --port`, `-b, --host`, `--token`, `--tls-cert`, `--tls-key` | Runs headless background telemetry agent. |
@@ -253,7 +253,7 @@ prometheus:
 | 🛠️ [**CLI Command Reference**](docs/cli-reference.md) | Exhaustive breakdown of all CLI subcommands, flags, defaults, and aliases. |
 | ⚙️ [**Configuration Reference**](docs/configuration.md) | Full YAML schema specification, precedence hierarchy, and defaults. |
 | 🖥️ [**TUI & Real-Time Monitoring**](docs/monitoring.md) | Interactive AltScreen navigation, vim keybindings, process management, and themes. |
-| 🩺 [**Diagnostic Heuristics Engine**](docs/diagnostics.md) | Concurrent evaluation of 35 heuristic rules and automated `--fix` remediation. |
+| 🩺 [**Diagnostic Heuristics Engine**](docs/diagnostics.md) | Concurrent evaluation of 10 heuristic rules and actionable `--fix` remediation. |
 | 🚨 [**Threshold Alerting Engine**](docs/alerts.md) | Temporal duration verification, hysteresis suppression, and state tracking. |
 | 💾 [**Embedded SQLite Time-Series**](docs/history.md) | Pure-Go SQLite architecture, WAL mode tuning, and retention pruning. |
 | 📈 [**Statistical Anomaly Detection**](docs/anomaly-detection.md) | Ring buffer calculations, EWMA smoothing, and rolling Z-score evaluation. |
