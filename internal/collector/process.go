@@ -1,4 +1,4 @@
-package collector
+﻿package collector
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/shirou/gopsutil/v4/process"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // ProcessCollector gathers running process details.

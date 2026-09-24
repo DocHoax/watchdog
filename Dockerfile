@@ -1,4 +1,4 @@
-# Stage 1: Build binary using multi-stage zero-cgo Go build
+﻿# Stage 1: Build binary using multi-stage zero-cgo Go build
 FROM golang:1.22-alpine AS builder
 
 WORKDIR /src
@@ -17,10 +17,10 @@ ARG BUILD_DATE=2026-09-23
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w \
-      -X github.com/watchdog-cli/watchdog/cmd.Version=${VERSION} \
-      -X github.com/watchdog-cli/watchdog/cmd.GitCommit=${GIT_COMMIT} \
-      -X github.com/watchdog-cli/watchdog/cmd.BuildDate=${BUILD_DATE} \
-      -X github.com/watchdog-cli/watchdog/cmd.BuiltBy=docker" \
+      -X github.com/DocHoax/watchdog/cmd.Version=${VERSION} \
+      -X github.com/DocHoax/watchdog/cmd.GitCommit=${GIT_COMMIT} \
+      -X github.com/DocHoax/watchdog/cmd.BuildDate=${BUILD_DATE} \
+      -X github.com/DocHoax/watchdog/cmd.BuiltBy=docker" \
     -o /bin/watchdog .
 
 # Stage 2: Distroless/Minimal Scratch Runtime

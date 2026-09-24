@@ -1,4 +1,4 @@
-module github.com/watchdog-cli/watchdog
+module github.com/DocHoax/watchdog
 
 go 1.22
 

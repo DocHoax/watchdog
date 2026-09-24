@@ -1,4 +1,4 @@
-package anomaly
+﻿package anomaly
 
 import (
 	"math"
@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // Scenario 1: Constant series: mean=X, stddev=0, no false anomalies

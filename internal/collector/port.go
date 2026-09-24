@@ -1,4 +1,4 @@
-package collector
+﻿package collector
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	netutil "github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/process"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // PortCollector gathers listening network ports and binding processes.

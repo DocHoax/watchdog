@@ -1,4 +1,4 @@
-package cmd
+﻿package cmd
 
 import (
 	"context"
@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/watchdog-cli/watchdog/internal/collector"
-	"github.com/watchdog-cli/watchdog/internal/diagnostics"
-	"github.com/watchdog-cli/watchdog/internal/logger"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/collector"
+	"github.com/DocHoax/watchdog/internal/diagnostics"
+	"github.com/DocHoax/watchdog/internal/logger"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 var (

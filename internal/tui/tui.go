@@ -1,13 +1,13 @@
-package tui
+﻿package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/watchdog-cli/watchdog/internal/alerts"
-	"github.com/watchdog-cli/watchdog/internal/anomaly"
-	"github.com/watchdog-cli/watchdog/internal/collector"
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/internal/diagnostics"
-	"github.com/watchdog-cli/watchdog/internal/storage"
+	"github.com/DocHoax/watchdog/internal/alerts"
+	"github.com/DocHoax/watchdog/internal/anomaly"
+	"github.com/DocHoax/watchdog/internal/collector"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/internal/diagnostics"
+	"github.com/DocHoax/watchdog/internal/storage"
 )
 
 // Run initializes and executes the interactive Bubbletea TUI application.

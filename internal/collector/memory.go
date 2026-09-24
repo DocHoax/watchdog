@@ -1,11 +1,11 @@
-package collector
+﻿package collector
 
 import (
 	"context"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/mem"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // MemoryCollector collects virtual memory and swap stats.

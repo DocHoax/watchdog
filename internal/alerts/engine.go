@@ -1,13 +1,13 @@
-package alerts
+﻿package alerts
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/internal/storage"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/internal/storage"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // AlertCallback is a function invoked when an alert fires or resolves.

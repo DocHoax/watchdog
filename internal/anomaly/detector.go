@@ -1,4 +1,4 @@
-package anomaly
+﻿package anomaly
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // MetricStream holds statistical estimators for a single time series metric.

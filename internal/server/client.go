@@ -1,4 +1,4 @@
-package server
+﻿package server
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // Client is a client for communicating with remote Watchdog agents.

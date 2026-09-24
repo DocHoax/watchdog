@@ -1,4 +1,4 @@
-package anomaly
+﻿package anomaly
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // BenchmarkAnomaly_Feed100Metrics benchmarks feeding 100 metric points to the anomaly detector.

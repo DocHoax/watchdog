@@ -1,4 +1,4 @@
-package collector
+﻿package collector
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // KubernetesCollector queries cluster metadata and health from a reachable Kubernetes cluster.

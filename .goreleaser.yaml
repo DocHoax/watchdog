@@ -1,4 +1,4 @@
-version: 2
+﻿version: 2
 
 project_name: watchdog
 
@@ -30,10 +30,10 @@ builds:
         goarch: arm
     ldflags:
       - -s -w
-      - -X github.com/watchdog-cli/watchdog/cmd.Version={{ .Version }}
-      - -X github.com/watchdog-cli/watchdog/cmd.GitCommit={{ .FullCommit }}
-      - -X github.com/watchdog-cli/watchdog/cmd.BuildDate={{ .Date }}
-      - -X github.com/watchdog-cli/watchdog/cmd.BuiltBy=goreleaser
+      - -X github.com/DocHoax/watchdog/cmd.Version={{ .Version }}
+      - -X github.com/DocHoax/watchdog/cmd.GitCommit={{ .FullCommit }}
+      - -X github.com/DocHoax/watchdog/cmd.BuildDate={{ .Date }}
+      - -X github.com/DocHoax/watchdog/cmd.BuiltBy=goreleaser
 
 archives:
   - formats:

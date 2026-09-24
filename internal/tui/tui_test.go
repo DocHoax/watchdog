@@ -1,4 +1,4 @@
-package tui
+﻿package tui
 
 import (
 	"testing"
@@ -7,8 +7,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 func TestTUI_Helpers(t *testing.T) {

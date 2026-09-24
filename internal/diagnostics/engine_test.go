@@ -1,12 +1,12 @@
-package diagnostics
+﻿package diagnostics
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 func TestDiagnosticEngineHealthySnapshot(t *testing.T) {

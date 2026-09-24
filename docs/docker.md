@@ -99,7 +99,7 @@ version: "3.8"
 
 services:
   watchdog:
-    image: watchdog-cli/watchdog:v1.0.0-rc.1
+    image: watchdog:v1.0.0-rc.1
     container_name: watchdog
     restart: unless-stopped
     pid: "host"

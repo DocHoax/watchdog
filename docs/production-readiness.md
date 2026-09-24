@@ -1,8 +1,8 @@
-# Watchdog Production Readiness & Baseline Audit
+﻿# Watchdog Production Readiness & Baseline Audit
 
 **Audit Date**: September 23, 2026  
 **Document Version**: 1.0.0-baseline  
-**Target Application**: Watchdog System Monitoring & Diagnostics Suite (`github.com/watchdog-cli/watchdog`)
+**Target Application**: Watchdog System Monitoring & Diagnostics Suite (`github.com/DocHoax/watchdog`)
 
 ---
 

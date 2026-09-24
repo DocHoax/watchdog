@@ -1,12 +1,12 @@
-package cmd
+﻿package cmd
 
 import (
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/internal/logger"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/internal/logger"
 )
 
 var (

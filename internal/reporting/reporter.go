@@ -1,10 +1,10 @@
-package reporting
+﻿package reporting
 
 import (
 	"sort"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // BuildReportData constructs a unified ReportData object from snapshots and sub-reports.

@@ -1,17 +1,17 @@
-package cmd
+﻿package cmd
 
 import (
 	"context"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/watchdog-cli/watchdog/internal/alerts"
-	"github.com/watchdog-cli/watchdog/internal/anomaly"
-	"github.com/watchdog-cli/watchdog/internal/collector"
-	"github.com/watchdog-cli/watchdog/internal/diagnostics"
-	"github.com/watchdog-cli/watchdog/internal/logger"
-	"github.com/watchdog-cli/watchdog/internal/storage"
-	"github.com/watchdog-cli/watchdog/internal/tui"
+	"github.com/DocHoax/watchdog/internal/alerts"
+	"github.com/DocHoax/watchdog/internal/anomaly"
+	"github.com/DocHoax/watchdog/internal/collector"
+	"github.com/DocHoax/watchdog/internal/diagnostics"
+	"github.com/DocHoax/watchdog/internal/logger"
+	"github.com/DocHoax/watchdog/internal/storage"
+	"github.com/DocHoax/watchdog/internal/tui"
 )
 
 var (

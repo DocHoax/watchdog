@@ -1,13 +1,13 @@
-package alerts
+﻿package alerts
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/internal/storage"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/internal/storage"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 func TestAlertEngineBuiltinThresholds(t *testing.T) {

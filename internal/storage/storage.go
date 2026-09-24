@@ -1,10 +1,10 @@
-package storage
+﻿package storage
 
 import (
 	"context"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // MetricPoint represents a single scalar time-series metric data point.

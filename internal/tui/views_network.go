@@ -1,10 +1,10 @@
-package tui
+﻿package tui
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 func (m Model) renderNetworkView() string {

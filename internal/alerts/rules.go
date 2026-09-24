@@ -1,12 +1,12 @@
-package alerts
+﻿package alerts
 
 import (
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // EvaluatedAlert represents the raw result of a rule evaluation before cooldown checks.

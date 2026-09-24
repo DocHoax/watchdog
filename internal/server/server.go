@@ -1,4 +1,4 @@
-package server
+﻿package server
 
 import (
 	"context"
@@ -10,14 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/internal/alerts"
-	"github.com/watchdog-cli/watchdog/internal/anomaly"
-	"github.com/watchdog-cli/watchdog/internal/collector"
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/internal/diagnostics"
-	"github.com/watchdog-cli/watchdog/internal/logger"
-	"github.com/watchdog-cli/watchdog/internal/storage"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/alerts"
+	"github.com/DocHoax/watchdog/internal/anomaly"
+	"github.com/DocHoax/watchdog/internal/collector"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/internal/diagnostics"
+	"github.com/DocHoax/watchdog/internal/logger"
+	"github.com/DocHoax/watchdog/internal/storage"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // Server represents the Watchdog HTTP API server / remote agent.

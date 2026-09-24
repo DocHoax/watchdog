@@ -1,12 +1,12 @@
-package tui
+﻿package tui
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/internal/config"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 func createBenchmarkTUIModel() Model {

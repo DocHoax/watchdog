@@ -1,11 +1,11 @@
-package storage
+﻿package storage
 
 import (
 	"context"
 	"database/sql"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // SaveAlertEvent stores a new or updated alert event.

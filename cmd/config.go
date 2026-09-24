@@ -1,4 +1,4 @@
-package cmd
+﻿package cmd
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/watchdog-cli/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/internal/config"
 	"gopkg.in/yaml.v3"
 )
 

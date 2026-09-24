@@ -1,4 +1,4 @@
-package reporting
+﻿package reporting
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // HTMLReportOptions configures HTML rendering parameters.

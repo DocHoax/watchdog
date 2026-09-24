@@ -61,7 +61,7 @@ spec:
       hostPID: true
       containers:
         - name: watchdog
-          image: watchdog-cli/watchdog:latest
+          image: watchdog:latest
           imagePullPolicy: IfNotPresent
           args: ["serve", "--prometheus", "--port", "9100"]
           ports:

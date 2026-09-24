@@ -1,7 +1,7 @@
-package main
+﻿package main
 
 import (
-	"github.com/watchdog-cli/watchdog/cmd"
+	"github.com/DocHoax/watchdog/cmd"
 )
 
 func main() {

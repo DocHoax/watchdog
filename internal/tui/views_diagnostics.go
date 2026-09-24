@@ -1,11 +1,11 @@
-package tui
+﻿package tui
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 func (m Model) renderDiagnosticsView() string {

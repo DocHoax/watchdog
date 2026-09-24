@@ -1,4 +1,4 @@
-//go:build linux
+﻿//go:build linux
 
 package collector
 
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // GetServices queries Linux systemd / sysvinit services.

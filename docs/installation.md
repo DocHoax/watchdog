@@ -1,4 +1,4 @@
-# Installation Guide
+﻿# Installation Guide
 
 Watchdog is distributed as a single static, zero-dependency binary for Linux, macOS, and Windows. It requires no C runtime libraries, no external daemons, and minimal system permissions.
 
@@ -95,7 +95,7 @@ git clone https://github.com/DocHoax/watchdog.git
 cd watchdog
 
 # Build static binary with CGO disabled
-CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/watchdog-cli/watchdog/cmd.Version=1.0.0-rc.1" -o bin/watchdog .
+CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/DocHoax/watchdog/cmd.Version=1.0.0-rc.1" -o bin/watchdog .
 
 # Verify installation
 ./bin/watchdog version

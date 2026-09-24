@@ -1,11 +1,11 @@
-package storage
+﻿package storage
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 func TestStorageLifecycle(t *testing.T) {

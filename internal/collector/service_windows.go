@@ -1,4 +1,4 @@
-//go:build windows
+﻿//go:build windows
 
 package collector
 
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // GetServices queries Windows services using PowerShell / sc.exe.

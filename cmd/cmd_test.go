@@ -1,4 +1,4 @@
-package cmd
+﻿package cmd
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/watchdog-cli/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/internal/config"
 )
 
 func TestVersionCommand(t *testing.T) {

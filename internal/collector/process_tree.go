@@ -1,11 +1,11 @@
-package collector
+﻿package collector
 
 import (
 	"context"
 	"fmt"
 	"strings"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // GetProcessTree retrieves the complete process hierarchy.

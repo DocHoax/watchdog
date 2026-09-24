@@ -1,4 +1,4 @@
-package reporting
+﻿package reporting
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // GenerateSnapshotsCSV exports a series of system snapshots to a CSV format.

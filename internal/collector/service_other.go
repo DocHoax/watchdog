@@ -1,11 +1,11 @@
-//go:build !windows && !linux && !darwin
+﻿//go:build !windows && !linux && !darwin
 
 package collector
 
 import (
 	"context"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // GetServices returns empty list for other operating systems.

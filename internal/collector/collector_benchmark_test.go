@@ -1,11 +1,11 @@
-package collector
+﻿package collector
 
 import (
 	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/watchdog-cli/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/internal/config"
 )
 
 // BenchmarkCollector_FullCycle benchmarks the full snapshot collection cycle.

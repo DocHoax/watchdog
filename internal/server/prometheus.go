@@ -1,4 +1,4 @@
-package server
+﻿package server
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // PrometheusExporter generates Prometheus-compatible metrics from snapshots and reports.

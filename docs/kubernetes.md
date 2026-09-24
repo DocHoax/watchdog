@@ -91,7 +91,7 @@ spec:
       hostNetwork: true
       containers:
         - name: watchdog
-          image: watchdog-cli/watchdog:v1.0.0-rc.1
+          image: watchdog:v1.0.0-rc.1
           imagePullPolicy: IfNotPresent
           command:
             - watchdog
@@ -135,7 +135,7 @@ spec:
 
 ```bash
 # Apply Watchdog DaemonSet manifest
-kubectl apply -f https://raw.githubusercontent.com/watchdog-cli/watchdog/main/deploy/kubernetes/daemonset.yaml
+kubectl apply -f https://raw.githubusercontent.com/DocHoax/watchdog/main/deploy/k8s/daemonset.yaml
 
 # Verify running DaemonSet pods
 kubectl get pods -n watchdog-system -o wide

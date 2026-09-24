@@ -1,11 +1,11 @@
-package reporting
+﻿package reporting
 
 import (
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 func createSampleSnapshot() *model.SystemSnapshot {

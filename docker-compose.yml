@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: watchdog-cli/watchdog:latest
+    image: watchdog:latest
     container_name: watchdog
     restart: unless-stopped
     pid: host

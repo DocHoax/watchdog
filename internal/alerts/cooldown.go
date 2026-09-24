@@ -1,11 +1,11 @@
-package alerts
+﻿package alerts
 
 import (
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // AlertState maintains the temporal lifecycle for a single alert rule.

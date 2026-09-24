@@ -1,4 +1,4 @@
-package collector
+﻿package collector
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	netutil "github.com/shirou/gopsutil/v4/net"
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // NetworkCollector gathers network interfaces, I/O rates, and connections.

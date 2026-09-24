@@ -1,4 +1,4 @@
-package storage
+﻿package storage
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/watchdog-cli/watchdog/pkg/model"
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // SaveSnapshot unpacks standard metrics from a system snapshot and commits them to the database.
