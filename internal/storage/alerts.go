@@ -133,5 +133,8 @@ func scanAlertRows(rows *sql.Rows) ([]model.AlertEvent, error) {
 			IsActive:    status == string(model.AlertStatusActive),
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return alerts, nil
 }

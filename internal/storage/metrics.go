@@ -230,6 +230,9 @@ func (s *SQLiteStorage) QueryMetrics(ctx context.Context, q TimeRangeQuery) ([]M
 			Tags:      tags,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	// Apply downsampling if step > 0
 	if q.Step > 0 && len(points) > 0 {
@@ -386,9 +389,13 @@ func (s *SQLiteStorage) GetAvailableMetrics(ctx context.Context) ([]string, erro
 	var metrics []string
 	for rows.Next() {
 		var m string
-		if err := rows.Scan(&m); err == nil {
-			metrics = append(metrics, m)
+		if err := rows.Scan(&m); err != nil {
+			return nil, err
 		}
+		metrics = append(metrics, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return metrics, nil
 }
