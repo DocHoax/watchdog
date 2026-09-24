@@ -11,10 +11,14 @@ import (
 var (
 	// Version is the current semantic version of Watchdog.
 	Version = "1.0.0"
-	// Commit is the git commit hash at build time.
+	// GitCommit is the git commit hash injected at build time via ldflags.
+	GitCommit = "dev"
+	// Commit is maintained for backwards-compatibility with legacy ldflags.
 	Commit = "dev"
 	// BuildDate is the timestamp when the binary was built.
 	BuildDate = "2026-09-23"
+	// BuiltBy is the entity or tool that compiled the binary (e.g. goreleaser, docker).
+	BuiltBy = ""
 )
 
 var (
@@ -25,8 +29,10 @@ var (
 // VersionInfo encapsulates detailed version metadata.
 type VersionInfo struct {
 	Version   string `json:"version"`
+	GitCommit string `json:"git_commit,omitempty"`
 	Commit    string `json:"commit"`
 	BuildDate string `json:"build_date"`
+	BuiltBy   string `json:"built_by,omitempty"`
 	GoVersion string `json:"go_version"`
 	Platform  string `json:"platform"`
 	Compiler  string `json:"compiler"`
@@ -45,10 +51,17 @@ var versionCmd = &cobra.Command{
   # Print version details formatted as JSON
   watchdog version --json`,
 	Run: func(cmd *cobra.Command, args []string) {
+		effectiveCommit := GitCommit
+		if effectiveCommit == "dev" && Commit != "dev" && Commit != "" {
+			effectiveCommit = Commit
+		}
+
 		info := VersionInfo{
 			Version:   Version,
-			Commit:    Commit,
+			GitCommit: effectiveCommit,
+			Commit:    effectiveCommit,
 			BuildDate: BuildDate,
+			BuiltBy:   BuiltBy,
 			GoVersion: runtime.Version(),
 			Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 			Compiler:  runtime.Compiler,
@@ -67,6 +80,9 @@ var versionCmd = &cobra.Command{
 
 		fmt.Printf("🐺 Watchdog v%s (%s)\n", info.Version, info.Commit)
 		fmt.Printf("   Build Date : %s\n", info.BuildDate)
+		if info.BuiltBy != "" {
+			fmt.Printf("   Built By   : %s\n", info.BuiltBy)
+		}
 		fmt.Printf("   Go Version : %s\n", info.GoVersion)
 		fmt.Printf("   Platform   : %s\n", info.Platform)
 		fmt.Printf("   Compiler   : %s\n", info.Compiler)

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +35,22 @@ func TestVersionCommandFlags(t *testing.T) {
 	RootCmd.SetArgs([]string{"version", "--json"})
 	if err := RootCmd.Execute(); err != nil {
 		t.Fatalf("version --json command failed: %v", err)
+	}
+
+	// Verify VersionInfo struct fields
+	vInfo := VersionInfo{
+		Version:   Version,
+		GitCommit: GitCommit,
+		Commit:    Commit,
+		BuildDate: BuildDate,
+		BuiltBy:   BuiltBy,
+	}
+	data, err := json.Marshal(vInfo)
+	if err != nil {
+		t.Fatalf("failed to marshal VersionInfo: %v", err)
+	}
+	if !strings.Contains(string(data), `"version"`) {
+		t.Errorf("expected json to contain version field")
 	}
 }
 

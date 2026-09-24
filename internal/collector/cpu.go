@@ -96,7 +96,7 @@ func (c *CPUCollector) GetCPUInfo(ctx context.Context) (*model.CPUInfo, error) {
 	// Load averages (supported on Unix; gracefully fall back on Windows)
 	var loadAvg model.LoadAvg
 	lInfo, err := load.AvgWithContext(ctx)
-	if err == nil && lInfo != nil {
+	if err == nil && lInfo != nil && runtime.GOOS != "windows" {
 		loadAvg = model.LoadAvg{
 			Load1:  lInfo.Load1,
 			Load5:  lInfo.Load5,

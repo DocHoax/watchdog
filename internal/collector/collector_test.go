@@ -59,6 +59,11 @@ func TestCPUCollector(t *testing.T) {
 	if cpuInfo.PhysicalCores <= 0 && cpuInfo.LogicalCores <= 0 {
 		t.Errorf("expected positive core count, got phys=%d, log=%d", cpuInfo.PhysicalCores, cpuInfo.LogicalCores)
 	}
+
+	// Verify load average is calculated and non-negative
+	if cpuInfo.LoadAverage.Load1 < 0 || cpuInfo.LoadAverage.Load5 < 0 || cpuInfo.LoadAverage.Load15 < 0 {
+		t.Errorf("expected non-negative load average, got: %+v", cpuInfo.LoadAverage)
+	}
 }
 
 func TestMemoryCollector(t *testing.T) {
