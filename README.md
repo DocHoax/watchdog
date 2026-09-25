@@ -2,7 +2,7 @@
 
 > **Enterprise-Grade, Cross-Platform System Observability, Automated Diagnostics & Real-Time Terminal Dashboard in Pure Go**
 
-[![Release](https://img.shields.io/badge/release-v1.0.0--rc.1-blue.svg?style=flat&logo=github)](https://github.com/DocHoax/watchdog/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.0-blue.svg?style=flat&logo=github)](https://github.com/DocHoax/watchdog/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Zero CGO](https://img.shields.io/badge/CGO-disabled-success?style=flat)](https://github.com/DocHoax/watchdog)
 [![Platform Support](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat)](docs/platforms.md)
@@ -28,7 +28,7 @@ Watchdog is an all-in-one system health monitoring, diagnostic automation, and l
 ## 🖥️ Terminal Dashboard (TUI)
 
 ```text
-┌─ Watchdog v1.0.0-rc.1 ──────────────────────────────────────────────── [Host: prod-db-01] ─┐
+┌─ Watchdog v1.0.0 ───────────────────────────────────────────────────── [Host: prod-db-01] ─┐
 │ [1] Dashboard  [2] Processes  [3] Storage & Net  [4] Containers  [5] Services  [6] Diag/Alerts │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ CPU [|||||||||||||||||||||||||||||||                    ] 42.5%  Cores: 8  Load: 1.24 1.45 1.10 │
@@ -70,40 +70,61 @@ Watchdog is continuously verified across all major enterprise operating systems 
 ## 📦 Installation
 
 ### 1. Pre-Compiled Binary Releases
-Download official release candidate archives for your operating system and architecture from the [GitHub Releases](https://github.com/DocHoax/watchdog/releases) page:
+Download official release archives and system packages for your operating system and architecture from the [GitHub Releases](https://github.com/DocHoax/watchdog/releases) page:
 
-#### Linux (AMD64 / ARM64)
+#### Linux (AMD64 / ARM64 / ARMv7)
 ```bash
-# Download and extract binary
-curl -sSL https://github.com/DocHoax/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_linux_amd64.tar.gz | tar -xz
+# Linux AMD64 (x86_64)
+curl -sSL https://github.com/DocHoax/watchdog/releases/download/v1.0.0/watchdog_1.0.0_linux_amd64.tar.gz | tar -xz
+sudo mv watchdog /usr/local/bin/
+sudo chmod +x /usr/local/bin/watchdog
+
+# Linux ARM64 (AWS Graviton, Raspberry Pi 4/5)
+curl -sSL https://github.com/DocHoax/watchdog/releases/download/v1.0.0/watchdog_1.0.0_linux_arm64.tar.gz | tar -xz
 sudo mv watchdog /usr/local/bin/
 sudo chmod +x /usr/local/bin/watchdog
 ```
 
+*Package Formats*: Debian/Ubuntu (`.deb`), RHEL/CentOS/Fedora (`.rpm`), and Alpine (`.apk`) packages are available on the [Releases](https://github.com/DocHoax/watchdog/releases/tag/v1.0.0) page.
+
 #### macOS (Apple Silicon / Intel)
 ```bash
 # macOS Apple Silicon (ARM64)
-curl -sSL https://github.com/DocHoax/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_darwin_arm64.tar.gz | tar -xz
+curl -sSL https://github.com/DocHoax/watchdog/releases/download/v1.0.0/watchdog_1.0.0_darwin_arm64.tar.gz | tar -xz
+sudo mv watchdog /usr/local/bin/
+sudo chmod +x /usr/local/bin/watchdog
+
+# macOS Intel (AMD64)
+curl -sSL https://github.com/DocHoax/watchdog/releases/download/v1.0.0/watchdog_1.0.0_darwin_amd64.tar.gz | tar -xz
 sudo mv watchdog /usr/local/bin/
 sudo chmod +x /usr/local/bin/watchdog
 ```
 
 #### Windows (PowerShell)
 ```powershell
-# Download and extract release archive
-Invoke-WebRequest -Uri "https://github.com/DocHoax/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_windows_amd64.zip" -OutFile "watchdog.zip"
+# Windows x64 (AMD64) via PowerShell
+Invoke-WebRequest -Uri "https://github.com/DocHoax/watchdog/releases/download/v1.0.0/watchdog_1.0.0_windows_amd64.zip" -OutFile "watchdog.zip"
 Expand-Archive -Path "watchdog.zip" -DestinationPath "$env:ProgramFiles\Watchdog" -Force
 $env:Path += ";$env:ProgramFiles\Watchdog"
 ```
 
 #### Windows (Command Prompt / cmd.exe)
 ```cmd
-curl.exe -L -o watchdog.zip "https://github.com/DocHoax/watchdog/releases/download/v1.0.0-rc.1/watchdog_1.0.0-rc.1_windows_amd64.zip"
+curl.exe -L -o watchdog.zip "https://github.com/DocHoax/watchdog/releases/download/v1.0.0/watchdog_1.0.0_windows_amd64.zip"
 tar.exe -xf watchdog.zip
 watchdog.exe version
 ```
 
-### 2. Build from Source
+### 2. Go Module Install (Go 1.22+)
+```bash
+# Install latest release binary directly via Go toolchain
+go install github.com/DocHoax/watchdog@v1.0.0
+
+# Verify installation
+watchdog version
+```
+
+### 3. Build from Source
 ```bash
 git clone https://github.com/DocHoax/watchdog.git
 cd watchdog
@@ -111,21 +132,13 @@ CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/watchdog .
 ./bin/watchdog version
 ```
 
-### 3. Local Go Install
-```bash
-# Clone and install binary directly to $GOPATH/bin
-git clone https://github.com/DocHoax/watchdog.git
-cd watchdog
-go install .
-```
-
 ### 4. Container Deployment
 ```bash
 # Build and run locally via Docker
-docker build -t watchdog:v1.0.0-rc.1 .
+docker build -t watchdog:v1.0.0 .
 docker run -it --rm --pid=host --net=host \
   -v /proc:/host/proc:ro -v /sys:/host/sys:ro \
-  watchdog:v1.0.0-rc.1 dash
+  watchdog:v1.0.0 dash
 ```
 
 ---
@@ -153,6 +166,11 @@ watchdog alert list
 
 # 7. Export time-series metrics from embedded SQLite database
 watchdog export --format csv --metric cpu_usage_pct --since 24h --output cpu_24h.csv
+
+# 8. Check version information
+watchdog version
+watchdog version --short
+watchdog version --json
 ```
 
 ---

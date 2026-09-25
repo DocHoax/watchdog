@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0] - 2026-09-25
+
+### Added
+- **Official General Availability (GA) Release**: Watchdog v1.0.0 production release providing enterprise-grade, cross-platform system observability, automated diagnostics, and real-time terminal monitoring in pure Go.
+- **Go Module Installation**: Support for direct installation via Go toolchain: `go install github.com/DocHoax/watchdog@v1.0.0`.
+- **Complete Release Artifact Matrix**: Pre-compiled zero-CGO static binaries and packages for Linux (`amd64`, `arm64`, `armv7` as `.deb`, `.rpm`, `.apk`, `.tar.gz`), macOS (`amd64`, `arm64` as `.tar.gz`), and Windows (`amd64`, `arm64` as `.zip`) with SHA-256 `checksums.txt`.
+
+### Changed
+- **Version Display & Metadata**: Sanitized version string output in `watchdog version` to ensure clean semantic version formatting across human-readable, `--short`, and `--json` outputs.
+- **Documentation Synchronization**: Comprehensive synchronization of all user-facing documentation, installation guides, deployment manifests, and architectural references with the GA release.
+
+### Fixed
+- **Process Health Diagnostic Self-Exclusion**: Enhanced `ProcessHealthRule` in `internal/diagnostics/rules.go` to exclude Watchdog's own PID (`os.Getpid()`) from rogue CPU process detection, preventing false-positive alerts during high-frequency diagnostic evaluations.
+- **Automated Regression Test Suite**: Added dedicated regression test cases in `internal/diagnostics/engine_test.go` ensuring process self-exclusion operates reliably across platforms while continuing to flag external rogue processes.
+
+---
+
 ## [1.0.0-rc.1] - 2026-09-24
 
 ### Added
@@ -39,4 +56,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.0.0]: https://github.com/DocHoax/watchdog/releases/tag/v1.0.0
 [1.0.0-rc.1]: https://github.com/DocHoax/watchdog/releases/tag/v1.0.0-rc.1

@@ -91,7 +91,7 @@ spec:
       hostNetwork: true
       containers:
         - name: watchdog
-          image: watchdog:v1.0.0-rc.1
+          image: watchdog:v1.0.0
           imagePullPolicy: IfNotPresent
           command:
             - watchdog

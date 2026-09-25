@@ -22,7 +22,7 @@ watchdog dash --theme nord
 ## 🖥️ Terminal Dashboard Layout
 
 ```
-┌─[ 🐺 Watchdog v1.0.0-rc.1 ]───[ Host: prod-db-01 ]───[ Uptime: 14d 6h 32m ]────────┐
+┌─[ 🐺 Watchdog v1.0.0 ]───────[ Host: prod-db-01 ]───[ Uptime: 14d 6h 32m ]────────┐
 │ [1 Dashboard]  [2 Processes]  [3 Storage/Net]  [4 Services]  [5 Containers]  [6 Diag] │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
 │ CPU Utilization:  42.5% [████████████████░░░░░░░░░░░░]  Load: 1.24  1.45  1.10        │

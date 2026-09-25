@@ -76,7 +76,7 @@ To monitor a host system from within a containerized Watchdog instance:
 
 ```bash
 # Build local container
-docker build -t watchdog:v1.0.0-rc.1 .
+docker build -t watchdog:v1.0.0 .
 
 # Run container with host metric access
 docker run -d \
@@ -88,7 +88,7 @@ docker run -d \
   -v /sys:/host/sys:ro \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -v ~/.watchdog:/root/.watchdog \
-  watchdog:v1.0.0-rc.1 \
+  watchdog:v1.0.0 \
   server --port 9100
 ```
 
@@ -99,7 +99,7 @@ version: "3.8"
 
 services:
   watchdog:
-    image: watchdog:v1.0.0-rc.1
+    image: watchdog:v1.0.0
     container_name: watchdog
     restart: unless-stopped
     pid: "host"
