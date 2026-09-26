@@ -141,6 +141,48 @@ func (s *SQLiteStorage) migrate(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_audit_severity ON audit_events(severity);
 	CREATE INDEX IF NOT EXISTS idx_audit_outcome ON audit_events(outcome);
 	CREATE INDEX IF NOT EXISTS idx_audit_request_id ON audit_events(request_id);
+
+	CREATE TABLE IF NOT EXISTS fleet_nodes (
+		node_id TEXT PRIMARY KEY,
+		hostname TEXT NOT NULL,
+		os TEXT NOT NULL,
+		platform TEXT NOT NULL,
+		platform_version TEXT,
+		arch TEXT NOT NULL,
+		kernel_version TEXT,
+		version TEXT NOT NULL,
+		cpu_cores INTEGER NOT NULL,
+		total_memory INTEGER NOT NULL,
+		ip_addresses_json TEXT,
+		mac_addresses_json TEXT,
+		tags_json TEXT,
+		status TEXT NOT NULL,
+		status_message TEXT,
+		registered_at INTEGER NOT NULL,
+		last_heartbeat INTEGER NOT NULL,
+		last_telemetry INTEGER,
+		summary_json TEXT,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_fleet_nodes_status ON fleet_nodes(status);
+	CREATE INDEX IF NOT EXISTS idx_fleet_nodes_heartbeat ON fleet_nodes(last_heartbeat DESC);
+	CREATE INDEX IF NOT EXISTS idx_fleet_nodes_hostname ON fleet_nodes(hostname);
+
+	CREATE TABLE IF NOT EXISTS fleet_telemetry (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		node_id TEXT NOT NULL,
+		timestamp INTEGER NOT NULL,
+		sequence INTEGER NOT NULL,
+		snapshot_json TEXT,
+		diagnostics_json TEXT,
+		alerts_json TEXT,
+		metrics_json TEXT,
+		tags_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_fleet_telemetry_node_time ON fleet_telemetry(node_id, timestamp DESC);
+	CREATE INDEX IF NOT EXISTS idx_fleet_telemetry_time ON fleet_telemetry(timestamp DESC);
 	`
 
 	_, err := s.db.ExecContext(ctx, schema)

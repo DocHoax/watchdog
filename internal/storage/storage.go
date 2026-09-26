@@ -93,4 +93,13 @@ type Storage interface {
 	PruneOlderThan(ctx context.Context, retention time.Duration) (int64, error)
 	GetDatabaseSize() (int64, error)
 	Vacuum(ctx context.Context) error
+
+	// Fleet & Telemetry
+	SaveFleetNode(ctx context.Context, node *model.FleetNode) error
+	GetFleetNode(ctx context.Context, nodeID string) (*model.FleetNode, error)
+	ListFleetNodes(ctx context.Context, filter model.FleetFilter) ([]model.FleetNode, int, error)
+	DeleteFleetNode(ctx context.Context, nodeID string) error
+	SaveTelemetrySubmission(ctx context.Context, sub *model.TelemetrySubmission) error
+	GetNodeTelemetrySubmissions(ctx context.Context, nodeID string, since time.Time, limit int) ([]model.TelemetrySubmission, error)
+	PruneFleetTelemetry(ctx context.Context, retention time.Duration) (int64, error)
 }
