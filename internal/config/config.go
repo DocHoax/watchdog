@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -95,12 +97,18 @@ type PrometheusConfig struct {
 
 // AgentConfig configures the remote agent server.
 type AgentConfig struct {
-	Enabled     bool   `yaml:"enabled"`
-	Port        int    `yaml:"port"`
-	BindAddress string `yaml:"bind_address"`
-	Token       string `yaml:"token"`
-	TLSCert     string `yaml:"tls_cert"`
-	TLSKey      string `yaml:"tls_key"`
+	Enabled     bool   `yaml:"enabled" json:"enabled"`
+	Port        int    `yaml:"port" json:"port"`
+	BindAddress string `yaml:"bind_address" json:"bind_address"`
+	Token       string `yaml:"token,omitempty" json:"token,omitempty"`
+	TokenFile   string `yaml:"token_file,omitempty" json:"token_file,omitempty"`
+	TokenEnv    string `yaml:"token_env,omitempty" json:"token_env,omitempty"`
+	TLSCert     string `yaml:"tls_cert,omitempty" json:"tls_cert,omitempty"`
+	TLSCertFile string `yaml:"tls_cert_file,omitempty" json:"tls_cert_file,omitempty"`
+	TLSCertEnv  string `yaml:"tls_cert_env,omitempty" json:"tls_cert_env,omitempty"`
+	TLSKey      string `yaml:"tls_key,omitempty" json:"tls_key,omitempty"`
+	TLSKeyFile  string `yaml:"tls_key_file,omitempty" json:"tls_key_file,omitempty"`
+	TLSKeyEnv   string `yaml:"tls_key_env,omitempty" json:"tls_key_env,omitempty"`
 }
 
 // DockerConfig configures Docker container monitoring.
@@ -257,6 +265,9 @@ func Load(path string) (*Config, string, error) {
 				return nil, resolvedPath, fmt.Errorf("config file %s does not exist", resolvedPath)
 			}
 			// No config file found during auto-discovery; return default
+			if err := cfg.ResolveSecrets(); err != nil {
+				return nil, resolvedPath, err
+			}
 			return cfg, resolvedPath, nil
 		}
 		return nil, resolvedPath, fmt.Errorf("error reading config file %s: %w", resolvedPath, err)
@@ -270,26 +281,254 @@ func Load(path string) (*Config, string, error) {
 		return nil, resolvedPath, fmt.Errorf("invalid config: %w", err)
 	}
 
+	if err := cfg.ResolveSecrets(); err != nil {
+		return nil, resolvedPath, fmt.Errorf("error resolving secrets: %w", err)
+	}
+
 	return cfg, resolvedPath, nil
 }
 
-// Save writes configuration to disk.
+// Save writes configuration to disk safely without persisting resolved plaintext secrets
+// that originated from secret files or environment variables.
 func (c *Config) Save(path string) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
-	data, err := yaml.Marshal(c)
+	// Prepare safe copy for saving
+	saveCopy := *c
+	saveAgent := c.Agent
+
+	// If Token was configured via TokenFile or TokenEnv, do not write the resolved plaintext Token to disk
+	if saveAgent.TokenFile != "" || saveAgent.TokenEnv != "" {
+		saveAgent.Token = ""
+	}
+	// If TLSKey was configured via TLSKeyFile or TLSKeyEnv, do not write resolved TLSKey to disk
+	if saveAgent.TLSKeyFile != "" || saveAgent.TLSKeyEnv != "" {
+		saveAgent.TLSKey = ""
+	}
+	// If TLSCert was configured via TLSCertFile or TLSCertEnv, do not write resolved TLSCert to disk
+	if saveAgent.TLSCertFile != "" || saveAgent.TLSCertEnv != "" {
+		saveAgent.TLSCert = ""
+	}
+	saveCopy.Agent = saveAgent
+
+	data, err := yaml.Marshal(&saveCopy)
 	if err != nil {
 		return fmt.Errorf("failed to serialize config to yaml: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config to %s: %w", path, err)
 	}
 
 	return nil
+}
+
+// CheckSecretFilePermissions verifies that a sensitive file does not have overly permissive file modes.
+// On POSIX operating systems, files containing credentials should have permissions <= 0600 (read/write by owner only).
+// If permissions allow group or other access (perm & 0077 != 0), an error is returned.
+// On Windows, POSIX permission bits are simulated and this check is a graceful no-op.
+func CheckSecretFilePermissions(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	perm := info.Mode().Perm()
+	if perm&0077 != 0 {
+		return fmt.Errorf("secret file %q has overly permissive permissions (%04o); should be 0600 or stricter", path, perm)
+	}
+
+	return nil
+}
+
+// readSecretFile reads and validates the content of a secret file.
+func readSecretFile(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+
+	if err := CheckSecretFilePermissions(path); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠️  Warning: %v\n", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read secret file %q: %w", path, err)
+	}
+
+	secret := strings.TrimSpace(string(data))
+	if secret == "" {
+		return "", fmt.Errorf("secret file %q is empty or contains only whitespace", path)
+	}
+
+	return secret, nil
+}
+
+// ResolveToken resolves the authentication token according to precedence:
+// 1. Secret file (TokenFile)
+// 2. Explicit environment variable name (TokenEnv)
+// 3. Default environment variables (WATCHDOG_AGENT_TOKEN, WATCHDOG_AUTH_TOKEN)
+// 4. Plain config value (Token)
+func (a *AgentConfig) ResolveToken() (string, error) {
+	if a.TokenFile != "" {
+		token, err := readSecretFile(a.TokenFile)
+		if err != nil {
+			return "", err
+		}
+		return token, nil
+	}
+
+	if a.TokenEnv != "" {
+		if val := os.Getenv(a.TokenEnv); strings.TrimSpace(val) != "" {
+			return strings.TrimSpace(val), nil
+		}
+	}
+
+	if val := os.Getenv("WATCHDOG_AGENT_TOKEN"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+	if val := os.Getenv("WATCHDOG_AUTH_TOKEN"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+
+	if strings.TrimSpace(a.Token) != "" {
+		return strings.TrimSpace(a.Token), nil
+	}
+
+	return "", nil
+}
+
+// ResolveTLSKey resolves the TLS private key file path according to precedence:
+// 1. Secret file path (TLSKeyFile)
+// 2. Explicit environment variable name (TLSKeyEnv)
+// 3. Default environment variables (WATCHDOG_AGENT_TLS_KEY, WATCHDOG_TLS_KEY)
+// 4. Plain config value (TLSKey)
+func (a *AgentConfig) ResolveTLSKey() (string, error) {
+	if a.TLSKeyFile != "" {
+		if _, err := os.Stat(a.TLSKeyFile); err != nil {
+			return "", fmt.Errorf("failed to access tls_key_file %q: %w", a.TLSKeyFile, err)
+		}
+		if err := CheckSecretFilePermissions(a.TLSKeyFile); err != nil {
+			fmt.Fprintf(os.Stderr, "⚠️  Warning: %v\n", err)
+		}
+		return a.TLSKeyFile, nil
+	}
+
+	if a.TLSKeyEnv != "" {
+		if val := os.Getenv(a.TLSKeyEnv); strings.TrimSpace(val) != "" {
+			return strings.TrimSpace(val), nil
+		}
+	}
+
+	if val := os.Getenv("WATCHDOG_AGENT_TLS_KEY"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+	if val := os.Getenv("WATCHDOG_TLS_KEY"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+
+	if strings.TrimSpace(a.TLSKey) != "" {
+		return strings.TrimSpace(a.TLSKey), nil
+	}
+
+	return "", nil
+}
+
+// ResolveTLSCert resolves the TLS certificate file path according to precedence:
+// 1. Secret file path (TLSCertFile)
+// 2. Explicit environment variable name (TLSCertEnv)
+// 3. Default environment variables (WATCHDOG_AGENT_TLS_CERT, WATCHDOG_TLS_CERT)
+// 4. Plain config value (TLSCert)
+func (a *AgentConfig) ResolveTLSCert() (string, error) {
+	if a.TLSCertFile != "" {
+		if _, err := os.Stat(a.TLSCertFile); err != nil {
+			return "", fmt.Errorf("failed to access tls_cert_file %q: %w", a.TLSCertFile, err)
+		}
+		return a.TLSCertFile, nil
+	}
+
+	if a.TLSCertEnv != "" {
+		if val := os.Getenv(a.TLSCertEnv); strings.TrimSpace(val) != "" {
+			return strings.TrimSpace(val), nil
+		}
+	}
+
+	if val := os.Getenv("WATCHDOG_AGENT_TLS_CERT"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+	if val := os.Getenv("WATCHDOG_TLS_CERT"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+
+	if strings.TrimSpace(a.TLSCert) != "" {
+		return strings.TrimSpace(a.TLSCert), nil
+	}
+
+	return "", nil
+}
+
+// ResolveSecrets resolves all sensitive configuration fields.
+func (a *AgentConfig) ResolveSecrets() error {
+	token, err := a.ResolveToken()
+	if err != nil {
+		return fmt.Errorf("failed to resolve agent token: %w", err)
+	}
+	a.Token = token
+
+	key, err := a.ResolveTLSKey()
+	if err != nil {
+		return fmt.Errorf("failed to resolve agent tls_key: %w", err)
+	}
+	a.TLSKey = key
+
+	cert, err := a.ResolveTLSCert()
+	if err != nil {
+		return fmt.Errorf("failed to resolve agent tls_cert: %w", err)
+	}
+	a.TLSCert = cert
+
+	return nil
+}
+
+// ResolveSecrets resolves all sensitive configuration fields in the root Config.
+func (c *Config) ResolveSecrets() error {
+	return c.Agent.ResolveSecrets()
+}
+
+// Redacted returns a deep copy of Config with sensitive credentials masked as "[REDACTED]".
+func (c *Config) Redacted() *Config {
+	clone := *c
+	clone.Agent = *c.Agent.Redacted()
+	return &clone
+}
+
+// CloneRedacted returns a deep copy of Config with sensitive credentials masked as "[REDACTED]".
+func (c *Config) CloneRedacted() *Config {
+	return c.Redacted()
+}
+
+// Redacted returns a deep copy of AgentConfig with sensitive credentials masked as "[REDACTED]".
+func (a *AgentConfig) Redacted() *AgentConfig {
+	clone := *a
+	if clone.Token != "" {
+		clone.Token = "[REDACTED]"
+	}
+	if clone.TLSKey != "" {
+		clone.TLSKey = "[REDACTED]"
+	}
+	return &clone
+}
+
+// CloneRedacted returns a deep copy of AgentConfig with sensitive credentials masked as "[REDACTED]".
+func (a *AgentConfig) CloneRedacted() *AgentConfig {
+	return a.Redacted()
 }
 
 // Validate checks all settings for correctness.
