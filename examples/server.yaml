@@ -1,0 +1,80 @@
+# Watchdog Centralized Server & Prometheus Exporter Configuration Template
+# Usage: watchdog --config /etc/watchdog/server.yaml server
+# Configured for hardened TLS and Bearer token authenticated REST / Prometheus services.
+
+refresh_interval: 5s
+
+storage:
+  enabled: true
+  db_path: "/var/lib/watchdog/watchdog.db"
+  retention_days: 60
+  collection_interval: 10s
+
+audit:
+  enabled: true
+  retention_days: 180
+  max_query_limit: 1000
+
+alerts:
+  cpu:
+    enabled: true
+    threshold: 85.0
+    duration: 30s
+    cooldown: 5m
+  memory:
+    enabled: true
+    threshold: 85.0
+    duration: 30s
+    cooldown: 5m
+  disk:
+    enabled: true
+    threshold: 90.0
+    duration: 1m
+    cooldown: 15m
+  process:
+    enabled: true
+    cpu_threshold: 80.0
+    memory_threshold: 75.0
+    cooldown: 5m
+  network:
+    enabled: true
+    threshold: 100.0
+    duration: 1m
+    cooldown: 10m
+
+anomaly:
+  enabled: true
+  z_score_threshold: 2.5
+  window_size: 120
+  alpha: 0.15
+
+collectors:
+  cpu: true
+  memory: true
+  disk: true
+  network: true
+  process: true
+  service: true
+  port: true
+  docker: true
+  kubernetes: false
+
+dashboard:
+  theme: "default"
+  show_per_core_cpu: true
+  process_sort_by: "cpu"
+  process_limit: 50
+  pause_on_start: false
+
+prometheus:
+  enabled: true
+  port: 9100
+  path: "/metrics"
+
+agent:
+  enabled: true
+  port: 8443
+  bind_address: "0.0.0.0"
+  token_file: "/etc/watchdog/secrets/auth.token"
+  tls_cert_file: "/etc/watchdog/certs/server.crt"
+  tls_key_file: "/etc/watchdog/certs/server.key"

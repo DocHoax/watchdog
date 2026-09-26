@@ -167,7 +167,11 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// Register routes
 	mux.HandleFunc("/health", s.handleHealth)
+	mux.HandleFunc("/healthz", s.handleHealth)
 	mux.HandleFunc("/api/v1/health", s.handleHealth)
+	mux.HandleFunc("/ready", s.handleReady)
+	mux.HandleFunc("/readyz", s.handleReady)
+	mux.HandleFunc("/api/v1/ready", s.handleReady)
 	mux.HandleFunc("/metrics", s.exporter.Handler())
 
 	// Secured API routes — authentication is always enforced when a token is
@@ -201,9 +205,18 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", bindAddr, port)
+	handler := RequestIDMiddleware(
+		PanicRecoveryMiddleware(
+			MaxBodySizeMiddleware(DefaultMaxRequestBodySize)(
+				RequestLoggerMiddleware(mux),
+			),
+			s.auditLog,
+		),
+	)
+
 	s.httpServer = &http.Server{
 		Addr:              addr,
-		Handler:           RequestIDMiddleware(mux),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -499,6 +512,60 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"version":        "1.0.0",
 	}
 	s.writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		s.writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	s.mu.RLock()
+	snap := s.latestSnapshot
+	s.mu.RUnlock()
+
+	ready := true
+	collectorsStatus := "ok"
+	if snap == nil {
+		ready = false
+		collectorsStatus = "waiting_for_initial_snapshot"
+	}
+
+	storageStatus := "disabled"
+	if s.storage != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := s.storage.Ping(ctx); err != nil {
+			ready = false
+			storageStatus = fmt.Sprintf("error: %v", err)
+		} else {
+			storageStatus = "ok"
+		}
+	}
+
+	diagnosticsStatus := "disabled"
+	if s.diagEng != nil {
+		diagnosticsStatus = "ok"
+	}
+
+	statusStr := "ready"
+	httpStatus := http.StatusOK
+	if !ready {
+		statusStr = "not_ready"
+		httpStatus = http.StatusServiceUnavailable
+	}
+
+	resp := map[string]any{
+		"status":      statusStr,
+		"collectors":  collectorsStatus,
+		"diagnostics": diagnosticsStatus,
+		"storage":     storageStatus,
+		"timestamp":   time.Now().UTC().Format(time.RFC3339),
+		"version":     "1.0.0",
+	}
+
+	s.writeJSON(w, httpStatus, resp)
 }
 
 func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request) {

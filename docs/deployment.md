@@ -23,17 +23,24 @@ sudo chmod +x /usr/local/bin/watchdog
 watchdog version
 ```
 
+### Configuration Templates
+Watchdog provides curated configuration templates in the `examples/` directory for common deployment archetypes:
+- `examples/development.yaml`: Local developer workstations (1s refresh, loopback only, local SQLite storage).
+- `examples/production.yaml`: High-availability bare-metal servers & VMs (5s refresh, WAL storage, 30d retention).
+- `examples/server.yaml`: Centralized Prometheus exporter & REST API server daemon with TLS and token files.
+- `examples/agent.yaml`: Headless lightweight node telemetry agent.
+
 ### Local Development (no token or TLS required)
 ```bash
-# Start on localhost — accessible only from this machine
-watchdog server --port 8443
+# Start on localhost using the development template
+watchdog --config examples/development.yaml server --port 8443
 ```
 
 ### Network-Exposed Deployment (token + TLS required)
 ```bash
 # Generate or obtain a TLS certificate (e.g. from your CA or Let's Encrypt)
-# Then start with all security requirements:
-watchdog server \
+# Then start with all security requirements using production config:
+watchdog --config /etc/watchdog/server.yaml server \
   --host 0.0.0.0 \
   --port 8443 \
   --token-file /etc/watchdog/token \
@@ -134,30 +141,73 @@ sudo systemctl status watchdog.service
 
 ## 4. Kubernetes DaemonSet
 
-Deploy Watchdog across all nodes in a cluster to collect node-level metrics and health diagnostics:
+Deploy Watchdog across all nodes in a cluster to collect node-level metrics and health diagnostics using production manifests located in `deploy/k8s/`:
 
 ```bash
+# 1. Apply Namespace, ServiceAccount, RBAC roles, and DaemonSet
+kubectl apply -f deploy/k8s/configmap.yaml
+kubectl apply -f deploy/k8s/secret.yaml
 kubectl apply -f deploy/k8s/daemonset.yaml
+kubectl apply -f deploy/k8s/service.yaml
+kubectl apply -f deploy/k8s/servicemonitor.yaml
 ```
 
-The DaemonSet manifest configures:
-- **`hostNetwork: true`**: Required to collect host-level network metrics and bind to the node's IP for Prometheus scraping. Without `hostNetwork`, metric collection would only see the pod's virtual network namespace.
-- **`hostPID: true`**: Required to enumerate and monitor all host processes via `/proc`.
-- **Secret-based token injection**: The authentication token is stored in a Kubernetes Secret (`watchdog-auth`) and injected via environment variable.
-- **Security hardening**: `readOnlyRootFilesystem`, `runAsNonRoot`, `runAsUser: 1000`, `allowPrivilegeEscalation: false`, `drop: ["ALL"]` capabilities.
-
-To create the authentication Secret:
-```bash
-kubectl create secret generic watchdog-auth \
-  --namespace=watchdog-system \
-  --from-literal=token="$(openssl rand -base64 32)"
-```
-
-*(See `deploy/k8s/daemonset.yaml` for complete RBAC, Secret, and volume mount specifications).*
+The DaemonSet manifest (`deploy/k8s/daemonset.yaml`) configures:
+- **`hostNetwork: true`**: Required to collect host-level network metrics (RX/TX, dropped packets, errors) and bind to the node's IP for Prometheus scraping.
+- **`hostPID: true`**: Required to enumerate and monitor all host processes via `/proc` for zombie detection, process trees, and resource accounting.
+- **Liveness Probe (`/healthz`)**: Verifies HTTP server process is running and answering requests on port 9100.
+- **Readiness Probe (`/readyz`)**: Verifies metric collectors have completed initial snapshot generation and storage is accessible before receiving traffic.
+- **Security Hardening**: `readOnlyRootFilesystem: true`, `runAsNonRoot: true`, `runAsUser: 1000`, `allowPrivilegeEscalation: false`, and `drop: ["ALL"]` capabilities.
+- **Resource Bounds**: Configured with explicit requests (`50m` CPU, `32Mi` RAM) and limits (`200m` CPU, `128Mi` RAM).
 
 ---
 
-## 5. Security Audit Logging & Production Retention
+## 5. Health, Liveness & Readiness Probes
+
+Watchdog provides dedicated, unauthenticated HTTP health and readiness probe endpoints conforming to Kubernetes, load balancer, and container orchestrator conventions:
+
+| Endpoint | Probe Type | Success Code | Failure Code | Semantics |
+| :--- | :---: | :---: | :---: | :--- |
+| `/health`, `/healthz`, `/api/v1/health` | **Liveness** | `200 OK` | — | Confirms HTTP event loop is alive and serving requests. |
+| `/ready`, `/readyz`, `/api/v1/ready` | **Readiness** | `200 OK` | `503 Service Unavailable` | Confirms collector initialization, initial snapshot availability, and storage connectivity. |
+
+### Liveness Probe Response
+```json
+{
+  "status": "ok",
+  "uptime_seconds": 342.1,
+  "timestamp": "2026-09-26T12:00:00Z",
+  "version": "1.0.0"
+}
+```
+
+### Readiness Probe Response (Ready: HTTP 200)
+```json
+{
+  "status": "ready",
+  "collectors": "ok",
+  "diagnostics": "ok",
+  "storage": "ok",
+  "timestamp": "2026-09-26T12:00:00Z",
+  "version": "1.0.0"
+}
+```
+
+### Readiness Probe Response (Degraded: HTTP 503)
+```json
+{
+  "status": "not_ready",
+  "collectors": "no snapshot collected yet",
+  "diagnostics": "ok",
+  "storage": "ok",
+  "timestamp": "2026-09-26T12:00:00Z",
+  "version": "1.0.0"
+}
+```
+
+---
+
+## 6. Security Audit Logging & Production Retention
 
 Watchdog records structured security audit events for all authentication attempts, server lifecycle transitions, TLS configurations, configuration modifications, and administrative operations.
 

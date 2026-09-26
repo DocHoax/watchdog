@@ -1,0 +1,77 @@
+# Watchdog Development Configuration Template
+# Usage: watchdog --config examples/development.yaml dash
+# Ideal for local engineering workstations and rapid troubleshooting.
+
+refresh_interval: 1s
+
+storage:
+  enabled: true
+  db_path: "~/.watchdog/dev.db"
+  retention_days: 3
+  collection_interval: 5s
+
+audit:
+  enabled: true
+  retention_days: 14
+  max_query_limit: 500
+
+alerts:
+  cpu:
+    enabled: true
+    threshold: 80.0
+    duration: 10s
+    cooldown: 1m
+  memory:
+    enabled: true
+    threshold: 80.0
+    duration: 10s
+    cooldown: 1m
+  disk:
+    enabled: true
+    threshold: 85.0
+    duration: 30s
+    cooldown: 5m
+  process:
+    enabled: true
+    cpu_threshold: 70.0
+    memory_threshold: 60.0
+    cooldown: 2m
+  network:
+    enabled: true
+    threshold: 50.0
+    duration: 30s
+    cooldown: 2m
+
+anomaly:
+  enabled: true
+  z_score_threshold: 2.0
+  window_size: 30
+  alpha: 0.3
+
+collectors:
+  cpu: true
+  memory: true
+  disk: true
+  network: true
+  process: true
+  service: true
+  port: true
+  docker: true
+  kubernetes: false
+
+dashboard:
+  theme: "default"
+  show_per_core_cpu: true
+  process_sort_by: "cpu"
+  process_limit: 50
+  pause_on_start: false
+
+prometheus:
+  enabled: false
+  port: 9100
+  path: "/metrics"
+
+agent:
+  enabled: false
+  port: 8443
+  bind_address: "127.0.0.1"

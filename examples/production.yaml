@@ -1,0 +1,77 @@
+# Watchdog Production Configuration Template
+# Usage: watchdog --config /etc/watchdog/production.yaml server
+# Optimized for bare-metal servers, cloud virtual machines, and container hosts.
+
+refresh_interval: 5s
+
+storage:
+  enabled: true
+  db_path: "/var/lib/watchdog/watchdog.db"
+  retention_days: 30
+  collection_interval: 15s
+
+audit:
+  enabled: true
+  retention_days: 90
+  max_query_limit: 1000
+
+alerts:
+  cpu:
+    enabled: true
+    threshold: 90.0
+    duration: 30s
+    cooldown: 5m
+  memory:
+    enabled: true
+    threshold: 85.0
+    duration: 30s
+    cooldown: 5m
+  disk:
+    enabled: true
+    threshold: 90.0
+    duration: 1m
+    cooldown: 15m
+  process:
+    enabled: true
+    cpu_threshold: 80.0
+    memory_threshold: 70.0
+    cooldown: 5m
+  network:
+    enabled: true
+    threshold: 100.0
+    duration: 1m
+    cooldown: 10m
+
+anomaly:
+  enabled: true
+  z_score_threshold: 2.5
+  window_size: 60
+  alpha: 0.2
+
+collectors:
+  cpu: true
+  memory: true
+  disk: true
+  network: true
+  process: true
+  service: true
+  port: true
+  docker: true
+  kubernetes: false
+
+dashboard:
+  theme: "default"
+  show_per_core_cpu: true
+  process_sort_by: "cpu"
+  process_limit: 100
+  pause_on_start: false
+
+prometheus:
+  enabled: true
+  port: 9100
+  path: "/metrics"
+
+agent:
+  enabled: false
+  port: 8443
+  bind_address: "127.0.0.1"

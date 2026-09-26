@@ -133,6 +133,20 @@ Watchdog is structured as a modular, decoupled Go application divided into:
    - Go dependency integrity is continuously enforced with `go mod verify` in CI.
    - Independent build reproducibility is verified across clean dual-build verification scripts (`scripts/verify-reproducibility.sh` / `.ps1`).
 
+10. **HTTP Middleware Pipeline & Operational Safeguards (`internal/server/middleware.go`)**:
+    - `PanicRecoveryMiddleware`: Intercepts unhandled HTTP panics, logs structured stack traces safely without process termination, emits a `CRITICAL` security audit event, and returns HTTP 500 JSON.
+    - `MaxBodySizeMiddleware`: Enforces a strict 1MB (1,048,576 bytes) payload limit on HTTP request bodies to mitigate memory exhaustion DoS vectors.
+    - `RequestIDMiddleware`: Validates or assigns `X-Request-ID` UUID v4 headers to correlate logs, requests, and security audit records.
+    - `RequestLoggerMiddleware`: Captures method, path, remote IP, HTTP status, and duration for all requests.
+11. **Health, Liveness & Readiness Probe Architecture**:
+    - Unauthenticated `/health`, `/healthz`, `/api/v1/health` for process liveness checks (returns HTTP 200).
+    - Unauthenticated `/ready`, `/readyz`, `/api/v1/ready` for traffic readiness (returns HTTP 200 when snapshot and storage are operational; HTTP 503 when initial snapshot is pending or storage ping fails).
+12. **Prometheus Operational Semantics**:
+    - Standardized `watchdog_build_info`, `watchdog_up`, and `watchdog_health_status` operational metrics exposed at `/metrics`.
+13. **Enterprise Kubernetes & Configuration Artifacts**:
+    - Production-hardened Kubernetes manifests in `deploy/k8s/` (`daemonset.yaml`, `configmap.yaml`, `secret.yaml`, `service.yaml`, `servicemonitor.yaml`) with non-root execution (`runAsNonRoot: true`), read-only root filesystems, and dropped capabilities.
+    - Production configuration templates in `examples/` (`development.yaml`, `production.yaml`, `server.yaml`, `agent.yaml`).
+
 ---
 
 ## 6. Current Test Coverage Baseline
@@ -155,3 +169,19 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 | **Path Trimming (`-trimpath`)** | Strips build machine paths | `go build -trimpath` / Reproducibility verification | :white_check_mark: Verified |
 | **Dependency Integrity** | Locked `go.sum` hashes | `go mod verify` in CI and Release workflows | :white_check_mark: Verified |
 | **Build Reproducibility** | Dual-build SHA256 script | `./scripts/verify-reproducibility.sh` | :white_check_mark: Verified |
+
+---
+
+## 8. Enterprise Operational Readiness Checklist
+
+| Operational Control | Implementation | Verification Tool / Command | Status |
+| :--- | :--- | :--- | :--- |
+| **HTTP Panic Recovery** | `PanicRecoveryMiddleware` catches panics, emits audit event, returns HTTP 500 JSON | `go test -v ./internal/server -run TestPanicRecoveryMiddleware` | :white_check_mark: Verified |
+| **Payload Size Limits** | `MaxBodySizeMiddleware` limits request body to 1MB, returns HTTP 413 | `go test -v ./internal/server -run TestMaxBodySizeMiddleware` | :white_check_mark: Verified |
+| **Liveness Probes** | `/health`, `/healthz`, `/api/v1/health` return HTTP 200 OK | `curl -f http://localhost:9100/healthz` | :white_check_mark: Verified |
+| **Readiness Probes** | `/ready`, `/readyz`, `/api/v1/ready` verify snapshot and storage | `curl -f http://localhost:9100/readyz` | :white_check_mark: Verified |
+| **Standard Operational Metrics** | `watchdog_build_info`, `watchdog_up`, `watchdog_health_status` | `curl -s http://localhost:9100/metrics \| grep watchdog_build_info` | :white_check_mark: Verified |
+| **Kubernetes DaemonSet Hardening**| Non-root user (1000), read-only root FS, dropped capabilities | `kubectl apply --dry-run=client -f deploy/k8s/daemonset.yaml` | :white_check_mark: Verified |
+| **Prometheus Operator Support** | Native `ServiceMonitor` manifest | `kubectl apply --dry-run=client -f deploy/k8s/servicemonitor.yaml` | :white_check_mark: Verified |
+| **Multi-Environment Configs** | Production, server, agent, development templates in `examples/` | `watchdog config validate examples/production.yaml` | :white_check_mark: Verified |
+

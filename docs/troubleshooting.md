@@ -84,3 +84,52 @@ Watchdog returns strict, deterministic process exit codes to facilitate reliable
     watchdog diagnose --fix
     ```
   - Review the suggested remediation steps and run the recommended commands to resolve the bottleneck.
+
+---
+
+### 7. Kubernetes Readiness Probe Returning 503 Service Unavailable
+- **Symptom**: Pod fails Kubernetes `readinessProbe` with `HTTP probe failed with statuscode: 503` on `/readyz`.
+- **Cause**: The server has started but the collector manager is executing its first telemetry sampling cycle and has not yet generated an initial `SystemSnapshot`, or the database ping failed.
+- **Resolution**:
+  - Verify container resource allocation: if CPU is heavily throttled (`< 50m`), collector initialization may take longer than the probe timeout.
+  - Adjust `initialDelaySeconds` in DaemonSet (`deploy/k8s/daemonset.yaml`) from `5` to `10` seconds.
+  - Check storage mount permissions if SQLite database persistence is enabled.
+
+---
+
+### 8. HTTP 413 Payload Too Large on REST API
+- **Symptom**: REST API requests return HTTP status 413 (`Payload Too Large`).
+- **Cause**: Incoming HTTP request body exceeds the server's 1MB (`1,048,576` bytes) payload size limit enforced by `MaxBodySizeMiddleware`.
+- **Resolution**:
+  - Ensure API client payloads (e.g. diagnostic submissions or config payloads) are within 1MB. Watchdog REST endpoints are read-mostly and do not accept arbitrary bulk uploads.
+
+---
+
+### 9. HTTP 500 Internal Server Error & Panic Recovery
+- **Symptom**: REST API returns HTTP status 500 (`{"error": "Internal server error"}`) and logs a stack trace.
+- **Cause**: A downstream HTTP handler encountered a panic condition; `PanicRecoveryMiddleware` intercepted the panic, emitted a critical security audit event, and prevented the server process from crashing.
+- **Resolution**:
+  - Check server stderr/logs for the stack trace and request ID (`X-Request-ID`).
+  - Check security audit events for event type `server.panic`:
+    ```bash
+    watchdog audit list --event-type server.panic --since 1h
+    ```
+  - Report the stack trace and request ID to the repository issue tracker.
+
+---
+
+### 10. Non-Loopback Server Startup Refused (Security Invariant)
+- **Symptom**: `watchdog server --host 0.0.0.0 --port 9100` exits immediately with exit code 4 (`ExitAuthError`) or exit code 3 (`ExitConfigError`).
+- **Cause**: Watchdog strictly enforces that binding to any non-loopback interface (`0.0.0.0`, LAN IPs) requires **both** an authentication token and valid TLS certificate and key.
+- **Resolution**:
+  - For local development, bind to `127.0.0.1` (the default).
+  - For production network exposure, supply both token and TLS certificates:
+    ```bash
+    watchdog server \
+      --host 0.0.0.0 \
+      --port 9100 \
+      --token-file /etc/watchdog/token \
+      --tls-cert /etc/ssl/watchdog/cert.pem \
+      --tls-key /etc/ssl/watchdog/key.pem
+    ```
+

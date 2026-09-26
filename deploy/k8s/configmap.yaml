@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: watchdog-config
+  namespace: watchdog-system
+  labels:
+    app.kubernetes.io/name: watchdog
+    app.kubernetes.io/part-of: watchdog
+data:
+  config.yaml: |
+    refresh_interval: 10s
+
+    storage:
+      enabled: true
+      db_path: "/var/lib/watchdog/watchdog.db"
+      retention_days: 7
+      collection_interval: 10s
+
+    alerts:
+      cpu:
+        enabled: true
+        threshold: 90.0
+        duration: 30s
+        cooldown: 5m
+      memory:
+        enabled: true
+        threshold: 85.0
+        duration: 30s
+        cooldown: 5m
+      disk:
+        enabled: true
+        threshold: 90.0
+        duration: 1m
+        cooldown: 15m
+      network:
+        enabled: true
+        threshold: 100.0
+        duration: 1m
+        cooldown: 10m
+
+    anomaly:
+      enabled: true
+      z_score_threshold: 2.5
+      window_size: 60
+      alpha: 0.2
+
+    collectors:
+      cpu: true
+      memory: true
+      disk: true
+      network: true
+      process: true
+      service: false
+      port: true
+      docker: false
+      kubernetes: true
+
+    prometheus:
+      enabled: true
+      port: 9100
+      path: "/metrics"
+
+    audit:
+      enabled: true
+      retention_days: 90
+      max_query_limit: 1000

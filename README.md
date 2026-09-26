@@ -22,8 +22,9 @@ Watchdog is an all-in-one system health monitoring, diagnostic automation, and l
 - 💾 **Embedded SQLite Time-Series**: Embedded WAL-mode database powered by `modernc.org/sqlite` with automated background retention pruning.
 - 🛡️ **Structured Security Audit Trails**: Zero-credential-leakage audit logging for authentication, lifecycle, TLS, config, and admin events with SQLite persistence, DoS flood throttling, and CSV formula injection neutralization.
 - 🔒 **Hardened Software Supply Chain**: Keyless Sigstore/Cosign signing, SLSA Build Provenance via GitHub Attestations, SPDX 2.3 SBOMs, and bit-for-bit reproducible builds.
+- ☸️ **Enterprise Kubernetes & Fleet Readiness**: Production-ready DaemonSet, ServiceMonitor, and ConfigMap manifests (`deploy/k8s/`), HTTP panic recovery, 1MB payload limits, and Kubernetes liveness/readiness probes (`/healthz`, `/readyz`).
 - 📊 **Self-Contained Multi-Format Reports**: Single-file dark-themed HTML5 reports with inline SVG vector sparklines (zero external JS/CDN requests), structured JSON, CSV, and ANSI terminal summaries.
-- 🌐 **Prometheus Exporter & REST API**: Native `/metrics` OpenMetrics endpoint, authenticated REST APIs, and runtime `pprof` profiling.
+- 🌐 **Prometheus Exporter & REST API**: Native `/metrics` OpenMetrics endpoint, standard operational metrics (`watchdog_build_info`, `watchdog_up`), authenticated REST APIs, and runtime `pprof` profiling.
 
 ---
 

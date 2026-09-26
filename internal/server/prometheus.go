@@ -56,8 +56,33 @@ func (e *PrometheusExporter) RenderMetrics() string {
 
 	var sb strings.Builder
 
+	// Build Info & Operational Status
+	sb.WriteString("# HELP watchdog_build_info Build and version information\n")
+	sb.WriteString("# TYPE watchdog_build_info gauge\n")
+	sb.WriteString(fmt.Sprintf("watchdog_build_info{version=\"1.0.0\",go_version=\"%s\",platform=\"%s/%s\"} 1\n",
+		runtime.Version(), runtime.GOOS, runtime.GOARCH))
+
+	sb.WriteString("# HELP watchdog_up Telemetry collection operational status (1=operational, 0=failing)\n")
+	sb.WriteString("# TYPE watchdog_up gauge\n")
+	if e.lastSnapshot != nil {
+		sb.WriteString("watchdog_up 1\n")
+	} else {
+		sb.WriteString("watchdog_up 0\n")
+	}
+
+	sb.WriteString("# HELP watchdog_health_status System overall health status (1=active, 0=inactive)\n")
+	sb.WriteString("# TYPE watchdog_health_status gauge\n")
+	status := "ok"
+	if e.lastDiag != nil {
+		if e.lastDiag.CriticalChecks > 0 {
+			status = "critical"
+		} else if e.lastDiag.WarningChecks > 0 {
+			status = "warning"
+		}
+	}
+	sb.WriteString(fmt.Sprintf("watchdog_health_status{status=\"%s\"} 1\n", status))
+
 	if e.lastSnapshot == nil {
-		sb.WriteString("# No snapshot data collected yet\n")
 		return sb.String()
 	}
 

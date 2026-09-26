@@ -36,23 +36,6 @@ subjects:
     name: watchdog-agent
     namespace: watchdog-system
 ---
-# Secret for authentication token.
-# Create with:
-#   kubectl create secret generic watchdog-auth \
-#     --namespace=watchdog-system \
-#     --from-literal=token="$(openssl rand -base64 32)"
-#
-# Do NOT commit real secrets to version control.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: watchdog-auth
-  namespace: watchdog-system
-type: Opaque
-data: {}
-# Populate the "token" key via kubectl create secret (see above) or a
-# secrets management system (Vault, Sealed Secrets, External Secrets Operator).
----
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -60,6 +43,7 @@ metadata:
   namespace: watchdog-system
   labels:
     app.kubernetes.io/name: watchdog
+    app.kubernetes.io/part-of: watchdog
 spec:
   selector:
     matchLabels:
@@ -92,16 +76,33 @@ spec:
           image: watchdog:latest
           imagePullPolicy: IfNotPresent
           args:
-            - "serve"
-            - "--prometheus"
+            - "server"
             - "--port"
             - "9100"
+            - "--config"
+            - "/etc/watchdog/config.yaml"
             - "--token-file"
             - "/etc/watchdog/secrets/token"
           ports:
             - name: prometheus
               containerPort: 9100
               hostPort: 9100
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9100
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 9100
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
           resources:
             limits:
               cpu: 200m
@@ -126,8 +127,12 @@ spec:
             - name: var-run-docker
               mountPath: /var/run/docker.sock
               readOnly: true
+            - name: watchdog-config
+              mountPath: /etc/watchdog/config.yaml
+              subPath: config.yaml
+              readOnly: true
             - name: watchdog-storage
-              mountPath: /home/watchdog/.watchdog
+              mountPath: /var/lib/watchdog
             - name: watchdog-auth-secret
               mountPath: /etc/watchdog/secrets
               readOnly: true
@@ -141,6 +146,9 @@ spec:
         - name: var-run-docker
           hostPath:
             path: /var/run/docker.sock
+        - name: watchdog-config
+          configMap:
+            name: watchdog-config
         - name: watchdog-storage
           emptyDir: {}
         - name: watchdog-auth-secret
