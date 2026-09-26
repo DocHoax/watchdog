@@ -190,22 +190,21 @@ func TestSQLiteStorage_TelemetrySubmissions(t *testing.T) {
 		Sequence:  1,
 		Snapshot: &model.SystemSnapshot{
 			Timestamp: now.Add(-5 * time.Minute),
-			Host: model.HostInfo{
+			System: &model.SystemInfo{
 				Hostname:       "telemetry-host",
 				PlatformFamily: "ubuntu",
 			},
 			CPU: &model.CPUInfo{
-				TotalUsage: 25.5,
-				Cores:      4,
+				OverallUsage: 25.5,
+				LoadAverage: model.LoadAvg{
+					Load1: 1.25,
+				},
 			},
 			Memory: &model.MemoryInfo{
 				UsedPercent: 60.0,
 			},
-			Load: &model.LoadInfo{
-				Load1: 1.25,
-			},
-			Disks: []model.DiskInfo{
-				{UsedPercent: 45.0},
+			Disk: &model.DiskInfo{
+				UsedPercent: 45.0,
 			},
 		},
 		Metrics: map[string]float64{
@@ -221,31 +220,30 @@ func TestSQLiteStorage_TelemetrySubmissions(t *testing.T) {
 		Sequence:  2,
 		Snapshot: &model.SystemSnapshot{
 			Timestamp: now,
-			Host: model.HostInfo{
+			System: &model.SystemInfo{
 				Hostname:       "telemetry-host",
 				PlatformFamily: "ubuntu",
 			},
 			CPU: &model.CPUInfo{
-				TotalUsage: 88.0,
-				Cores:      4,
+				OverallUsage: 88.0,
+				LoadAverage: model.LoadAvg{
+					Load1: 3.50,
+				},
 			},
 			Memory: &model.MemoryInfo{
 				UsedPercent: 82.5,
 			},
-			Load: &model.LoadInfo{
-				Load1: 3.50,
-			},
-			Disks: []model.DiskInfo{
-				{UsedPercent: 50.0},
+			Disk: &model.DiskInfo{
+				UsedPercent: 50.0,
 			},
 		},
 		ActiveAlerts: []model.AlertEvent{
 			{
-				ID:          "alert-01",
-				RuleName:    "high-cpu",
-				Severity:    model.SeverityWarning,
-				Status:      model.AlertStatusFiring,
-				TriggeredAt: now,
+				ID:       "alert-01",
+				RuleName: "high-cpu",
+				Severity: model.SeverityWarning,
+				IsActive: true,
+				FiredAt:  now,
 			},
 		},
 		Metrics: map[string]float64{
@@ -278,8 +276,8 @@ func TestSQLiteStorage_TelemetrySubmissions(t *testing.T) {
 	if len(subs[0].ActiveAlerts) != 1 {
 		t.Errorf("expected 1 active alert in sub2, got %d", len(subs[0].ActiveAlerts))
 	}
-	if subs[0].Snapshot.CPU.TotalUsage != 88.0 {
-		t.Errorf("expected 88.0 CPU usage in sub2, got %f", subs[0].Snapshot.CPU.TotalUsage)
+	if subs[0].Snapshot.CPU.OverallUsage != 88.0 {
+		t.Errorf("expected 88.0 CPU usage in sub2, got %f", subs[0].Snapshot.CPU.OverallUsage)
 	}
 
 	// 3. Verify node summary was updated in fleet_nodes

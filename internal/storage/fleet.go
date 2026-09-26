@@ -311,8 +311,10 @@ func (s *SQLiteStorage) SaveTelemetrySubmission(ctx context.Context, sub *model.
 	var summary *model.NodeSummary
 	if sub.Snapshot != nil {
 		var load1 float64
-		if sub.Snapshot.Load != nil {
-			load1 = sub.Snapshot.Load.Load1
+		var cpuPct float64
+		if sub.Snapshot.CPU != nil {
+			load1 = sub.Snapshot.CPU.LoadAverage.Load1
+			cpuPct = sub.Snapshot.CPU.OverallUsage
 		}
 		var diagStatus string
 		if sub.Diagnostics != nil {
@@ -323,18 +325,19 @@ func (s *SQLiteStorage) SaveTelemetrySubmission(ctx context.Context, sub *model.
 			memPct = sub.Snapshot.Memory.UsedPercent
 		}
 		var diskPct float64
-		if len(sub.Snapshot.Disks) > 0 {
-			diskPct = sub.Snapshot.Disks[0].UsedPercent
+		if sub.Snapshot.Disk != nil {
+			diskPct = sub.Snapshot.Disk.UsedPercent
 		}
-		var cpuPct float64
-		if sub.Snapshot.CPU != nil {
-			cpuPct = sub.Snapshot.CPU.TotalUsage
+		var hostname, version string
+		if sub.Snapshot.System != nil {
+			hostname = sub.Snapshot.System.Hostname
+			version = sub.Snapshot.System.PlatformFamily
 		}
 
 		tNow := time.UnixMilli(tsMs).UTC()
 		summary = &model.NodeSummary{
 			NodeID:             sub.NodeID,
-			Hostname:           sub.Snapshot.Host.Hostname,
+			Hostname:           hostname,
 			Status:             model.NodeStatusHealthy,
 			CPUUsagePercent:    cpuPct,
 			MemoryUsagePercent: memPct,
@@ -344,7 +347,7 @@ func (s *SQLiteStorage) SaveTelemetrySubmission(ctx context.Context, sub *model.
 			DiagnosticStatus:   diagStatus,
 			LastHeartbeat:      tNow,
 			LastTelemetry:      &tNow,
-			Version:            sub.Snapshot.Host.PlatformFamily,
+			Version:            version,
 			Tags:               sub.Tags,
 		}
 	}
