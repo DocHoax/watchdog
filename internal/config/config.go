@@ -145,6 +145,11 @@ func DefaultConfig() *Config {
 			RetentionDays:      7,
 			CollectionInterval: 10 * time.Second,
 		},
+		Audit: AuditConfig{
+			Enabled:       true,
+			RetentionDays: 90,
+			MaxQueryLimit: 1000,
+		},
 		Alerts: AlertsConfig{
 			CPU: ThresholdAlert{
 				Enabled:   true,
@@ -546,6 +551,14 @@ func (c *Config) Validate() error {
 	}
 	if c.Storage.Enabled && c.Storage.RetentionDays < 1 {
 		return fmt.Errorf("storage.retention_days must be >= 1")
+	}
+	if c.Audit.Enabled {
+		if c.Audit.RetentionDays < 1 {
+			return fmt.Errorf("audit.retention_days must be >= 1")
+		}
+		if c.Audit.MaxQueryLimit < 1 || c.Audit.MaxQueryLimit > 5000 {
+			return fmt.Errorf("audit.max_query_limit must be between 1 and 5000")
+		}
 	}
 	if c.Alerts.CPU.Threshold < 0 || c.Alerts.CPU.Threshold > 100 {
 		return fmt.Errorf("alerts.cpu.threshold must be between 0 and 100")
