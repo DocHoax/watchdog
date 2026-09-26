@@ -52,8 +52,13 @@ Remote agent communication supports native TLS (`--tls-cert` and `--tls-key`), e
 ### 5. Non-Destructive Telemetry Collection
 Metric sampling operates strictly with read-only system calls, `/proc` filesystem parsing, and native OS APIs. Watchdog does not modify kernel configurations or system state during monitoring. Process termination from the interactive TUI requires interactive confirmation and validates numeric process IDs.
 
-### 6. Credential Sanitization
-Watchdog automatically redacts and masks sensitive tokens, database passwords, and API keys from CLI logs, generated reports, and error traces.
+### 6. Secrets & Credential Handling Architecture
+Watchdog enforces strict secret isolation and management practices:
+- **Unified Secret Precedence**: Explicit CLI flags (`--token`, `--token-file`) > Secret files (`agent.token_file`, `agent.tls_key_file`, `agent.tls_cert_file`) > Environment variables (`WATCHDOG_AGENT_TOKEN` / `agent.token_env`, `WATCHDOG_AGENT_TLS_KEY`, `WATCHDOG_AGENT_TLS_CERT`) > Plain configuration fields (`agent.token`, `agent.tls_key`, `agent.tls_cert`).
+- **Platform-Aware Secret File Validation**: Secret files are checked for existence, readability, non-emptiness, and whitespace trimming. On POSIX systems, file permissions are validated to warn or error on overly permissive file modes (e.g. group/world readable permissions).
+- **Configuration Redaction**: `watchdog config show` and structured outputs automatically mask sensitive fields (`Token`, `TLSKey`) as `"[REDACTED]"`.
+- **Serialization Protection**: `Config.Save()` never writes resolved plaintext secrets back to disk if they originated from secret files or environment variables, preventing unintended secret persistence.
+- **CI/CD Secret Scanning**: All commits and pull requests are continuously audited via automated Gitleaks secret scanning.
 
 ### 7. Filesystem and Path Safety
 All output file paths for reports, SQLite databases, and exported data are validated against directory traversal attacks.
