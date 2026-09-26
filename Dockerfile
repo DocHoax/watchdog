@@ -16,6 +16,7 @@ ARG GIT_COMMIT=HEAD
 ARG BUILD_DATE=2026-09-23
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
     -ldflags="-s -w \
       -X github.com/DocHoax/watchdog/cmd.Version=${VERSION} \
       -X github.com/DocHoax/watchdog/cmd.GitCommit=${GIT_COMMIT} \
