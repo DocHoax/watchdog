@@ -161,6 +161,21 @@ Watchdog validates all configuration properties on startup or via `watchdog conf
 
 ---
 
+## 🔒 Secret Resolution & Redaction
+
+Watchdog supports flexible secret provisioning across files, environment variables, and configuration values:
+
+### Precedence Order
+1. **Explicit CLI Flags** (`--token`, `--token-file`, `--tls-key`, etc.)
+2. **Secret Files** (`agent.token_file`, `agent.tls_key_file`, `agent.tls_cert_file`)
+3. **Environment Variables** (`WATCHDOG_AGENT_TOKEN` / `agent.token_env`, `WATCHDOG_AGENT_TLS_KEY`, `WATCHDOG_AGENT_TLS_CERT`)
+4. **Configuration Fields** (`agent.token`, `agent.tls_key`, `agent.tls_cert`)
+
+### Secret Redaction in `config show`
+Running `watchdog config show` or `watchdog config show --json` automatically masks sensitive values (`token`, `tls_key`) with `[REDACTED]` to prevent secret leakage in console scrollback and logs.
+
+---
+
 ## 🛠️ Configuration CLI Commands
 
 ```bash
