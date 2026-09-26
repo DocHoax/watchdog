@@ -18,42 +18,36 @@ import (
 )
 
 var (
-	auditSince         string
-	auditUntil         string
-	auditEventType     string
-	auditSeverity      string
-	auditOutcome       string
-	auditSource        string
-	auditActor         string
-	auditRequestID     string
-	auditLimit         int
-	auditOffset        int
-	auditJSON          bool
-	auditCSV           bool
-	auditExportOutput  string
-	auditExportFormat  string
-	auditPurgeOlder    string
-	auditRetentionDays int
-	auditPurgeForce    bool
+	auditSince        string
+	auditUntil        string
+	auditEventType    string
+	auditSeverity     string
+	auditOutcome      string
+	auditSource       string
+	auditActor        string
+	auditRequestID    string
+	auditLimit        int
+	auditOffset       int
+	auditFormat       string
+	auditJSON         bool
+	auditExportOutput string
+	auditExportFormat string
 )
 
 var auditCmd = &cobra.Command{
 	Use:     "audit [command]",
 	Aliases: []string{"audits"},
-	Short:   "Inspect, query, export, and manage security audit logs",
-	Long: `Provides administrative inspection, querying, exporting, and maintenance
+	Short:   "Inspect, query, and export security audit logs",
+	Long: `Provides administrative inspection, querying, and exporting
 for Watchdog structured security audit events stored in SQLite.`,
 	Example: `  # List audit events recorded in the last 24 hours
   watchdog audit list
 
   # List authentication failure events in JSON format
-  watchdog audit list --event-type auth.failure --json
+  watchdog audit list --event-type auth.failure --format json
 
-  # Export all audit records for the past 7 days to a CSV file
-  watchdog audit export --since 7d --format csv --output ./audit_log.csv
-
-  # Purge audit logs older than 90 days
-  watchdog audit purge --retention-days 90 --force`,
+  # Export all audit records for the past 7 days to a JSON file
+  watchdog audit export --since 7d --format json --output ./audit_log.json`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAuditList(cmd, args)
 	},
@@ -67,7 +61,7 @@ var auditListCmd = &cobra.Command{
   watchdog audit list --limit 50
 
   # Filter by severity and output as JSON
-  watchdog audit list --severity warning --json
+  watchdog audit list --severity warning --format json
 
   # Filter by event type and time range
   watchdog audit list --event-type auth.success --since 2h`,
@@ -82,21 +76,9 @@ CSV outputs include automated protection against formula injection attacks.`,
 	Example: `  # Export audit logs to JSON file
   watchdog audit export --output /var/log/watchdog/audit_export.json
 
-  # Export audit logs for the last 30 days to CSV
-  watchdog audit export --since 30d --format csv --output ./audit.csv`,
+  # Export audit logs for the last 30 days to JSON
+  watchdog audit export --since 30d --format json --output ./audit.json`,
 	RunE: runAuditExport,
-}
-
-var auditPurgeCmd = &cobra.Command{
-	Use:   "purge [flags]",
-	Short: "Purge historical audit events older than retention cutoff",
-	Long:  `Permanently removes historical audit records from local SQLite storage to reclaim disk space.`,
-	Example: `  # Purge audit logs older than 90 days
-  watchdog audit purge --retention-days 90 --force
-
-  # Purge audit logs older than 720 hours (30 days)
-  watchdog audit purge --older-than 720h --force`,
-	RunE: runAuditPurge,
 }
 
 func runAuditList(cmd *cobra.Command, args []string) error {
@@ -119,6 +101,15 @@ func runAuditList(cmd *cobra.Command, args []string) error {
 		return NewExitError(ExitUsageError, "invalid filter parameters: %v", err)
 	}
 
+	// Enforce max query limit
+	maxLimit := cfg.Audit.MaxQueryLimit
+	if maxLimit <= 0 {
+		maxLimit = 1000
+	}
+	if filter.Limit > maxLimit {
+		filter.Limit = maxLimit
+	}
+
 	events, err := store.QueryAuditEvents(ctx, filter)
 	if err != nil {
 		return NewExitError(ExitGeneralError, "failed to query audit events: %w", err)
@@ -132,7 +123,13 @@ func runAuditList(cmd *cobra.Command, args []string) error {
 		return NewExitError(ExitGeneralError, "failed to count audit events: %w", err)
 	}
 
+	format := strings.ToLower(strings.TrimSpace(auditFormat))
 	if auditJSON {
+		format = "json"
+	}
+
+	switch format {
+	case "json":
 		resp := map[string]any{
 			"total":     total,
 			"count":     len(events),
@@ -147,20 +144,12 @@ func runAuditList(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Println(string(data))
 		return nil
-	}
-
-	if auditCSV {
-		csvData, err := renderAuditEventsCSV(events)
-		if err != nil {
-			return NewExitError(ExitGeneralError, "failed to generate CSV: %w", err)
-		}
-		fmt.Print(csvData)
+	case "", "terminal", "table":
+		renderAuditTable(events, total, filter.Offset)
 		return nil
+	default:
+		return NewExitError(ExitUsageError, "unsupported format %q: choose 'terminal' or 'json'", auditFormat)
 	}
-
-	// Render ANSI table
-	renderAuditTable(events, total, filter.Offset)
-	return nil
 }
 
 func runAuditExport(cmd *cobra.Command, args []string) error {
@@ -183,6 +172,15 @@ func runAuditExport(cmd *cobra.Command, args []string) error {
 		return NewExitError(ExitUsageError, "invalid filter parameters: %v", err)
 	}
 
+	// Enforce max query limit
+	maxLimit := cfg.Audit.MaxQueryLimit
+	if maxLimit <= 0 {
+		maxLimit = 1000
+	}
+	if filter.Limit > maxLimit {
+		filter.Limit = maxLimit
+	}
+
 	events, err := store.QueryAuditEvents(ctx, filter)
 	if err != nil {
 		return NewExitError(ExitGeneralError, "failed to query audit events: %w", err)
@@ -191,11 +189,12 @@ func runAuditExport(cmd *cobra.Command, args []string) error {
 		events = []model.AuditEvent{}
 	}
 
-	format := strings.ToLower(auditExportFormat)
+	format := strings.ToLower(strings.TrimSpace(auditExportFormat))
 	var outputBytes []byte
 
 	switch format {
-	case "json":
+	case "json", "":
+		format = "json"
 		outputBytes, err = json.MarshalIndent(events, "", "  ")
 		if err != nil {
 			return NewExitError(ExitGeneralError, "failed to encode JSON: %w", err)
@@ -226,7 +225,7 @@ func runAuditExport(cmd *cobra.Command, args []string) error {
 		Message:  fmt.Sprintf("Exported %d audit events (format: %s)", len(events), format),
 	})
 
-	if auditExportOutput != "" {
+	if auditExportOutput != "" && auditExportOutput != "-" {
 		if err := os.WriteFile(auditExportOutput, outputBytes, 0600); err != nil {
 			return NewExitError(ExitGeneralError, "failed to write export file: %w", err)
 		}
@@ -235,67 +234,6 @@ func runAuditExport(cmd *cobra.Command, args []string) error {
 		fmt.Print(string(outputBytes))
 	}
 
-	return nil
-}
-
-func runAuditPurge(cmd *cobra.Command, args []string) error {
-	cfg := globalCfg
-	if !cfg.Storage.Enabled {
-		return NewExitError(ExitConfigError, "storage is disabled; audit purge requires storage.enabled: true")
-	}
-
-	if !auditPurgeForce {
-		return NewExitError(ExitUsageError, "audit purge is permanent and requires --force flag to execute")
-	}
-
-	var cutoff time.Time
-	var cutoffDesc string
-
-	if auditRetentionDays > 0 {
-		cutoff = time.Now().UTC().Add(-time.Duration(auditRetentionDays) * 24 * time.Hour)
-		cutoffDesc = fmt.Sprintf("%d days ago (%s)", auditRetentionDays, cutoff.Format(time.RFC3339))
-	} else if auditPurgeOlder != "" {
-		t, err := parseTimeOrDuration(auditPurgeOlder)
-		if err != nil {
-			return NewExitError(ExitUsageError, "invalid --older-than parameter: %v", err)
-		}
-		cutoff = t
-		cutoffDesc = fmt.Sprintf("%s (%s)", auditPurgeOlder, cutoff.Format(time.RFC3339))
-	} else {
-		return NewExitError(ExitUsageError, "either --retention-days or --older-than must be specified")
-	}
-
-	store, err := storage.NewSQLiteStorage(storage.Config{Path: cfg.Storage.DBPath})
-	if err != nil {
-		return NewExitError(ExitGeneralError, "failed to open storage database: %w", err)
-	}
-	defer store.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	purged, err := store.PurgeAuditEvents(ctx, cutoff)
-	if err != nil {
-		return NewExitError(ExitGeneralError, "failed to purge audit events: %w", err)
-	}
-
-	// Audit the purge action
-	_ = store.SaveAuditEvent(ctx, model.AuditEvent{
-		ID:        audit.GenerateEventID(),
-		Timestamp: time.Now().UTC(),
-		EventType: model.EventAdminAuditPurge,
-		Severity:  model.AuditSeverityWarning,
-		Outcome:   model.AuditOutcomeSuccess,
-		Actor: model.AuditActor{
-			Type:     model.ActorTypeCLI,
-			Identity: "cli-user",
-		},
-		Resource: "audit_events",
-		Action:   "purge",
-		Message:  fmt.Sprintf("Purged %d historical audit events older than %s", purged, cutoffDesc),
-	})
-
-	fmt.Printf("✓ Successfully purged %d audit events older than %s\n", purged, cutoffDesc)
 	return nil
 }
 
@@ -499,10 +437,10 @@ func init() {
 	auditListCmd.Flags().StringVar(&auditSource, "source", "", "filter by source address")
 	auditListCmd.Flags().StringVar(&auditActor, "actor", "", "filter by actor identity")
 	auditListCmd.Flags().StringVar(&auditRequestID, "request-id", "", "filter by correlation request ID")
-	auditListCmd.Flags().IntVarP(&auditLimit, "limit", "l", 100, "maximum number of events to return")
+	auditListCmd.Flags().IntVarP(&auditLimit, "limit", "l", 100, "maximum number of events to return (default 100, max 1000)")
 	auditListCmd.Flags().IntVar(&auditOffset, "offset", 0, "offset for pagination")
-	auditListCmd.Flags().BoolVar(&auditJSON, "json", false, "output results as JSON")
-	auditListCmd.Flags().BoolVar(&auditCSV, "csv", false, "output results as CSV")
+	auditListCmd.Flags().StringVarP(&auditFormat, "format", "f", "terminal", "output format: terminal or json")
+	auditListCmd.Flags().BoolVar(&auditJSON, "json", false, "output results as JSON (shorthand for --format json)")
 
 	// audit export flags
 	auditExportCmd.Flags().StringVarP(&auditExportOutput, "output", "o", "", "file path to write exported records (default: stdout)")
@@ -514,12 +452,8 @@ func init() {
 	auditExportCmd.Flags().StringVar(&auditOutcome, "outcome", "", "filter by outcome")
 	auditExportCmd.Flags().StringVar(&auditSource, "source", "", "filter by source address")
 	auditExportCmd.Flags().StringVar(&auditActor, "actor", "", "filter by actor identity")
-	auditExportCmd.Flags().IntVarP(&auditLimit, "limit", "l", 1000, "maximum number of events to export")
-
-	// audit purge flags
-	auditPurgeCmd.Flags().StringVar(&auditPurgeOlder, "older-than", "", "purge records older than duration or timestamp (e.g. 90d, 2160h)")
-	auditPurgeCmd.Flags().IntVar(&auditRetentionDays, "retention-days", 0, "purge records older than N days")
-	auditPurgeCmd.Flags().BoolVarP(&auditPurgeForce, "force", "f", false, "confirm purge execution without interactive prompt")
+	auditExportCmd.Flags().StringVar(&auditRequestID, "request-id", "", "filter by correlation request ID")
+	auditExportCmd.Flags().IntVarP(&auditLimit, "limit", "l", 1000, "maximum number of events to export (default 1000, max 1000)")
 
 	// Base auditCmd flags (inherit list flags for default list behavior)
 	auditCmd.Flags().StringVar(&auditSince, "since", "24h", "filter events created since duration or timestamp")
@@ -532,12 +466,11 @@ func init() {
 	auditCmd.Flags().StringVar(&auditRequestID, "request-id", "", "filter by correlation request ID")
 	auditCmd.Flags().IntVarP(&auditLimit, "limit", "l", 100, "maximum number of events to return")
 	auditCmd.Flags().IntVar(&auditOffset, "offset", 0, "offset for pagination")
-	auditCmd.Flags().BoolVar(&auditJSON, "json", false, "output results as JSON")
-	auditCmd.Flags().BoolVar(&auditCSV, "csv", false, "output results as CSV")
+	auditCmd.Flags().StringVarP(&auditFormat, "format", "f", "terminal", "output format: terminal or json")
+	auditCmd.Flags().BoolVar(&auditJSON, "json", false, "output results as JSON (shorthand for --format json)")
 
 	auditCmd.AddCommand(auditListCmd)
 	auditCmd.AddCommand(auditExportCmd)
-	auditCmd.AddCommand(auditPurgeCmd)
 
 	RootCmd.AddCommand(auditCmd)
 }

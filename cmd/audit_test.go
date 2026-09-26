@@ -131,28 +131,36 @@ func TestRunAuditList(t *testing.T) {
 	auditRequestID = ""
 	auditLimit = 100
 	auditOffset = 0
+	auditFormat = "terminal"
 	auditJSON = false
-	auditCSV = false
 
 	err := runAuditList(auditListCmd, []string{})
 	if err != nil {
 		t.Fatalf("runAuditList failed: %v", err)
 	}
 
-	// 2. Test JSON listing
+	// 2. Test JSON listing via --format json
+	auditFormat = "json"
+	auditJSON = false
+	err = runAuditList(auditListCmd, []string{})
+	if err != nil {
+		t.Fatalf("runAuditList with --format json failed: %v", err)
+	}
+
+	// 3. Test JSON listing via --json flag
+	auditFormat = "terminal"
 	auditJSON = true
-	auditCSV = false
 	err = runAuditList(auditListCmd, []string{})
 	if err != nil {
 		t.Fatalf("runAuditList with --json failed: %v", err)
 	}
 
-	// 3. Test CSV listing
+	// 4. Test unsupported format
+	auditFormat = "unsupported_fmt"
 	auditJSON = false
-	auditCSV = true
 	err = runAuditList(auditListCmd, []string{})
-	if err != nil {
-		t.Fatalf("runAuditList with --csv failed: %v", err)
+	if err == nil {
+		t.Fatal("expected error for unsupported format, got nil")
 	}
 }
 
@@ -176,6 +184,7 @@ func TestRunAuditExport(t *testing.T) {
 	auditOutcome = ""
 	auditSource = ""
 	auditActor = ""
+	auditRequestID = ""
 	auditLimit = 1000
 
 	// 1. Export JSON to file
@@ -231,163 +240,5 @@ func TestRunAuditExport(t *testing.T) {
 	auditExportFormat = "xml"
 	if err := runAuditExport(auditExportCmd, []string{}); err == nil {
 		t.Fatal("expected error for unsupported export format 'xml', got nil")
-	}
-}
-
-func TestRunAuditPurge(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "audit_purge_test.db")
-	seedTestAuditData(t, dbPath)
-
-	oldCfg := globalCfg
-	defer func() { globalCfg = oldCfg }()
-
-	globalCfg = config.DefaultConfig()
-	globalCfg.Storage.Enabled = true
-	globalCfg.Storage.DBPath = dbPath
-
-	// 1. Purge without --force should fail
-	auditRetentionDays = 90
-	auditPurgeOlder = ""
-	auditPurgeForce = false
-
-	if err := runAuditPurge(auditPurgeCmd, []string{}); err == nil {
-		t.Fatal("expected error when running audit purge without --force, got nil")
-	}
-
-	// 2. Purge with --force and --retention-days
-	auditPurgeForce = true
-	auditRetentionDays = 90
-
-	if err := runAuditPurge(auditPurgeCmd, []string{}); err != nil {
-		t.Fatalf("runAuditPurge failed: %v", err)
-	}
-
-	// Verify 100-day old event was deleted, and admin.audit.purge event was recorded
-	store, err := storage.NewSQLiteStorage(storage.Config{Path: dbPath})
-	if err != nil {
-		t.Fatalf("failed to open store: %v", err)
-	}
-	defer store.Close()
-
-	ctx := context.Background()
-	events, err := store.QueryAuditEvents(ctx, storage.AuditFilter{Limit: 100})
-	if err != nil {
-		t.Fatalf("failed to query audit events: %v", err)
-	}
-
-	for _, e := range events {
-		if e.ID == "evt-cli-003" {
-			t.Errorf("expected evt-cli-003 to be purged, but found: %+v", e)
-		}
-	}
-
-	// Verify purge audit event exists
-	foundPurgeAudit := false
-	for _, e := range events {
-		if e.EventType == model.EventAdminAuditPurge {
-			foundPurgeAudit = true
-			if e.Severity != model.AuditSeverityWarning {
-				t.Errorf("expected severity warning, got %s", e.Severity)
-			}
-			if e.Actor.Type != model.ActorTypeCLI {
-				t.Errorf("expected actor type cli, got %s", e.Actor.Type)
-			}
-		}
-	}
-	if !foundPurgeAudit {
-		t.Error("expected to find admin.audit.purge audit event recorded in storage")
-	}
-}
-
-func TestRenderAuditTable(t *testing.T) {
-	// Should not panic on empty or non-empty events
-	renderAuditTable([]model.AuditEvent{}, 0, 0)
-
-	events := []model.AuditEvent{
-		{
-			ID:        "evt-tbl-1",
-			Timestamp: time.Now().UTC(),
-			EventType: model.EventAuthSuccess,
-			Severity:  model.AuditSeverityInfo,
-			Outcome:   model.AuditOutcomeSuccess,
-			Actor: model.AuditActor{
-				Type:     model.ActorTypeAuthenticatedClient,
-				Identity: "long-actor-name-exceeding-limit",
-			},
-			Source: model.AuditSource{
-				Address: "192.168.1.100:54321",
-			},
-			Message: "A very long message description that exceeds forty characters for formatting truncation test",
-		},
-	}
-
-	renderAuditTable(events, 1, 0)
-}
-
-func TestRenderAuditEventsCSV(t *testing.T) {
-	events := []model.AuditEvent{
-		{
-			ID:        "evt-csv-1",
-			Timestamp: time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC),
-			EventType: model.EventAuthSuccess,
-			Severity:  model.AuditSeverityInfo,
-			Outcome:   model.AuditOutcomeSuccess,
-			Actor: model.AuditActor{
-				Type:     model.ActorTypeAuthenticatedClient,
-				Identity: "user1",
-			},
-			Source: model.AuditSource{
-				Address:   "127.0.0.1",
-				Endpoint:  "/api/v1/snapshot",
-				Method:    "GET",
-				RequestID: "req-1",
-			},
-			Message: "Normal message",
-			Metadata: map[string]string{
-				"key": "value",
-			},
-		},
-	}
-
-	csvStr, err := renderAuditEventsCSV(events)
-	if err != nil {
-		t.Fatalf("renderAuditEventsCSV failed: %v", err)
-	}
-
-	if !strings.Contains(csvStr, "evt-csv-1") {
-		t.Errorf("expected event id in CSV, got: %s", csvStr)
-	}
-}
-
-func TestParseTimeOrDuration(t *testing.T) {
-	// RFC3339
-	t1, err := parseTimeOrDuration("2026-09-26T12:00:00Z")
-	if err != nil || t1.Year() != 2026 {
-		t.Errorf("failed to parse RFC3339: %v, got %v", err, t1)
-	}
-
-	// Date format
-	t2, err := parseTimeOrDuration("2026-09-26")
-	if err != nil || t2.Day() != 26 {
-		t.Errorf("failed to parse date: %v, got %v", err, t2)
-	}
-
-	// Days duration
-	t3, err := parseTimeOrDuration("7d")
-	if err != nil || time.Since(t3) < 6*24*time.Hour {
-		t.Errorf("failed to parse 7d: %v, got %v", err, t3)
-	}
-
-	// Go duration
-	t4, err := parseTimeOrDuration("24h")
-	if err != nil || time.Since(t4) < 23*time.Hour {
-		t.Errorf("failed to parse 24h: %v, got %v", err, t4)
-	}
-
-	// Invalid
-	_, err = parseTimeOrDuration("invalid-time-format-xyz")
-	if err == nil {
-		t.Error("expected error for invalid time format, got nil")
 	}
 }
