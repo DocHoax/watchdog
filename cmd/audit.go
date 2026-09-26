@@ -159,7 +159,7 @@ func runAuditList(cmd *cobra.Command, args []string) error {
 	}
 
 	// Render ANSI table
-	renderAuditTable(events, total, filter.Offset, filter.Limit)
+	renderAuditTable(events, total, filter.Offset)
 	return nil
 }
 
@@ -390,7 +390,7 @@ func renderAuditEventsCSV(events []model.AuditEvent) (string, error) {
 	return buf.String(), nil
 }
 
-func renderAuditTable(events []model.AuditEvent, total int64, offset, limit int) {
+func renderAuditTable(events []model.AuditEvent, total int64, offset int) {
 	if len(events) == 0 {
 		fmt.Println("No audit events found matching the query criteria.")
 		return
