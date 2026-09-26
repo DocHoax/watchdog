@@ -41,7 +41,22 @@ type TimeRangeQuery struct {
 	Limit     int           `json:"limit,omitempty"`
 }
 
-// Storage defines the contract for storing and querying system metrics, alerts, and diagnostics.
+// AuditFilter defines parameters for querying audit events.
+type AuditFilter struct {
+	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time"`
+	EventType     string    `json:"event_type"`
+	Severity      string    `json:"severity"`
+	Outcome       string    `json:"outcome"`
+	ActorType     string    `json:"actor_type"`
+	ActorIdentity string    `json:"actor_identity"`
+	SourceAddress string    `json:"source_address"`
+	RequestID     string    `json:"request_id"`
+	Limit         int       `json:"limit"`
+	Offset        int       `json:"offset"`
+}
+
+// Storage defines the contract for storing and querying system metrics, alerts, diagnostics, and audit events.
 type Storage interface {
 	// Lifecycle
 	Close() error
@@ -65,6 +80,14 @@ type Storage interface {
 	SaveDiagnosticReport(ctx context.Context, report *model.DiagnosticReport) error
 	GetLatestDiagnosticReport(ctx context.Context) (*model.DiagnosticReport, error)
 	GetDiagnosticHistory(ctx context.Context, limit int) ([]model.DiagnosticReport, error)
+
+	// Audit Events
+	SaveAuditEvent(ctx context.Context, event model.AuditEvent) error
+	SaveAuditEvents(ctx context.Context, events []model.AuditEvent) error
+	QueryAuditEvents(ctx context.Context, filter AuditFilter) ([]model.AuditEvent, error)
+	CountAuditEvents(ctx context.Context, filter AuditFilter) (int64, error)
+	PruneAuditEvents(ctx context.Context, retention time.Duration) (int64, error)
+	PurgeAuditEvents(ctx context.Context, before time.Time) (int64, error)
 
 	// Retention & Maintenance
 	PruneOlderThan(ctx context.Context, retention time.Duration) (int64, error)
