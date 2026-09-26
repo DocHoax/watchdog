@@ -85,20 +85,29 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 
 ## 5. Security-Sensitive Operations & Attack Surfaces
 
-1. **Process Inspection and Termination (`cmd/dash.go` / `internal/tui/`)**:
+1. **Network Bind Security Validation (`internal/server/server.go`)**:
+   - The server enforces a mandatory security invariant at startup: non-loopback bind addresses (`0.0.0.0`, LAN IPs) require **both** a Bearer authentication token and a complete TLS certificate/key pair. The server refuses to start without them and prints actionable error messages.
+   - Validation runs twice as defense-in-depth: first in `cmd/server.go` pre-flight (before resource allocation), then again inside `server.Start()`.
+   - Empty bind addresses fall back to `127.0.0.1` (loopback), not `0.0.0.0`.
+   - Incomplete TLS configurations (cert without key, or vice versa) are always rejected regardless of bind address.
+2. **Process Inspection and Termination (`cmd/dash.go` / `internal/tui/`)**:
    - Interactive process termination sends OS signals (`SIGTERM` / `SIGKILL` or `taskkill`). Must verify that PIDs are sanitized numeric integers and never interpolated into raw shell strings.
-2. **REST API & Prometheus Exporter (`internal/server/`)**:
-   - Default bind address must be `127.0.0.1` (localhost) to prevent unintended network exposure.
-   - REST API endpoints require Bearer Token authentication via `Authorization: Bearer <token>`.
+3. **REST API & Prometheus Exporter (`internal/server/`)**:
+   - Default bind address is `127.0.0.1` (localhost) to prevent unintended network exposure.
+   - REST API endpoints require Bearer Token authentication via `Authorization: Bearer <token>` or `X-Watchdog-Token: <token>`.
+   - Token comparison uses constant-time `crypto/subtle.ConstantTimeCompare` to prevent timing attacks.
    - Prometheus `/metrics` endpoint exposes high-level telemetry without sensitive credentials or command line arguments containing secrets.
-3. **Filesystem Writes (`internal/storage/`, `cmd/report.go`, `cmd/config.go`)**:
+   - `/health` and `/metrics` endpoints are intentionally unauthenticated for liveness probes and Prometheus scraping.
+4. **Filesystem Writes (`internal/storage/`, `cmd/report.go`, `cmd/config.go`)**:
    - Report outputs, SQLite databases, and config paths must guard against directory traversal and sanitize destination paths.
-4. **Credential & Secret Sanitization**:
+5. **Credential & Secret Sanitization**:
    - No plaintext passwords, API keys, or tokens must be logged in application logs or embedded in HTML/JSON/CSV diagnostic reports.
+   - Error messages from security validation are actionable but never include the configured token value.
 
 ---
 
 ## 6. Current Test Coverage Baseline
 
 - All unit tests across all 11 Go packages pass (`cmd`, `internal/alerts`, `internal/anomaly`, `internal/collector`, `internal/config`, `internal/diagnostics`, `internal/logger`, `internal/reporting`, `internal/server`, `internal/storage`, `internal/tui`, `pkg/util`).
-- Next steps will validate race conditions (`go test -race ./...`), resource leaks, HTTP API security, anomaly detector scenarios, and database edge cases.
+- Security validation tests comprehensively cover: `IsLoopback()` for all address types, `ValidateServerSecurity()` for all bind address × token × TLS combinations, HTTP-level auth enforcement via httptest, concurrent request safety, method restriction, path traversal rejection, and graceful shutdown.
+- Next steps will validate race conditions (`go test -race ./...`), resource leaks, anomaly detector scenarios, and database edge cases.
