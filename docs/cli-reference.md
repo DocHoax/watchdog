@@ -53,8 +53,7 @@ watchdog [command]
 │   └── path                      # Print configuration file path
 ├── audit (audits)                # Security audit logging & event management
 │   ├── list                      # List and filter security audit events
-│   ├── export                    # Export audit logs to JSON/CSV with formula protection
-│   └── purge                     # Permanently purge historical audit logs
+│   └── export                    # Export audit logs to JSON/CSV format
 ├── export                        # Export snapshots or metrics to JSON/CSV
 ├── completion                    # Generate shell completion scripts
 └── version                       # Print version and build metadata
