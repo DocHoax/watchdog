@@ -21,6 +21,18 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("Storage should be enabled by default")
 	}
 
+	if !cfg.Audit.Enabled {
+		t.Errorf("Audit should be enabled by default")
+	}
+
+	if cfg.Audit.RetentionDays != 90 {
+		t.Errorf("Expected 90 days audit retention, got %d", cfg.Audit.RetentionDays)
+	}
+
+	if cfg.Audit.MaxQueryLimit != 1000 {
+		t.Errorf("Expected 1000 audit max query limit, got %d", cfg.Audit.MaxQueryLimit)
+	}
+
 	if cfg.Alerts.CPU.Threshold != 90.0 {
 		t.Errorf("Expected CPU alert threshold 90.0, got %f", cfg.Alerts.CPU.Threshold)
 	}
@@ -74,6 +86,28 @@ func TestConfigValidation(t *testing.T) {
 	cfg.Prometheus.Port = 99999 // Invalid port
 	if err := cfg.Validate(); err == nil {
 		t.Errorf("Expected error for invalid prometheus port")
+	}
+
+	// Audit validation tests
+	cfg = DefaultConfig()
+	cfg.Audit.Enabled = true
+	cfg.Audit.RetentionDays = 0
+	if err := cfg.Validate(); err == nil {
+		t.Errorf("Expected error for audit retention days < 1")
+	}
+
+	cfg = DefaultConfig()
+	cfg.Audit.Enabled = true
+	cfg.Audit.MaxQueryLimit = 0
+	if err := cfg.Validate(); err == nil {
+		t.Errorf("Expected error for audit max query limit < 1")
+	}
+
+	cfg = DefaultConfig()
+	cfg.Audit.Enabled = true
+	cfg.Audit.MaxQueryLimit = 5001
+	if err := cfg.Validate(); err == nil {
+		t.Errorf("Expected error for audit max query limit > 5000")
 	}
 }
 
