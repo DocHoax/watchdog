@@ -192,7 +192,7 @@ watchdog version --json
 | **`watchdog server`** | `serve`, `daemon` | `-p, --port`, `-b, --host`, `--token`, `--tls-cert`, `--tls-key` | Runs Prometheus `/metrics` exporter and REST API. |
 | **`watchdog agent`** | — | `-p, --port`, `-b, --host`, `--token`, `--tls-cert`, `--tls-key` | Runs headless background telemetry agent. |
 | **`watchdog alert`** | `list`, `history`, `test` | `--limit` | Queries active and historical alerts or emits test events. |
-| **`watchdog audit`** | `list`, `export`, `purge`, `audits` | `--since`, `--until`, `-t, --event-type`, `-s, --severity`, `--outcome`, `--limit`, `--json`, `--csv` | Manages and queries security audit event logs. |
+| **`watchdog audit`** | `list`, `export`, `audits` | `--since`, `--until`, `-t, --event-type`, `-s, --severity`, `--outcome`, `--limit`, `--format`, `--json` | Manages and queries security audit event logs. |
 | **`watchdog config`** | `init`, `validate`, `show`, `path` | `[path]`, `--json` | Manages and validates YAML configuration. |
 | **`watchdog export`** | — | `-f, --format`, `-m, --metric`, `-s, --since`, `-o, --output` | Dumps metrics from embedded SQLite database. |
 | **`watchdog completion`** | `bash`, `zsh`, `fish`, `powershell` | — | Generates shell autocomplete scripts. |

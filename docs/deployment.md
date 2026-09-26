@@ -166,11 +166,7 @@ In containerized (Docker / Kubernetes) deployments, ensure the data directory (d
 
 ### Automated Retention & Periodic Pruning
 - Configure `audit.retention_days` in `config.yaml` (default: 90 days) for automatic retention pruning during background collection cycles.
-- For scheduled administrative maintenance, use `watchdog audit purge`:
-  ```bash
-  # Purge audit events older than 90 days
-  watchdog audit purge --retention-days 90 --force
-  ```
+- Retention cleanup runs automatically based on the configured retention window without requiring manual intervention.
 
 ### Auditing & Compliance Operations
 - List recent security events:
