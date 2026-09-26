@@ -15,6 +15,7 @@ import (
 type Config struct {
 	RefreshInterval time.Duration    `yaml:"refresh_interval"`
 	Storage         StorageConfig    `yaml:"storage"`
+	Audit           AuditConfig      `yaml:"audit"`
 	Alerts          AlertsConfig     `yaml:"alerts"`
 	Anomaly         AnomalyConfig    `yaml:"anomaly"`
 	Collectors      CollectorsConfig `yaml:"collectors"`
@@ -23,6 +24,13 @@ type Config struct {
 	Agent           AgentConfig      `yaml:"agent"`
 	Docker          DockerConfig     `yaml:"docker"`
 	Kubernetes      KubernetesConfig `yaml:"kubernetes"`
+}
+
+// AuditConfig configures security audit logging and retention.
+type AuditConfig struct {
+	Enabled       bool `yaml:"enabled" json:"enabled"`
+	RetentionDays int  `yaml:"retention_days" json:"retention_days"`
+	MaxQueryLimit int  `yaml:"max_query_limit" json:"max_query_limit"`
 }
 
 // StorageConfig configures SQLite storage for metric history.
