@@ -100,9 +100,15 @@ Watchdog is structured as a modular, decoupled Go application divided into:
    - `/health` and `/metrics` endpoints are intentionally unauthenticated for liveness probes and Prometheus scraping.
 4. **Filesystem Writes (`internal/storage/`, `cmd/report.go`, `cmd/config.go`)**:
    - Report outputs, SQLite databases, and config paths must guard against directory traversal and sanitize destination paths.
-5. **Credential & Secret Sanitization**:
-   - No plaintext passwords, API keys, or tokens must be logged in application logs or embedded in HTML/JSON/CSV diagnostic reports.
-   - Error messages from security validation are actionable but never include the configured token value.
+5. **Credential & Secret Sanitization & Resolution**:
+   - Secret precedence hierarchy (CLI flags > Secret files > Environment variables > Plain configuration).
+   - Secret files verified for existence, non-emptiness, whitespace trimming, and POSIX permissions (`0600`/`0400`).
+   - Configuration redaction (`Redacted()`) prevents plaintext token and TLS key exposure during `watchdog config show` or JSON serialization.
+   - `Config.Save()` ensures secrets resolved dynamically from files/env are not inadvertently written in plaintext to config YAML.
+   - All CLI flags and help examples sanitized to `<token>`.
+   - CI/CD workflow security includes automated Gitleaks secret scanning.
+   - No plaintext passwords, API keys, or tokens are logged in application logs or embedded in HTML/JSON/CSV diagnostic reports.
+   - Error messages from security validation are actionable but never include the configured token or key values.
 
 ---
 

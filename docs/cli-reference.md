@@ -74,9 +74,11 @@ watchdog dash [flags]
 | :--- | :---: | :---: | :---: | :--- |
 | `--interval` | `-i` | `duration` | `1s` | Metrics polling refresh interval (e.g. `500ms`, `1s`, `2s`) |
 | `--theme` | `-t` | `string` | `default` | Color theme (`default`, `dark`, `light`, `nord`, `monokai`, `solarized`, `dracula`) |
-| `--remote` | `-r` | `string` | `""` | Remote agent host address (`host:port`) |
-| `--token` | `-T` | `string` | `""` | Authentication token for remote agent connection |
-| `--insecure`| `-k` | `bool` | `false` | Skip TLS certificate verification for remote connections |
+| `--remote` | `-r` | `string` | `""` | Remote agent host address (`host:port` or URL) |
+| `--token` | | `string` | `""` | Authentication token for remote agent connection |
+| `--token-file` | | `string` | `""` | Path to file containing authentication token |
+| `--token-env` | | `string` | `""` | Environment variable name containing authentication token |
+| `--insecure`| | `bool` | `false` | Skip TLS certificate verification for remote connections |
 
 #### Examples
 ```bash
@@ -86,8 +88,8 @@ watchdog dash --interval 500ms
 # Launch with Nord theme
 watchdog dash --theme nord
 
-# Connect to remote agent over TLS
-watchdog dash --remote 192.168.1.50:8443 --token s3cretTok3n
+# Connect to remote agent over TLS using token from file
+watchdog dash --remote https://192.168.1.50:8443 --token-file /etc/watchdog/token
 ```
 
 ---
@@ -170,19 +172,25 @@ watchdog server [flags]
 #### Flags
 | Flag | Shorthand | Type | Default | Description |
 | :--- | :---: | :---: | :---: | :--- |
-| `--port` | `-p` | `int` | `9100` | HTTP listening port |
+| `--port` | `-p` | `int` | `8443` | HTTP listening port |
 | `--host` | `-H` | `string` | `127.0.0.1` | Network interface to bind (use `0.0.0.0` for all interfaces) |
-| `--token` | `-T` | `string` | `""` | Required Bearer token for REST API endpoints |
+| `--token` | `-t` | `string` | `""` | Authentication token required for API endpoints |
+| `--token-file` | | `string` | `""` | Path to file containing authentication token |
+| `--token-env` | | `string` | `""` | Environment variable name containing authentication token |
 | `--tls-cert`| | `string` | `""` | Path to TLS certificate PEM file |
+| `--tls-cert-file`| | `string` | `""` | Path to file containing TLS certificate path |
+| `--tls-cert-env` | | `string` | `""` | Environment variable name containing TLS certificate path |
 | `--tls-key` | | `string` | `""` | Path to TLS private key PEM file |
+| `--tls-key-file` | | `string` | `""` | Path to file containing TLS private key path |
+| `--tls-key-env`  | | `string` | `""` | Environment variable name containing TLS private key path |
 
 #### Examples
 ```bash
-# Launch Prometheus exporter on port 9100 (localhost only)
-watchdog server --port 9100
+# Launch Prometheus exporter on port 8443 (localhost only)
+watchdog server --port 8443
 
-# Launch server on all interfaces with TLS and Bearer authentication
-watchdog server --host 0.0.0.0 --port 9100 --token mySecretToken --tls-cert /etc/ssl/cert.pem --tls-key /etc/ssl/key.pem
+# Launch server on all interfaces with TLS and token from secret file
+watchdog server --host 0.0.0.0 --port 8443 --token-file /etc/watchdog/token --tls-cert /etc/ssl/cert.pem --tls-key /etc/ssl/key.pem
 ```
 
 ---
@@ -198,9 +206,17 @@ watchdog agent [flags]
 #### Flags
 | Flag | Shorthand | Type | Default | Description |
 | :--- | :---: | :---: | :---: | :--- |
-| `--interval` | `-i` | `duration` | `10s` | Sampling and storage persistence interval |
+| `--interval` | `-i` | `duration` | `2s` | Sampling and storage persistence interval |
 | `--port` | `-p` | `int` | `8443` | Remote agent API listener port |
-| `--token` | `-T` | `string` | `""` | Bearer token required for remote client connections |
+| `--token` | `-t` | `string` | `""` | Bearer token required for remote client connections |
+| `--token-file` | | `string` | `""` | Path to file containing authentication token |
+| `--token-env` | | `string` | `""` | Environment variable name containing authentication token |
+| `--tls-cert`| | `string` | `""` | Path to TLS certificate PEM file |
+| `--tls-cert-file`| | `string` | `""` | Path to file containing TLS certificate path |
+| `--tls-cert-env` | | `string` | `""` | Environment variable name containing TLS certificate path |
+| `--tls-key` | | `string` | `""` | Path to TLS private key PEM file |
+| `--tls-key-file` | | `string` | `""` | Path to file containing TLS private key path |
+| `--tls-key-env`  | | `string` | `""` | Environment variable name containing TLS private key path |
 
 ---
 
