@@ -126,10 +126,32 @@ Watchdog is structured as a modular, decoupled Go application divided into:
    - CSV export operations prepend a single quote (`'`) to any cell starting with `=`, `+`, `-`, `@`, `\t`, or `\r` to neutralize formula injection (CSV/DDE) vulnerabilities in spreadsheet viewers.
 8. **SQLite Tamper Limitations & Transparency**:
    - Audit records stored in local embedded SQLite do not provide cryptographic tamper-proofing or hardware WORM immutability against root/administrator modification on the host. High-assurance environments should export or forward logs to external immutable log aggregation systems.
+9. **Software Supply Chain Hardening & Build Provenance**:
+   - Releases are signed keylessly with Cosign via GitHub Actions OIDC; long-lived private signing keys are eliminated.
+   - SLSA Build Provenance and SPDX 2.3 SBOMs are cryptographically attested via `actions/attest-build-provenance` and `actions/attest-sbom`.
+   - Pure Go zero-CGO compilation with `-trimpath` strips developer and CI build machine filesystem paths from compiled binaries.
+   - Go dependency integrity is continuously enforced with `go mod verify` in CI.
+   - Independent build reproducibility is verified across clean dual-build verification scripts (`scripts/verify-reproducibility.sh` / `.ps1`).
 
 ---
 
 ## 6. Current Test Coverage Baseline
 
-- All unit tests across all 13 Go packages pass (`cmd`, `internal/alerts`, `internal/anomaly`, `internal/audit`, `internal/collector`, `internal/config`, `internal/diagnostics`, `internal/logger`, `internal/reporting`, `internal/server`, `internal/storage`, `internal/tui`, `pkg/model`, `pkg/util`).
+- All unit and integration tests across all 13 Go packages pass (`cmd`, `internal/alerts`, `internal/anomaly`, `internal/audit`, `internal/collector`, `internal/config`, `internal/diagnostics`, `internal/logger`, `internal/reporting`, `internal/server`, `internal/storage`, `internal/tui`, `pkg/model`, `pkg/util`).
 - Security validation tests comprehensively cover: `IsLoopback()` for all address types, `ValidateServerSecurity()` for all bind address × token × TLS combinations, HTTP-level auth enforcement via httptest, concurrent request safety, method restriction, path traversal rejection, Request ID propagation, audit sanitization, token masking, flood limiting, SQLite audit queries and pruning, and graceful shutdown.
+- Supply chain security tests cover: version metadata formatting (`cmd/version_test.go`), deterministic build reproducibility verification (`cmd/reproducibility_test.go`), GoReleaser v2 configuration validation (`goreleaser check`), and module checksum verification (`go mod verify`).
+
+---
+
+## 7. Software Supply Chain & Release Verification Checklist
+
+| Security Control | Implementation | Verification Tool / Command | Status |
+| :--- | :--- | :--- | :--- |
+| **SPDX 2.3 SBOMs** | Anchore Syft via GoReleaser | `jq -e '.spdxVersion' <artifact>.sbom.json` | :white_check_mark: Verified |
+| **Keyless Sigstore Signing** | Cosign + GitHub Actions OIDC | `cosign verify-blob --bundle checksums.txt.sigstore.json ...` | :white_check_mark: Verified |
+| **SLSA Build Provenance** | GitHub Artifact Attestations | `gh attestation verify <artifact> --owner DocHoax` | :white_check_mark: Verified |
+| **SBOM Attestation** | GitHub SBOM Attestations | `gh attestation verify --predicate-type https://spdx.dev/Document` | :white_check_mark: Verified |
+| **Zero CGO (`CGO_ENABLED=0`)** | Static Pure Go | `go version -m <binary>` / CI cross-compile matrix | :white_check_mark: Verified |
+| **Path Trimming (`-trimpath`)** | Strips build machine paths | `go build -trimpath` / Reproducibility verification | :white_check_mark: Verified |
+| **Dependency Integrity** | Locked `go.sum` hashes | `go mod verify` in CI and Release workflows | :white_check_mark: Verified |
+| **Build Reproducibility** | Dual-build SHA256 script | `./scripts/verify-reproducibility.sh` | :white_check_mark: Verified |

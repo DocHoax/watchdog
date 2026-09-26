@@ -147,10 +147,11 @@ docker run -d \
 
 ---
 
-## 🔍 Verifying Checksums
+## 🔍 Verifying Releases, Signatures & Provenance
 
-Every release includes an official `checksums.txt` containing SHA-256 digests. Verify your downloaded archive:
+Every official Watchdog release includes SHA-256 digests (`checksums.txt`), keyless Sigstore/Cosign signatures (`checksums.txt.sigstore.json`), SPDX 2.3 Software Bill of Materials (`*.sbom.json`), and cryptographically signed GitHub SLSA build provenance attestations.
 
+### 1. Checksum Manifest Verification
 ```bash
 # Linux
 sha256sum -c checksums.txt --ignore-missing
@@ -159,8 +160,24 @@ sha256sum -c checksums.txt --ignore-missing
 shasum -a 256 -c checksums.txt
 
 # Windows (PowerShell)
-Get-FileHash -Algorithm SHA256 .\watchdog_1.0.0_windows_amd64.zip
+(Get-FileHash -Algorithm SHA256 .\watchdog_1.0.0_windows_amd64.zip).Hash.ToLower()
 ```
+
+### 2. Keyless Sigstore Signature Verification (Cosign)
+```bash
+cosign verify-blob \
+  --bundle checksums.txt.sigstore.json \
+  --certificate-identity-regexp "^https://github.com/DocHoax/watchdog/\.github/workflows/release\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  checksums.txt
+```
+
+### 3. GitHub Build Provenance Attestation
+```bash
+gh attestation verify watchdog_1.0.0_linux_amd64.tar.gz --owner DocHoax
+```
+
+> 📖 **Comprehensive Verification Guide**: For detailed instructions on inspecting SPDX SBOM dependencies, verifying Linux package attestations (`.deb`/`.rpm`/`.apk`), and testing deterministic build reproducibility, see [**docs/release-verification.md**](release-verification.md).
 
 ---
 
