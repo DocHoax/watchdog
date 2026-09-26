@@ -143,6 +143,23 @@ func (s *Server) SetAuditLogger(al audit.AuditLogger) {
 func (s *Server) Start(ctx context.Context) error {
 	// Validate security requirements before starting.
 	if err := ValidateServerSecurity(&s.cfg.Agent); err != nil {
+		if s.auditLog != nil {
+			_ = s.auditLog.Record(context.Background(), model.AuditEvent{
+				ID:        audit.GenerateEventID(),
+				Timestamp: time.Now().UTC(),
+				EventType: model.EventServerStartFailure,
+				Severity:  model.AuditSeverityCritical,
+				Outcome:   model.AuditOutcomeFailure,
+				Actor: model.AuditActor{
+					Type:     model.ActorTypeSystem,
+					Identity: "watchdog-daemon",
+				},
+				Source: model.AuditSource{
+					Address: s.cfg.Agent.BindAddress,
+				},
+				Message: fmt.Sprintf("Server security validation failed: %v", err),
+			})
+		}
 		return fmt.Errorf("server security check failed: %w", err)
 	}
 
@@ -160,6 +177,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("/api/v1/diagnostics", s.authMiddleware(http.HandlerFunc(s.handleDiagnostics)))
 	mux.Handle("/api/v1/alerts", s.authMiddleware(http.HandlerFunc(s.handleAlerts)))
 	mux.Handle("/api/v1/anomalies", s.authMiddleware(http.HandlerFunc(s.handleAnomalies)))
+	mux.Handle("/api/v1/audit/events", s.authMiddleware(http.HandlerFunc(s.handleAuditEvents)))
 
 	// Diagnostic Profiling (pprof)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -185,7 +203,7 @@ func (s *Server) Start(ctx context.Context) error {
 	addr := fmt.Sprintf("%s:%d", bindAddr, port)
 	s.httpServer = &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           RequestIDMiddleware(mux),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -197,6 +215,52 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// Channel for server errors
 	errChan := make(chan error, 1)
+
+	// Record server lifecycle audit events
+	if s.auditLog != nil {
+		_ = s.auditLog.Record(ctx, model.AuditEvent{
+			ID:        audit.GenerateEventID(),
+			Timestamp: time.Now().UTC(),
+			EventType: model.EventServerStart,
+			Severity:  model.AuditSeverityInfo,
+			Outcome:   model.AuditOutcomeSuccess,
+			Actor: model.AuditActor{
+				Type:     model.ActorTypeSystem,
+				Identity: "watchdog-daemon",
+			},
+			Source: model.AuditSource{
+				Address: addr,
+			},
+			Message: fmt.Sprintf("Watchdog API / Agent server starting on %s", addr),
+			Metadata: map[string]string{
+				"bind_address": bindAddr,
+				"port":         fmt.Sprintf("%d", port),
+				"tls_enabled":  fmt.Sprintf("%t", s.cfg.Agent.TLSCert != ""),
+			},
+		})
+
+		tlsEventType := model.EventTLSDisabled
+		tlsMsg := "TLS encryption disabled for server (loopback binding)"
+		if s.cfg.Agent.TLSCert != "" && s.cfg.Agent.TLSKey != "" {
+			tlsEventType = model.EventTLSEnabled
+			tlsMsg = "TLS encryption enabled for server"
+		}
+		_ = s.auditLog.Record(ctx, model.AuditEvent{
+			ID:        audit.GenerateEventID(),
+			Timestamp: time.Now().UTC(),
+			EventType: tlsEventType,
+			Severity:  model.AuditSeverityInfo,
+			Outcome:   model.AuditOutcomeSuccess,
+			Actor: model.AuditActor{
+				Type:     model.ActorTypeSystem,
+				Identity: "watchdog-daemon",
+			},
+			Source: model.AuditSource{
+				Address: addr,
+			},
+			Message: tlsMsg,
+		})
+	}
 
 	go func() {
 		logger.Infof("Watchdog API / Agent server listening on %s (TLS: %v)", addr, s.cfg.Agent.TLSCert != "")
@@ -215,10 +279,44 @@ func (s *Server) Start(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		logger.Infof("Shutting down Watchdog server...")
+		if s.auditLog != nil {
+			_ = s.auditLog.Record(context.Background(), model.AuditEvent{
+				ID:        audit.GenerateEventID(),
+				Timestamp: time.Now().UTC(),
+				EventType: model.EventServerStop,
+				Severity:  model.AuditSeverityInfo,
+				Outcome:   model.AuditOutcomeSuccess,
+				Actor: model.AuditActor{
+					Type:     model.ActorTypeSystem,
+					Identity: "watchdog-daemon",
+				},
+				Source: model.AuditSource{
+					Address: addr,
+				},
+				Message: "Watchdog API / Agent server stopped",
+			})
+		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		return s.httpServer.Shutdown(shutdownCtx)
 	case err := <-errChan:
+		if s.auditLog != nil {
+			_ = s.auditLog.Record(context.Background(), model.AuditEvent{
+				ID:        audit.GenerateEventID(),
+				Timestamp: time.Now().UTC(),
+				EventType: model.EventServerStartFailure,
+				Severity:  model.AuditSeverityCritical,
+				Outcome:   model.AuditOutcomeFailure,
+				Actor: model.AuditActor{
+					Type:     model.ActorTypeSystem,
+					Identity: "watchdog-daemon",
+				},
+				Source: model.AuditSource{
+					Address: addr,
+				},
+				Message: fmt.Sprintf("Server execution failed: %v", err),
+			})
+		}
 		return err
 	}
 }
@@ -290,24 +388,97 @@ func (s *Server) collectAndEvaluate(ctx context.Context) {
 	s.exporter.Update(snap, diag, activeAlerts, anom)
 }
 
-// authMiddleware enforces bearer token authentication if configured.
+// authMiddleware enforces bearer token authentication if configured and logs audit events.
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := s.cfg.Agent.Token
+		reqID := GetRequestID(r.Context())
+
 		if token != "" {
 			authHeader := r.Header.Get("Authorization")
 			customHeader := r.Header.Get("X-Watchdog-Token")
 
 			provided := ""
-			if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-				provided = authHeader[7:]
+			if len(authHeader) > 7 && strings.EqualFold(authHeader[:7], "Bearer ") {
+				provided = strings.TrimSpace(authHeader[7:])
 			} else if customHeader != "" {
-				provided = customHeader
+				provided = strings.TrimSpace(customHeader)
+			}
+
+			if provided == "" {
+				if s.auditLog != nil {
+					_ = s.auditLog.Record(r.Context(), model.AuditEvent{
+						ID:        audit.GenerateEventID(),
+						Timestamp: time.Now().UTC(),
+						EventType: model.EventAuthMissingCredentials,
+						Severity:  model.AuditSeverityWarning,
+						Outcome:   model.AuditOutcomeDenied,
+						Actor: model.AuditActor{
+							Type:     model.ActorTypeAnonymousClient,
+							Identity: "anonymous",
+						},
+						Source: model.AuditSource{
+							Address:   r.RemoteAddr,
+							Endpoint:  r.URL.Path,
+							Method:    r.Method,
+							RequestID: reqID,
+							UserAgent: r.UserAgent(),
+						},
+						Message: "Authentication failed: missing credentials",
+					})
+				}
+				s.writeJSONError(w, http.StatusUnauthorized, "Unauthorized: missing authentication token")
+				return
 			}
 
 			if subtle.ConstantTimeCompare([]byte(provided), []byte(token)) != 1 {
-				s.writeJSONError(w, http.StatusUnauthorized, "Unauthorized: invalid or missing authentication token")
+				// Audit with masked token (never raw token or authorization header)
+				if s.auditLog != nil {
+					_ = s.auditLog.Record(r.Context(), model.AuditEvent{
+						ID:        audit.GenerateEventID(),
+						Timestamp: time.Now().UTC(),
+						EventType: model.EventAuthInvalidCredentials,
+						Severity:  model.AuditSeverityWarning,
+						Outcome:   model.AuditOutcomeDenied,
+						Actor: model.AuditActor{
+							Type:     model.ActorTypeAnonymousClient,
+							Identity: audit.MaskToken(provided),
+						},
+						Source: model.AuditSource{
+							Address:   r.RemoteAddr,
+							Endpoint:  r.URL.Path,
+							Method:    r.Method,
+							RequestID: reqID,
+							UserAgent: r.UserAgent(),
+						},
+						Message: "Authentication failed: invalid credentials",
+					})
+				}
+				s.writeJSONError(w, http.StatusUnauthorized, "Unauthorized: invalid authentication token")
 				return
+			}
+
+			// Successful authentication
+			if s.auditLog != nil {
+				_ = s.auditLog.Record(r.Context(), model.AuditEvent{
+					ID:        audit.GenerateEventID(),
+					Timestamp: time.Now().UTC(),
+					EventType: model.EventAuthSuccess,
+					Severity:  model.AuditSeverityInfo,
+					Outcome:   model.AuditOutcomeSuccess,
+					Actor: model.AuditActor{
+						Type:     model.ActorTypeAuthenticatedClient,
+						Identity: "api-client",
+					},
+					Source: model.AuditSource{
+						Address:   r.RemoteAddr,
+						Endpoint:  r.URL.Path,
+						Method:    r.Method,
+						RequestID: reqID,
+						UserAgent: r.UserAgent(),
+					},
+					Message: "Authentication succeeded",
+				})
 			}
 		}
 		next.ServeHTTP(w, r)
@@ -321,7 +492,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	uptime := time.Since(s.startTime).Seconds()
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"status":         "ok",
 		"uptime_seconds": uptime,
 		"timestamp":      time.Now().UTC().Format(time.RFC3339),
@@ -376,7 +547,7 @@ func (s *Server) handleAlerts(w http.ResponseWriter, r *http.Request) {
 	alerts := s.activeAlerts
 	s.mu.RUnlock()
 
-	s.writeJSON(w, http.StatusOK, map[string]interface{}{
+	s.writeJSON(w, http.StatusOK, map[string]any{
 		"active_alerts": alerts,
 		"count":         len(alerts),
 		"timestamp":     time.Now().UTC().Format(time.RFC3339),
@@ -401,7 +572,7 @@ func (s *Server) handleAnomalies(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, anom)
 }
 
-func (s *Server) writeJSON(w http.ResponseWriter, status int, data interface{}) {
+func (s *Server) writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
