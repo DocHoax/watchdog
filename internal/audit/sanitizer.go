@@ -2,7 +2,9 @@ package audit
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,6 +31,10 @@ var SensitiveKeySubstrings = []string{
 	"passphrase",
 }
 
+var (
+	bearerPattern = regexp.MustCompile(`(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/-]+=*`)
+)
+
 // GenerateEventID creates a cryptographically random RFC 4122 v4 UUID string.
 func GenerateEventID() string {
 	var b [16]byte
@@ -39,6 +45,24 @@ func GenerateEventID() string {
 	b[6] = (b[6] & 0x0f) | 0x40 // Version 4
 	b[8] = (b[8] & 0x3f) | 0x80 // Variant RFC 4122
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+// MaskToken generates a non-reversible SHA-256 truncated identifier (e.g. token:sha256:a1b2c3d4)
+// to enable safe correlation of token usage in audit logs without exposing raw tokens.
+func MaskToken(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	// Strip Bearer prefix if present
+	if strings.HasPrefix(strings.ToLower(raw), "bearer ") {
+		raw = strings.TrimSpace(raw[7:])
+	}
+	if raw == "" {
+		return ""
+	}
+	hash := sha256.Sum256([]byte(raw))
+	return fmt.Sprintf("token:sha256:%x", hash[:4])
 }
 
 // IsSensitiveKey returns true if the key name indicates sensitive credential content.
@@ -70,6 +94,11 @@ func SanitizeValue(val string) string {
 	// Check for potential JWT tokens (three dot-separated base64 segments starting with eyJ)
 	if strings.HasPrefix(trimmed, "eyJ") && strings.Count(trimmed, ".") == 2 {
 		return "[REDACTED]"
+	}
+
+	// Redact embedded bearer/basic authorization patterns
+	if bearerPattern.MatchString(val) {
+		val = bearerPattern.ReplaceAllString(val, "$1 [REDACTED]")
 	}
 
 	return val
