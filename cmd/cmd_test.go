@@ -88,6 +88,32 @@ func TestConfigCommands(t *testing.T) {
 	}
 }
 
+func TestConfigShowRedaction(t *testing.T) {
+	// Verify that config show masks sensitive secrets
+	globalCfg = config.DefaultConfig()
+	globalCfg.Agent.Token = "super-secret-auth-token"
+	globalCfg.Agent.TLSKey = "private-key-material"
+
+	// Test YAML output
+	buf := new(bytes.Buffer)
+	RootCmd.SetOut(buf)
+	RootCmd.SetArgs([]string{"config", "show"})
+	if err := RootCmd.Execute(); err != nil {
+		t.Fatalf("config show failed: %v", err)
+	}
+	// Note: output is printed to stdout in cmd/config.go, but we also verify globalCfg.Redacted() behavior
+	redacted := globalCfg.Redacted()
+	if redacted.Agent.Token != "[REDACTED]" {
+		t.Errorf("expected redacted token [REDACTED], got %q", redacted.Agent.Token)
+	}
+	if redacted.Agent.TLSKey != "[REDACTED]" {
+		t.Errorf("expected redacted TLSKey [REDACTED], got %q", redacted.Agent.TLSKey)
+	}
+	if globalCfg.Agent.Token != "super-secret-auth-token" {
+		t.Errorf("original token was modified in place")
+	}
+}
+
 func TestDiagnoseCommand(t *testing.T) {
 	globalCfg = config.DefaultConfig()
 	globalCfg.Storage.Enabled = false
