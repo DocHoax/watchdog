@@ -11,7 +11,7 @@ Watchdog can be deployed as a standalone binary, a Docker container, a systemd s
 
 ## 1. Standalone Binary Installation
 
-Download the pre-compiled binary for your operating system and architecture from GitHub Releases:
+Download the pre-compiled binary for your operating system and architecture from GitHub Releases (see [Release Verification Guide](release-verification.md) to verify signatures and provenance):
 
 ```bash
 # Example for Linux AMD64
