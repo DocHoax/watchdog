@@ -72,7 +72,7 @@ Watchdog is structured as a modular, decoupled Go application divided into:
    - Structured audit trail for authentication, server lifecycle, TLS status, configuration modifications, and administrative actions.
    - Zero credential leakage via non-reversible SHA-256 token hashing and recursive metadata sanitization.
    - In-memory flood limiter mitigating database write exhaustion from authentication brute-force attacks.
-   - CLI audit management (`watchdog audit list`, `watchdog audit export`, `watchdog audit purge`) with CSV formula injection neutralization.
+   - CLI audit management (`watchdog audit list`, `watchdog audit export`) with CSV formula injection neutralization.
 
 ---
 
