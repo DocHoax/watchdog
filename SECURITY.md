@@ -86,7 +86,32 @@ Watchdog incorporates a structured, machine-readable, and searchable security au
   - Audit records are persisted locally in embedded SQLite with indexed timestamps, event types, severities, and outcomes, alongside configurable automated retention pruning (`audit.retention_days`).
   - *Transparency Disclaimer*: Local SQLite storage on a host filesystem does not provide cryptographic tamper-proofing, hardware write-once-read-many (WORM) immutability, or digital signatures against privileged local root/administrator tampering. For high-assurance compliance environments, forward audit logs to an external immutable SIEM/centralized log collector.
 
-### 8. Filesystem and Path Safety
+### 8. Software Supply Chain Security, SBOM, Signing & Provenance
+Watchdog incorporates a hardened software supply chain framework across all release artifacts and packages:
+
+- **Keyless Sigstore / Cosign Signing**:
+  - Every release signs the official `checksums.txt` SHA-256 digest manifest using keyless Sigstore signing via GitHub Actions OpenID Connect (OIDC).
+  - Eliminates long-lived static private keys in the repository. Cryptographic signatures are bound to short-lived X.509 certificates issued by the Sigstore Fulcio Certificate Authority and immutably recorded in the public Rekor transparency log.
+  - Verification validates the OIDC issuer (`https://token.actions.githubusercontent.com`) and certificate subject (`https://github.com/DocHoax/watchdog/.github/workflows/release.yml@refs/tags/v<version>`).
+- **Cryptographic GitHub Artifact Attestations**:
+  - Build provenance for all released binary archives (`.tar.gz`, `.zip`) and Linux distribution packages (`.deb`, `.rpm`, `.apk`) is cryptographically attested using `actions/attest-build-provenance@v2` (SLSA Provenance v1 specification).
+  - Users can verify artifact lineage, repository source, commit SHA, and release workflow execution with `gh attestation verify <file> --owner DocHoax`.
+- **Standardized SPDX Software Bill of Materials (SBOM)**:
+  - Every release archive and package includes a corresponding SPDX 2.3 JSON Software Bill of Materials (`*.sbom.json`) generated with Anchore Syft.
+  - Documents catalog direct and transitive Go dependencies, exact semantic versions, module identifiers, and package licenses.
+  - SBOMs are cryptographically attested against release subjects via `actions/attest-sbom@v2` (`gh attestation verify --predicate-type https://spdx.dev/Document`).
+- **Zero CGO & Build Path Trimming (`-trimpath`)**:
+  - All binaries compile in pure Go (`CGO_ENABLED=0`) with `-trimpath` enabled, stripping absolute developer workstation and CI build paths from symbol tables and panic traces.
+- **Dependency Integrity Verification**:
+  - All CI workflows enforce `go mod verify` to guarantee that downloaded modules match cryptographic hashes committed in `go.sum`.
+- **Deterministic Build Reproducibility**:
+  - Build workflows and verification scripts (`scripts/verify-reproducibility.sh` / `.ps1`) enable independent validation of bit-for-bit identical binary compilation.
+- **Trust Model & Transparency Boundaries**:
+  - *What is guaranteed*: Cryptographic proof of origin from `DocHoax/watchdog`, tamper detection for release archives, transparent dependency inventory, and path isolation.
+  - *What is not guaranteed*: Signatures and SBOMs do not imply an absence of software vulnerabilities or bugs, nor do they replace proactive security audits and vulnerability monitoring.
+  - See [`docs/release-verification.md`](docs/release-verification.md) for full step-by-step verification commands.
+
+### 9. Filesystem and Path Safety
 All output file paths for reports, SQLite databases, and exported data are validated against directory traversal attacks.
 
 ---
