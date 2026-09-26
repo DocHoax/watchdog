@@ -45,6 +45,8 @@ func TestConfigSaveAndLoad(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Alerts.CPU.Threshold = 75.5
 	cfg.Storage.RetentionDays = 14
+	cfg.Audit.RetentionDays = 180
+	cfg.Audit.MaxQueryLimit = 500
 
 	if err := cfg.Save(configPath); err != nil {
 		t.Fatalf("Failed to save config: %v", err)
@@ -65,6 +67,14 @@ func TestConfigSaveAndLoad(t *testing.T) {
 
 	if loaded.Storage.RetentionDays != 14 {
 		t.Errorf("Expected retention 14 days, got %d", loaded.Storage.RetentionDays)
+	}
+
+	if loaded.Audit.RetentionDays != 180 {
+		t.Errorf("Expected audit retention 180 days, got %d", loaded.Audit.RetentionDays)
+	}
+
+	if loaded.Audit.MaxQueryLimit != 500 {
+		t.Errorf("Expected audit max query limit 500, got %d", loaded.Audit.MaxQueryLimit)
 	}
 }
 
