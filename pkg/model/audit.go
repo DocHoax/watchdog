@@ -42,6 +42,13 @@ const (
 	EventAdminServerStop   = "admin.server.stop"
 	EventAdminExport       = "admin.export"
 	EventAdminAuditPurge   = "admin.audit.purge"
+
+	// Fleet Management Events
+	EventFleetNodeRegistered    = "fleet.node.registered"
+	EventFleetNodeDeregistered  = "fleet.node.deregistered"
+	EventFleetHeartbeat         = "fleet.heartbeat"
+	EventFleetTelemetryIngested = "fleet.telemetry.ingested"
+	EventFleetRateLimited       = "fleet.rate_limit.exceeded"
 )
 
 // Audit Severity Constants

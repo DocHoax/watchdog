@@ -22,6 +22,7 @@ type Config struct {
 	Dashboard       DashboardConfig  `yaml:"dashboard"`
 	Prometheus      PrometheusConfig `yaml:"prometheus"`
 	Agent           AgentConfig      `yaml:"agent"`
+	Fleet           FleetConfig      `yaml:"fleet"`
 	Docker          DockerConfig     `yaml:"docker"`
 	Kubernetes      KubernetesConfig `yaml:"kubernetes"`
 }
@@ -117,6 +118,27 @@ type AgentConfig struct {
 	TLSKey      string `yaml:"tls_key,omitempty" json:"tls_key,omitempty"`
 	TLSKeyFile  string `yaml:"tls_key_file,omitempty" json:"tls_key_file,omitempty"`
 	TLSKeyEnv   string `yaml:"tls_key_env,omitempty" json:"tls_key_env,omitempty"`
+}
+
+// FleetConfig configures node fleet management, registration, and telemetry forwarding.
+type FleetConfig struct {
+	Enabled           bool              `yaml:"enabled" json:"enabled"`
+	ServerURL         string            `yaml:"server_url" json:"server_url"`                         // Central fleet controller URL
+	NodeID            string            `yaml:"node_id,omitempty" json:"node_id,omitempty"`           // Explicit override for node UUID
+	NodeIDFile        string            `yaml:"node_id_file,omitempty" json:"node_id_file,omitempty"` // Path to node ID file (default ~/.watchdog/node_id)
+	HeartbeatInterval time.Duration     `yaml:"heartbeat_interval" json:"heartbeat_interval"`         // Frequency of liveness heartbeats
+	TelemetryInterval time.Duration     `yaml:"telemetry_interval" json:"telemetry_interval"`         // Frequency of telemetry pushes
+	BufferCapacity    int               `yaml:"buffer_capacity" json:"buffer_capacity"`               // Max telemetry items to buffer offline
+	MaxBufferBytes    int64             `yaml:"max_buffer_bytes" json:"max_buffer_bytes"`             // Max buffer size in bytes
+	Tags              map[string]string `yaml:"tags,omitempty" json:"tags,omitempty"`                 // Node metadata tags
+	Token             string            `yaml:"token,omitempty" json:"token,omitempty"`               // Auth token for fleet server
+	TokenFile         string            `yaml:"token_file,omitempty" json:"token_file,omitempty"`     // Path to fleet auth token file
+	TokenEnv          string            `yaml:"token_env,omitempty" json:"token_env,omitempty"`       // Env var containing fleet auth token
+	TLSCACert         string            `yaml:"tls_ca_cert,omitempty" json:"tls_ca_cert,omitempty"`   // Custom CA cert file for server TLS verification
+	RateLimitRate     float64           `yaml:"rate_limit_rate" json:"rate_limit_rate"`               // Server-side max requests per second per node
+	RateLimitBurst    int               `yaml:"rate_limit_burst" json:"rate_limit_burst"`             // Server-side rate limit burst
+	StaleThreshold    time.Duration     `yaml:"stale_threshold" json:"stale_threshold"`               // Mark node stale if no heartbeat after duration
+	OfflineThreshold  time.Duration     `yaml:"offline_threshold" json:"offline_threshold"`           // Mark node offline if no heartbeat after duration
 }
 
 // DockerConfig configures Docker container monitoring.
@@ -218,6 +240,20 @@ func DefaultConfig() *Config {
 			Token:       "",
 			TLSCert:     "",
 			TLSKey:      "",
+		},
+		Fleet: FleetConfig{
+			Enabled:           false,
+			ServerURL:         "",
+			NodeIDFile:        filepath.Join(homeDir, ".watchdog", "node_id"),
+			HeartbeatInterval: 30 * time.Second,
+			TelemetryInterval: 60 * time.Second,
+			BufferCapacity:    1000,
+			MaxBufferBytes:    10 * 1024 * 1024,
+			Tags:              map[string]string{},
+			RateLimitRate:     10.0,
+			RateLimitBurst:    20,
+			StaleThreshold:    2 * time.Minute,
+			OfflineThreshold:  10 * time.Minute,
 		},
 		Docker: DockerConfig{
 			Enabled: true,
@@ -326,6 +362,12 @@ func (c *Config) Save(path string) error {
 		saveAgent.TLSCert = ""
 	}
 	saveCopy.Agent = saveAgent
+
+	saveFleet := c.Fleet
+	if saveFleet.TokenFile != "" || saveFleet.TokenEnv != "" {
+		saveFleet.Token = ""
+	}
+	saveCopy.Fleet = saveFleet
 
 	data, err := yaml.Marshal(&saveCopy)
 	if err != nil {
@@ -510,15 +552,89 @@ func (a *AgentConfig) ResolveSecrets() error {
 	return nil
 }
 
+// ResolveToken resolves the fleet authentication token following the precedence hierarchy:
+// 1. Secret file path (TokenFile)
+// 2. Explicit environment variable name (TokenEnv)
+// 3. Default environment variables (WATCHDOG_FLEET_TOKEN, WATCHDOG_TOKEN)
+// 4. Plain config value (Token)
+func (f *FleetConfig) ResolveToken() (string, error) {
+	if f.TokenFile != "" {
+		resolvedPath := f.TokenFile
+		if strings.HasPrefix(resolvedPath, "~") {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", fmt.Errorf("failed to expand home dir for token_file %q: %w", f.TokenFile, err)
+			}
+			resolvedPath = filepath.Join(home, resolvedPath[1:])
+		}
+		data, err := os.ReadFile(resolvedPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read token_file %q: %w", f.TokenFile, err)
+		}
+		token := strings.TrimSpace(string(data))
+		if token == "" {
+			return "", fmt.Errorf("token_file %q is empty", f.TokenFile)
+		}
+		return token, nil
+	}
+
+	if f.TokenEnv != "" {
+		if val := os.Getenv(f.TokenEnv); strings.TrimSpace(val) != "" {
+			return strings.TrimSpace(val), nil
+		}
+	}
+
+	if val := os.Getenv("WATCHDOG_FLEET_TOKEN"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+	if val := os.Getenv("WATCHDOG_TOKEN"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+
+	if strings.TrimSpace(f.Token) != "" {
+		return strings.TrimSpace(f.Token), nil
+	}
+
+	return "", nil
+}
+
+// ResolveSecrets resolves all sensitive configuration fields in FleetConfig.
+func (f *FleetConfig) ResolveSecrets() error {
+	token, err := f.ResolveToken()
+	if err != nil {
+		return fmt.Errorf("failed to resolve fleet token: %w", err)
+	}
+	f.Token = token
+	return nil
+}
+
+// Redacted returns a deep copy of FleetConfig with sensitive credentials masked as "[REDACTED]".
+func (f *FleetConfig) Redacted() *FleetConfig {
+	clone := *f
+	if clone.Token != "" {
+		clone.Token = "[REDACTED]"
+	}
+	return &clone
+}
+
+// CloneRedacted returns a deep copy of FleetConfig with sensitive credentials masked as "[REDACTED]".
+func (f *FleetConfig) CloneRedacted() *FleetConfig {
+	return f.Redacted()
+}
+
 // ResolveSecrets resolves all sensitive configuration fields in the root Config.
 func (c *Config) ResolveSecrets() error {
-	return c.Agent.ResolveSecrets()
+	if err := c.Agent.ResolveSecrets(); err != nil {
+		return err
+	}
+	return c.Fleet.ResolveSecrets()
 }
 
 // Redacted returns a deep copy of Config with sensitive credentials masked as "[REDACTED]".
 func (c *Config) Redacted() *Config {
 	clone := *c
 	clone.Agent = *c.Agent.Redacted()
+	clone.Fleet = *c.Fleet.Redacted()
 	return &clone
 }
 
@@ -580,6 +696,32 @@ func (c *Config) Validate() error {
 	}
 	if c.Agent.Enabled && (c.Agent.Port < 1 || c.Agent.Port > 65535) {
 		return fmt.Errorf("agent.port must be between 1 and 65535")
+	}
+	if c.Fleet.Enabled {
+		if c.Fleet.HeartbeatInterval < 500*time.Millisecond {
+			return fmt.Errorf("fleet.heartbeat_interval must be at least 500ms")
+		}
+		if c.Fleet.TelemetryInterval < 500*time.Millisecond {
+			return fmt.Errorf("fleet.telemetry_interval must be at least 500ms")
+		}
+		if c.Fleet.BufferCapacity < 1 {
+			return fmt.Errorf("fleet.buffer_capacity must be >= 1")
+		}
+		if c.Fleet.MaxBufferBytes < 1024 {
+			return fmt.Errorf("fleet.max_buffer_bytes must be >= 1024")
+		}
+		if c.Fleet.RateLimitRate < 0 {
+			return fmt.Errorf("fleet.rate_limit_rate must be >= 0")
+		}
+		if c.Fleet.RateLimitBurst < 0 {
+			return fmt.Errorf("fleet.rate_limit_burst must be >= 0")
+		}
+		if c.Fleet.StaleThreshold < time.Second {
+			return fmt.Errorf("fleet.stale_threshold must be at least 1s")
+		}
+		if c.Fleet.OfflineThreshold < c.Fleet.StaleThreshold {
+			return fmt.Errorf("fleet.offline_threshold must be >= fleet.stale_threshold")
+		}
 	}
 	return nil
 }
