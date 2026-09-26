@@ -372,6 +372,104 @@ func TestConfig_Save_SafeSerialization(t *testing.T) {
 	}
 }
 
+func TestFleetConfig_ValidationAndRedaction(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Fleet.Enabled = true
+	cfg.Fleet.HeartbeatInterval = 5 * time.Second
+	cfg.Fleet.TelemetryInterval = 10 * time.Second
+	cfg.Fleet.BufferCapacity = 500
+	cfg.Fleet.MaxBufferBytes = 5 * 1024 * 1024
+	cfg.Fleet.RateLimitRate = 10.0
+	cfg.Fleet.RateLimitBurst = 20
+	cfg.Fleet.StaleThreshold = 2 * time.Minute
+	cfg.Fleet.OfflineThreshold = 10 * time.Minute
+	cfg.Fleet.Token = "fleet-secret-token"
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Expected valid fleet config, got: %v", err)
+	}
+
+	redacted := cfg.Redacted()
+	if redacted.Fleet.Token != "[REDACTED]" {
+		t.Errorf("Expected redacted fleet token, got: %s", redacted.Fleet.Token)
+	}
+
+	// Test invalid fleet configs
+	invalidCfg := *cfg
+	invalidCfg.Fleet.HeartbeatInterval = 100 * time.Millisecond
+	if err := invalidCfg.Validate(); err == nil {
+		t.Errorf("Expected error for heartbeat_interval < 500ms")
+	}
+
+	invalidCfg = *cfg
+	invalidCfg.Fleet.BufferCapacity = 0
+	if err := invalidCfg.Validate(); err == nil {
+		t.Errorf("Expected error for buffer_capacity < 1")
+	}
+
+	invalidCfg = *cfg
+	invalidCfg.Fleet.OfflineThreshold = 1 * time.Minute // < StaleThreshold (2m)
+	if err := invalidCfg.Validate(); err == nil {
+		t.Errorf("Expected error when offline_threshold < stale_threshold")
+	}
+}
+
+func TestFleetConfig_ResolveToken_Precedence(t *testing.T) {
+	tempDir := t.TempDir()
+	tokenFile := filepath.Join(tempDir, "fleet.token")
+	if err := os.WriteFile(tokenFile, []byte("file-fleet-token\n"), 0600); err != nil {
+		t.Fatalf("Failed to write token file: %v", err)
+	}
+
+	t.Setenv("CUSTOM_FLEET_TOKEN_ENV", "custom-env-fleet-token")
+	t.Setenv("WATCHDOG_FLEET_TOKEN", "default-fleet-token")
+
+	fleet := FleetConfig{
+		Token:     "plain-fleet-token",
+		TokenEnv:  "CUSTOM_FLEET_TOKEN_ENV",
+		TokenFile: tokenFile,
+	}
+
+	// 1. File precedence
+	resolved, err := fleet.ResolveToken()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if resolved != "file-fleet-token" {
+		t.Errorf("Expected file token, got: %s", resolved)
+	}
+
+	// 2. Custom env precedence
+	fleet.TokenFile = ""
+	resolved, err = fleet.ResolveToken()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if resolved != "custom-env-fleet-token" {
+		t.Errorf("Expected custom env token, got: %s", resolved)
+	}
+
+	// 3. Default env precedence
+	t.Setenv("CUSTOM_FLEET_TOKEN_ENV", "")
+	resolved, err = fleet.ResolveToken()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if resolved != "default-fleet-token" {
+		t.Errorf("Expected default env token, got: %s", resolved)
+	}
+
+	// 4. Plain token
+	t.Setenv("WATCHDOG_FLEET_TOKEN", "")
+	resolved, err = fleet.ResolveToken()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if resolved != "plain-fleet-token" {
+		t.Errorf("Expected plain token, got: %s", resolved)
+	}
+}
+
 func stringContains(s, substr string) bool {
 	return filepath.Clean(s) != "" && len(s) >= len(substr) && (s == substr || filepath.Base(s) == substr || len(s) > 0 && containsSubstr(s, substr))
 }
