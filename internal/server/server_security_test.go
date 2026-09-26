@@ -47,6 +47,229 @@ func setupTestServerWithAuth(token string) (*Server, *httptest.Server) {
 	return srv, ts
 }
 
+// ---------------------------------------------------------------------------
+// IsLoopback tests
+// ---------------------------------------------------------------------------
+
+func TestIsLoopback(t *testing.T) {
+	tests := []struct {
+		addr     string
+		expected bool
+	}{
+		{"", true},
+		{"127.0.0.1", true},
+		{"localhost", true},
+		{"LOCALHOST", true},
+		{"Localhost", true},
+		{"::1", true},
+		{"0.0.0.0", false},
+		{"192.168.1.1", false},
+		{"10.0.0.1", false},
+		{"::", false},
+		{"example.com", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("addr=%q", tc.addr), func(t *testing.T) {
+			got := IsLoopback(tc.addr)
+			assert.Equal(t, tc.expected, got, "IsLoopback(%q)", tc.addr)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ValidateServerSecurity tests
+// ---------------------------------------------------------------------------
+
+func TestValidateServerSecurity_EmptyBindAddress_DefaultsToLoopback(t *testing.T) {
+	cfg := &config.AgentConfig{BindAddress: ""}
+	err := ValidateServerSecurity(cfg)
+	assert.NoError(t, err, "empty bind address should default to loopback and be allowed")
+}
+
+func TestValidateServerSecurity_LoopbackAllowedWithoutTokenOrTLS(t *testing.T) {
+	loopbackAddrs := []string{"127.0.0.1", "::1", "localhost"}
+
+	for _, addr := range loopbackAddrs {
+		t.Run(addr, func(t *testing.T) {
+			cfg := &config.AgentConfig{BindAddress: addr}
+			err := ValidateServerSecurity(cfg)
+			assert.NoError(t, err, "%s should be allowed without token or TLS", addr)
+		})
+	}
+}
+
+func TestValidateServerSecurity_ExternalWithoutToken_Rejected(t *testing.T) {
+	cfg := &config.AgentConfig{
+		BindAddress: "0.0.0.0",
+		Token:       "",
+	}
+	err := ValidateServerSecurity(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication")
+	assert.Contains(t, err.Error(), "0.0.0.0")
+}
+
+func TestValidateServerSecurity_ExternalWithTokenButNoTLS_Rejected(t *testing.T) {
+	cfg := &config.AgentConfig{
+		BindAddress: "0.0.0.0",
+		Token:       "test-token-value",
+	}
+	err := ValidateServerSecurity(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "TLS")
+	assert.Contains(t, err.Error(), "0.0.0.0")
+}
+
+func TestValidateServerSecurity_ExternalWithTLSButNoToken_Rejected(t *testing.T) {
+	cfg := &config.AgentConfig{
+		BindAddress: "0.0.0.0",
+		Token:       "",
+		TLSCert:     "/path/to/cert.pem",
+		TLSKey:      "/path/to/key.pem",
+	}
+	err := ValidateServerSecurity(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication")
+}
+
+func TestValidateServerSecurity_ExternalWithTokenAndTLS_Accepted(t *testing.T) {
+	cfg := &config.AgentConfig{
+		BindAddress: "0.0.0.0",
+		Token:       "test-token-value",
+		TLSCert:     "/path/to/cert.pem",
+		TLSKey:      "/path/to/key.pem",
+	}
+	err := ValidateServerSecurity(cfg)
+	assert.NoError(t, err, "external with token + TLS should be accepted")
+}
+
+func TestValidateServerSecurity_IncompleteTLS_CertOnly_Rejected(t *testing.T) {
+	cfg := &config.AgentConfig{
+		BindAddress: "127.0.0.1",
+		TLSCert:     "/path/to/cert.pem",
+		TLSKey:      "",
+	}
+	err := ValidateServerSecurity(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tls_key")
+	assert.Contains(t, err.Error(), "incomplete")
+}
+
+func TestValidateServerSecurity_IncompleteTLS_KeyOnly_Rejected(t *testing.T) {
+	cfg := &config.AgentConfig{
+		BindAddress: "127.0.0.1",
+		TLSCert:     "",
+		TLSKey:      "/path/to/key.pem",
+	}
+	err := ValidateServerSecurity(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tls_cert")
+	assert.Contains(t, err.Error(), "incomplete")
+}
+
+func TestValidateServerSecurity_IncompleteTLS_ExternalBind_Rejected(t *testing.T) {
+	cfg := &config.AgentConfig{
+		BindAddress: "0.0.0.0",
+		Token:       "test-token-value",
+		TLSCert:     "/path/to/cert.pem",
+		TLSKey:      "",
+	}
+	err := ValidateServerSecurity(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "incomplete")
+}
+
+func TestValidateServerSecurity_LoopbackWithTokenAndTLS_Accepted(t *testing.T) {
+	cfg := &config.AgentConfig{
+		BindAddress: "127.0.0.1",
+		Token:       "some-token",
+		TLSCert:     "/path/to/cert.pem",
+		TLSKey:      "/path/to/key.pem",
+	}
+	err := ValidateServerSecurity(cfg)
+	assert.NoError(t, err, "loopback with optional token+TLS should be accepted")
+}
+
+func TestValidateServerSecurity_PrivateIPWithoutToken_Rejected(t *testing.T) {
+	cfg := &config.AgentConfig{
+		BindAddress: "192.168.1.100",
+		Token:       "",
+	}
+	err := ValidateServerSecurity(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication")
+}
+
+// ---------------------------------------------------------------------------
+// Server.Start security integration tests
+// ---------------------------------------------------------------------------
+
+func TestServer_Start_EmptyBindFallsBackToLoopback(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Agent.BindAddress = ""
+	cfg.Agent.Port = 0 // will use 8443 default
+
+	srv := NewServer(cfg, nil, nil, nil, nil, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- srv.Start(ctx)
+	}()
+
+	// Let the server attempt to start
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-errChan:
+		// Should succeed (port may be in use, but should not fail on security check)
+		if err != nil {
+			assert.NotContains(t, err.Error(), "security check failed",
+				"empty bind address should fall back to 127.0.0.1, not fail security")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("server failed to respond to shutdown within timeout")
+	}
+}
+
+func TestServer_Start_ExternalWithoutAuth_FailsFast(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Agent.BindAddress = "0.0.0.0"
+	cfg.Agent.Port = 19876
+	cfg.Agent.Token = ""
+
+	srv := NewServer(cfg, nil, nil, nil, nil, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := srv.Start(ctx)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "security check failed")
+	assert.Contains(t, err.Error(), "authentication")
+}
+
+func TestServer_Start_ExternalTokenNoTLS_FailsFast(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Agent.BindAddress = "0.0.0.0"
+	cfg.Agent.Port = 19877
+	cfg.Agent.Token = "test-only-token"
+
+	srv := NewServer(cfg, nil, nil, nil, nil, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := srv.Start(ctx)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "security check failed")
+	assert.Contains(t, err.Error(), "TLS")
+}
+
+// ---------------------------------------------------------------------------
+// HTTP-level auth enforcement tests
+// ---------------------------------------------------------------------------
+
 func TestSecurity_UnauthenticatedRequests(t *testing.T) {
 	_, ts := setupTestServerWithAuth("test-secure-token-9988")
 	defer ts.Close()
@@ -65,6 +288,33 @@ func TestSecurity_UnauthenticatedRequests(t *testing.T) {
 			defer resp.Body.Close()
 
 			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		})
+	}
+}
+
+func TestSecurity_AuthenticatedRequests_Succeed(t *testing.T) {
+	token := "test-auth-token-for-api"
+	_, ts := setupTestServerWithAuth(token)
+	defer ts.Close()
+
+	endpoints := []string{
+		"/api/v1/snapshot",
+		"/api/v1/diagnostics",
+		"/api/v1/alerts",
+		"/api/v1/anomalies",
+	}
+
+	for _, ep := range endpoints {
+		t.Run("Authenticated_"+ep, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, ts.URL+ep, nil)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+token)
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
 		})
 	}
 }
@@ -247,4 +497,29 @@ func TestSecurity_ServerGracefulShutdown(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("server failed to shutdown within timeout")
 	}
+}
+
+func TestSecurity_HealthEndpoint_Unauthenticated(t *testing.T) {
+	_, ts := setupTestServerWithAuth("some-token")
+	defer ts.Close()
+
+	// /health should be accessible without authentication
+	resp, err := http.Get(ts.URL + "/health")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestSecurity_MetricsEndpoint_Unauthenticated(t *testing.T) {
+	_, ts := setupTestServerWithAuth("some-token")
+	defer ts.Close()
+
+	// /metrics (Prometheus) should be accessible without authentication
+	resp, err := http.Get(ts.URL + "/metrics")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Content-Type"), "text/plain")
 }
