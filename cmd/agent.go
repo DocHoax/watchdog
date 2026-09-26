@@ -144,6 +144,14 @@ func init() {
 	agentCmd.Flags().DurationVarP(&agentInterval, "interval", "i", 2*time.Second, "metric collection frequency")
 	agentCmd.Flags().IntVarP(&agentPort, "port", "p", 8443, "agent API / Prometheus port")
 	agentCmd.Flags().StringVarP(&agentToken, "token", "t", "", "agent authentication token")
+	agentCmd.Flags().StringVar(&agentTokenFile, "token-file", "", "path to file containing authentication token")
+	agentCmd.Flags().StringVar(&agentTokenEnv, "token-env", "", "environment variable name containing authentication token")
+	agentCmd.Flags().StringVar(&agentTLSCert, "tls-cert", "", "path to TLS certificate file")
+	agentCmd.Flags().StringVar(&agentTLSCertFile, "tls-cert-file", "", "path to TLS certificate file")
+	agentCmd.Flags().StringVar(&agentTLSCertEnv, "tls-cert-env", "", "environment variable name containing TLS certificate path")
+	agentCmd.Flags().StringVar(&agentTLSKey, "tls-key", "", "path to TLS private key file")
+	agentCmd.Flags().StringVar(&agentTLSKeyFile, "tls-key-file", "", "path to TLS private key file")
+	agentCmd.Flags().StringVar(&agentTLSKeyEnv, "tls-key-env", "", "environment variable name containing TLS private key path")
 
 	RootCmd.AddCommand(agentCmd)
 }
