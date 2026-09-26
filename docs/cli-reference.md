@@ -295,14 +295,7 @@ watchdog audit [command] [flags]
 | `--outcome` | | `string` | `""` | Filter by outcome |
 | `--source` | | `string` | `""` | Filter by source IP address |
 | `--actor` | | `string` | `""` | Filter by actor identity |
-| `--limit` | `-l` | `int` | `1000` | Maximum number of events to export |
-
-#### Flags (`audit purge`)
-| Flag | Shorthand | Type | Default | Description |
-| :--- | :---: | :---: | :---: | :--- |
-| `--retention-days` | | `int` | `0` | Purge records older than N days |
-| `--older-than` | | `string` | `""` | Purge records older than duration or timestamp (e.g. `90d`, `720h`) |
-| `--force` | `-f` | `bool` | `false` | Confirm purge execution without interactive prompt |
+| `--limit` | `-l` | `int` | `1000` | Maximum number of events to export (default 1000, max 1000) |
 
 #### Examples
 ```bash
@@ -310,13 +303,10 @@ watchdog audit [command] [flags]
 watchdog audit list
 
 # Filter authentication failures and output JSON
-watchdog audit list --event-type auth.failure --json
+watchdog audit list --event-type auth.failure --format json
 
-# Export past 30 days of audit logs to CSV
-watchdog audit export --since 30d --format csv --output ./audit_export.csv
-
-# Purge audit logs older than 90 days
-watchdog audit purge --retention-days 90 --force
+# Export past 30 days of audit logs to JSON
+watchdog audit export --since 30d --format json --output ./audit_export.json
 ```
 
 ---
