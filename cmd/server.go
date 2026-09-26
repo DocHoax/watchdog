@@ -18,11 +18,17 @@ import (
 )
 
 var (
-	serverPort    int
-	serverHost    string
-	serverToken   string
-	serverTLSCert string
-	serverTLSKey  string
+	serverPort        int
+	serverHost        string
+	serverToken       string
+	serverTokenFile   string
+	serverTokenEnv    string
+	serverTLSCert     string
+	serverTLSCertFile string
+	serverTLSCertEnv  string
+	serverTLSKey      string
+	serverTLSKeyFile  string
+	serverTLSKeyEnv   string
 )
 
 var serverCmd = &cobra.Command{
@@ -43,7 +49,10 @@ Exposed Endpoints:
   watchdog server --port 8443 --host 127.0.0.1
 
   # Start with Bearer token authentication required for API routes
-  watchdog server --port 8443 --token s3cr3t-t0k3n
+  watchdog server --port 8443 --token <token>
+
+  # Start with Bearer token read from a secure secret file
+  watchdog server --port 8443 --token-file /etc/watchdog/token
 
   # Run with TLS encryption using HTTPS certificates
   watchdog server --port 8443 --tls-cert /etc/ssl/cert.pem --tls-key /etc/ssl/key.pem
@@ -64,11 +73,34 @@ func runServer(cmd *cobra.Command, args []string) error {
 	if serverToken != "" {
 		cfg.Agent.Token = serverToken
 	}
+	if serverTokenFile != "" {
+		cfg.Agent.TokenFile = serverTokenFile
+	}
+	if serverTokenEnv != "" {
+		cfg.Agent.TokenEnv = serverTokenEnv
+	}
 	if serverTLSCert != "" {
 		cfg.Agent.TLSCert = serverTLSCert
 	}
+	if serverTLSCertFile != "" {
+		cfg.Agent.TLSCertFile = serverTLSCertFile
+	}
+	if serverTLSCertEnv != "" {
+		cfg.Agent.TLSCertEnv = serverTLSCertEnv
+	}
 	if serverTLSKey != "" {
 		cfg.Agent.TLSKey = serverTLSKey
+	}
+	if serverTLSKeyFile != "" {
+		cfg.Agent.TLSKeyFile = serverTLSKeyFile
+	}
+	if serverTLSKeyEnv != "" {
+		cfg.Agent.TLSKeyEnv = serverTLSKeyEnv
+	}
+
+	// Resolve secrets (files, environment variables, precedence)
+	if err := cfg.ResolveSecrets(); err != nil {
+		return NewExitError(ExitConfigError, "failed to resolve server secrets: %w", err)
 	}
 
 	// Pre-flight security validation — fail fast before allocating resources.
@@ -140,8 +172,14 @@ func init() {
 	serverCmd.Flags().IntVarP(&serverPort, "port", "p", 8443, "HTTP/HTTPS listen port")
 	serverCmd.Flags().StringVarP(&serverHost, "host", "H", "127.0.0.1", "bind IP interface address (default: 127.0.0.1)")
 	serverCmd.Flags().StringVarP(&serverToken, "token", "t", "", "authentication token required for API endpoints")
+	serverCmd.Flags().StringVar(&serverTokenFile, "token-file", "", "path to file containing authentication token")
+	serverCmd.Flags().StringVar(&serverTokenEnv, "token-env", "", "environment variable name containing authentication token")
 	serverCmd.Flags().StringVar(&serverTLSCert, "tls-cert", "", "path to TLS certificate file")
+	serverCmd.Flags().StringVar(&serverTLSCertFile, "tls-cert-file", "", "path to TLS certificate file")
+	serverCmd.Flags().StringVar(&serverTLSCertEnv, "tls-cert-env", "", "environment variable name containing TLS certificate path")
 	serverCmd.Flags().StringVar(&serverTLSKey, "tls-key", "", "path to TLS private key file")
+	serverCmd.Flags().StringVar(&serverTLSKeyFile, "tls-key-file", "", "path to TLS private key file")
+	serverCmd.Flags().StringVar(&serverTLSKeyEnv, "tls-key-env", "", "environment variable name containing TLS private key path")
 
 	RootCmd.AddCommand(serverCmd)
 }
