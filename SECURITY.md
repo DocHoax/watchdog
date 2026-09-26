@@ -38,19 +38,24 @@ Watchdog is engineered with defense-in-depth and secure-by-default design princi
 ### 1. Localhost Loopback Default
 By default, the HTTP daemon, Prometheus exporter, and REST API bind strictly to the loopback interface (`127.0.0.1` / `localhost`). Exposing interfaces externally (`0.0.0.0`) requires explicit operator flags (`--host` or `agent.bind_address`).
 
-### 2. Constant-Time Bearer Token Authentication
-All authenticated REST API endpoints (`/api/v1/snapshot`, `/api/v1/diagnostics`, `/api/v1/alerts`, `/api/v1/anomalies`) require Bearer token authentication. Validation uses constant-time string comparison (`crypto/subtle.ConstantTimeCompare`) to prevent timing side-channel attacks.
+### 2. Mandatory Auth + TLS for External Binding
+Watchdog enforces a security invariant at startup: **binding to a non-loopback address requires both a Bearer authentication token and a complete TLS certificate/key pair**. The server refuses to start if either is missing and prints an actionable error message guiding the operator to provide the missing configuration or switch back to localhost. This validation runs both in the CLI pre-flight (`cmd/server.go`) and again inside `server.Start()` as defense-in-depth.
 
-### 3. Native TLS Encryption
-Remote agent communication supports native TLS (`--tls-cert` and `--tls-key`), ensuring all telemetry transmitted over untrusted networks is encrypted in transit.
+Incomplete TLS configurations (certificate without key, or vice versa) are always rejected regardless of bind address.
 
-### 4. Non-Destructive Telemetry Collection
+### 3. Constant-Time Bearer Token Authentication
+All authenticated REST API endpoints (`/api/v1/snapshot`, `/api/v1/diagnostics`, `/api/v1/alerts`, `/api/v1/anomalies`) require Bearer token authentication when a token is configured. Validation uses constant-time string comparison (`crypto/subtle.ConstantTimeCompare`) to prevent timing side-channel attacks. Tokens can be supplied via the `Authorization: Bearer <token>` header or the `X-Watchdog-Token` custom header.
+
+### 4. Native TLS Encryption
+Remote agent communication supports native TLS (`--tls-cert` and `--tls-key`), ensuring all telemetry transmitted over untrusted networks is encrypted in transit. TLS is mandatory for non-loopback deployments (see §2 above).
+
+### 5. Non-Destructive Telemetry Collection
 Metric sampling operates strictly with read-only system calls, `/proc` filesystem parsing, and native OS APIs. Watchdog does not modify kernel configurations or system state during monitoring. Process termination from the interactive TUI requires interactive confirmation and validates numeric process IDs.
 
-### 5. Credential Sanitization
+### 6. Credential Sanitization
 Watchdog automatically redacts and masks sensitive tokens, database passwords, and API keys from CLI logs, generated reports, and error traces.
 
-### 6. Filesystem and Path Safety
+### 7. Filesystem and Path Safety
 All output file paths for reports, SQLite databases, and exported data are validated against directory traversal attacks.
 
 ---

@@ -58,19 +58,46 @@ watchdog_processes_zombies 0
 
 When running as an agent daemon (`watchdog agent` or `agent.enabled: true`), Watchdog exposes authenticated JSON endpoints.
 
+### Security Requirements
+
+| Bind Address | Token Required | TLS Required |
+| :--- | :--- | :--- |
+| `127.0.0.1` / `localhost` / `::1` | Optional | Optional |
+| Any non-loopback (`0.0.0.0`, LAN IP, etc.) | **Mandatory** | **Mandatory** |
+
+The server **refuses to start** if a non-loopback bind address is configured without both a token and TLS certificate/key pair. This prevents accidental exposure of unauthenticated or unencrypted APIs on the network.
+
+Incomplete TLS configurations (certificate without key, or vice versa) are always rejected regardless of bind address.
+
 ### Authentication
-Remote requests must supply the bearer token in the `Authorization` header:
+Remote requests must supply the bearer token via one of two headers:
 ```http
 Authorization: Bearer <CONFIGURED_AGENT_TOKEN>
+```
+or:
+```http
+X-Watchdog-Token: <CONFIGURED_AGENT_TOKEN>
 ```
 
 ### Endpoints
 
-#### `GET /api/v1/snapshot`
+#### `GET /health` (Unauthenticated)
+Health check / liveness probe endpoint returning HTTP 200 `{"status": "ok", "uptime_seconds": 1234, "version": "1.0.0"}`. Does not require authentication, safe for Kubernetes liveness probes and load balancer health checks.
+
+#### `GET /api/v1/health` (Unauthenticated)
+Alias for `/health`.
+
+#### `GET /metrics` (Unauthenticated)
+Prometheus text-format metric scrape endpoint. Does not expose sensitive credentials. Suitable for Prometheus ServiceMonitor scraping without authentication.
+
+#### `GET /api/v1/snapshot` (Authenticated)
 Returns real-time system metrics snapshot formatted as JSON matching `model.SystemSnapshot`.
 
-#### `GET /api/v1/diagnose`
+#### `GET /api/v1/diagnostics` (Authenticated)
 Executes active diagnostic rule checks and returns `model.DiagnosticReport`.
 
-#### `GET /api/v1/health`
-Health check endpoint returning HTTP 200 `{"status": "ok", "uptime_seconds": 1234}` without requiring authentication.
+#### `GET /api/v1/alerts` (Authenticated)
+Returns active and historical alert events.
+
+#### `GET /api/v1/anomalies` (Authenticated)
+Returns statistical anomaly detection Z-scores and scores.
