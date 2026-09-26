@@ -99,6 +99,10 @@ func TestConfigShowRedaction(t *testing.T) {
 		t.Fatalf("failed to save config: %v", err)
 	}
 
+	defer func() {
+		cfgFile = ""
+	}()
+
 	// Test YAML output with --config
 	buf := new(bytes.Buffer)
 	RootCmd.SetOut(buf)
