@@ -131,6 +131,15 @@ agent:
   tls_key_env: ""                    # Environment variable name containing TLS private key path
 
 # ------------------------------------------------------------------------------
+# Security Audit Logging Configuration
+# Structured audit events for authentication, server lifecycle, and administration
+# ------------------------------------------------------------------------------
+audit:
+  enabled: true                      # Enable security audit event recording
+  retention_days: 90                 # Retention period for audit logs (in days)
+  max_query_limit: 1000              # Maximum events returned in a single API/CLI query
+
+# ------------------------------------------------------------------------------
 # Container & Orchestration Discovery
 # ------------------------------------------------------------------------------
 docker:
@@ -153,6 +162,8 @@ Watchdog validates all configuration properties on startup or via `watchdog conf
 | :--- | :--- | :--- |
 | `refresh_interval` | `>= 100ms` | Fails if refresh interval is too aggressive |
 | `storage.retention_days` | `>= 1` | Retention period must be at least 1 day |
+| `audit.retention_days` | `>= 1` | Audit retention period must be at least 1 day |
+| `audit.max_query_limit` | `1 <= limit <= 5000` | Max query limit must be between 1 and 5000 |
 | `alerts.*.threshold` | `0.0 <= x <= 100.0` | Percentage thresholds must be bounded within 0–100% |
 | `anomaly.z_score_threshold` | `> 0.0` | Z-score threshold must be strictly positive |
 | `anomaly.alpha` | `0.0 < alpha <= 1.0` | EWMA alpha smoothing factor must be within `(0.0, 1.0]` |

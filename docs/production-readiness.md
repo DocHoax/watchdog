@@ -32,7 +32,8 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 | **Diagnostics** | `internal/diagnostics/` | Rule evaluation & remediation | Stateless evaluator with concurrent checks |
 | **Alerts** | `internal/alerts/` | Stateful threshold monitoring & cooldowns | `sync.RWMutex` protecting active alert state |
 | **Anomaly** | `internal/anomaly/` | EWMA and Z-score time-series analysis | `sync.RWMutex` protecting statistical histories |
-| **Storage** | `internal/storage/` | SQLite persistence, queries & pruning | `sync.Mutex` on SQLite connection, WAL mode |
+| **Audit** | `internal/audit/` | Structured security audit logging & sanitization | Thread-safe, non-blocking fallback |
+| **Storage** | `internal/storage/` | SQLite persistence, queries, pruning & audit | `sync.Mutex` on SQLite connection, WAL mode |
 | **Reporting** | `internal/reporting/` | Multi-format report generation | Pure functions & immutable data |
 | **Server** | `internal/server/` | Prometheus exporter & REST API | `http.Server`, atomic metrics collection |
 | **TUI** | `internal/tui/` | Interactive terminal UI | Bubble Tea event loop, async tick commands |
@@ -66,6 +67,12 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 6. **Prometheus & REST API**:
    - Standard `/metrics` Prometheus exposition format.
    - Secure REST API with Bearer token authentication.
+   - Secure audit events query endpoint (`/api/v1/audit/events`) with pagination and time filtering.
+7. **Security Audit Logging**:
+   - Structured audit trail for authentication, server lifecycle, TLS status, configuration modifications, and administrative actions.
+   - Zero credential leakage via non-reversible SHA-256 token hashing and recursive metadata sanitization.
+   - In-memory flood limiter mitigating database write exhaustion from authentication brute-force attacks.
+   - CLI audit management (`watchdog audit list`, `watchdog audit export`, `watchdog audit purge`) with CSV formula injection neutralization.
 
 ---
 
@@ -110,10 +117,19 @@ Watchdog is structured as a modular, decoupled Go application divided into:
    - No plaintext passwords, API keys, or tokens are logged in application logs or embedded in HTML/JSON/CSV diagnostic reports.
    - Error messages from security validation are actionable but never include the configured token or key values.
 
+6. **Structured Audit Logging & Zero Credential Exposure (`internal/audit/`, `internal/storage/`)**:
+   - Machine-readable audit events recorded for auth attempts, lifecycle transitions, TLS configuration, config changes, and administrative actions.
+   - Plaintext tokens, passwords, private keys, `Authorization` headers, and sensitive environment variables are strictly excluded from all audit records and metadata maps.
+   - Failed authentication attempts record masked actor identities (`token:sha256:<8-hex-prefix>`) without exposing the candidate token.
+   - In-memory rate limiting (`FloodLimiter`) prevents SQLite write exhaustion during authentication brute-force attacks.
+7. **CSV Formula Injection Neutralization (`cmd/audit.go`)**:
+   - CSV export operations prepend a single quote (`'`) to any cell starting with `=`, `+`, `-`, `@`, `\t`, or `\r` to neutralize formula injection (CSV/DDE) vulnerabilities in spreadsheet viewers.
+8. **SQLite Tamper Limitations & Transparency**:
+   - Audit records stored in local embedded SQLite do not provide cryptographic tamper-proofing or hardware WORM immutability against root/administrator modification on the host. High-assurance environments should export or forward logs to external immutable log aggregation systems.
+
 ---
 
 ## 6. Current Test Coverage Baseline
 
-- All unit tests across all 11 Go packages pass (`cmd`, `internal/alerts`, `internal/anomaly`, `internal/collector`, `internal/config`, `internal/diagnostics`, `internal/logger`, `internal/reporting`, `internal/server`, `internal/storage`, `internal/tui`, `pkg/util`).
-- Security validation tests comprehensively cover: `IsLoopback()` for all address types, `ValidateServerSecurity()` for all bind address × token × TLS combinations, HTTP-level auth enforcement via httptest, concurrent request safety, method restriction, path traversal rejection, and graceful shutdown.
-- Next steps will validate race conditions (`go test -race ./...`), resource leaks, anomaly detector scenarios, and database edge cases.
+- All unit tests across all 13 Go packages pass (`cmd`, `internal/alerts`, `internal/anomaly`, `internal/audit`, `internal/collector`, `internal/config`, `internal/diagnostics`, `internal/logger`, `internal/reporting`, `internal/server`, `internal/storage`, `internal/tui`, `pkg/model`, `pkg/util`).
+- Security validation tests comprehensively cover: `IsLoopback()` for all address types, `ValidateServerSecurity()` for all bind address × token × TLS combinations, HTTP-level auth enforcement via httptest, concurrent request safety, method restriction, path traversal rejection, Request ID propagation, audit sanitization, token masking, flood limiting, SQLite audit queries and pruning, and graceful shutdown.

@@ -60,7 +60,33 @@ Watchdog enforces strict secret isolation and management practices:
 - **Serialization Protection**: `Config.Save()` never writes resolved plaintext secrets back to disk if they originated from secret files or environment variables, preventing unintended secret persistence.
 - **CI/CD Secret Scanning**: All commits and pull requests are continuously audited via automated Gitleaks secret scanning.
 
-### 7. Filesystem and Path Safety
+### 7. Audit Logging & Security Events Architecture
+Watchdog incorporates a structured, machine-readable, and searchable security audit logging subsystem (`internal/audit`) designed with strict data isolation, zero credential exposure, and denial-of-service resilience:
+
+- **Audited Security Events**:
+  - *Authentication*: `auth.success`, `auth.failure`, `auth.missing_credentials`, `auth.invalid_credentials`.
+  - *Server Lifecycle*: `server.start`, `server.stop`, `server.start.failure`, `server.shutdown`.
+  - *TLS Status*: `tls.enabled`, `tls.disabled`, `tls.configuration.failure`, `tls.certificate.failure`, `tls.private_key.failure`.
+  - *Configuration & Security*: `config.loaded`, `config.validation.failure`, `config.changed`, `config.save`, `config.save.failure`, `security.auth.configuration.failure`, `security.tls.configuration.failure`, `security.secret.source.failure`.
+  - *Administrative Actions*: `admin.configuration.change`, `admin.server.start`, `admin.server.stop`, `admin.export`, `admin.audit.purge`.
+- **Strict Data Exclusion Invariants**:
+  - Plaintext tokens, passwords, private keys, `Authorization` headers, session cookies, environment variables, full HTTP request bodies, and full header dumps are **strictly excluded** from all audit records and metadata maps.
+  - Ordinary high-frequency metric readings, telemetry scrapes, and health probe samples are explicitly separated and never logged as audit events.
+- **Zero Credential Exposure & Actor Masking**:
+  - Failed authentication attempts never store or log the provided raw token or header value.
+  - Actor identities for invalid tokens are deterministically masked using truncated SHA-256 hashes (`token:sha256:<8-hex-prefix>`) to facilitate attack correlation without credential leakage.
+  - Centralized metadata sanitization (`audit.SanitizeMetadata`) recursively redacts sensitive keys and values containing token or password patterns.
+- **Flood Throttling & DoS Protection**:
+  - An in-memory sliding-window burst throttler (`FloodLimiter`) enforces per-IP rate limits on high-frequency authentication failure events to prevent SQLite database write exhaustion and disk saturation during brute-force attacks.
+- **Request ID Correlation**:
+  - Incoming HTTP requests are correlated with a unique `X-Request-ID` (validated against `^[a-zA-Z0-9_-]{1,64}$` or auto-generated as UUID v4) propagated across request contexts, response headers, and audit records.
+- **CSV Formula Injection Neutralization**:
+  - All CSV export routines automatically escape leading formula triggers (`=`, `+`, `-`, `@`, `\t`, `\r`) with a prepended single quote (`'`) to protect spreadsheet operators from formula injection attacks (CSV Injection / DDE).
+- **SQLite Storage & Tamper Limitations Disclaimer**:
+  - Audit records are persisted locally in embedded SQLite with indexed timestamps, event types, severities, and outcomes, alongside configurable automated retention pruning (`audit.retention_days`).
+  - *Transparency Disclaimer*: Local SQLite storage on a host filesystem does not provide cryptographic tamper-proofing, hardware write-once-read-many (WORM) immutability, or digital signatures against privileged local root/administrator tampering. For high-assurance compliance environments, forward audit logs to an external immutable SIEM/centralized log collector.
+
+### 8. Filesystem and Path Safety
 All output file paths for reports, SQLite databases, and exported data are validated against directory traversal attacks.
 
 ---

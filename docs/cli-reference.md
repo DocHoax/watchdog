@@ -51,6 +51,10 @@ watchdog [command]
 │   ├── validate                  # Validate configuration syntax and ranges
 │   ├── show                      # Display resolved active configuration
 │   └── path                      # Print configuration file path
+├── audit (audits)                # Security audit logging & event management
+│   ├── list                      # List and filter security audit events
+│   ├── export                    # Export audit logs to JSON/CSV with formula protection
+│   └── purge                     # Permanently purge historical audit logs
 ├── export                        # Export snapshots or metrics to JSON/CSV
 ├── completion                    # Generate shell completion scripts
 └── version                       # Print version and build metadata
@@ -251,7 +255,75 @@ watchdog config [command]
 
 ---
 
-### 8. `watchdog export`
+### 8. `watchdog audit`
+*Aliases*: `audits`
+
+Inspects, queries, exports, and manages security audit logs stored in the local SQLite database.
+
+```bash
+watchdog audit [command] [flags]
+```
+
+#### Subcommands
+- `watchdog audit list [flags]`: List and filter recorded security audit events (table, JSON, or CSV).
+- `watchdog audit export [flags]`: Export audit logs to JSON or CSV file with automated formula injection protection.
+- `watchdog audit purge [flags]`: Permanently remove historical audit records older than a retention cutoff.
+
+#### Flags (`audit list`)
+| Flag | Shorthand | Type | Default | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| `--since` | | `string` | `24h` | Filter events created since duration or timestamp (e.g. `2h`, `7d`, `2026-09-26T12:00:00Z`) |
+| `--until` | | `string` | `""` | Filter events created until duration or timestamp |
+| `--event-type` | `-t` | `string` | `""` | Filter by audit event type (e.g. `auth.failure`, `server.start`) |
+| `--severity` | `-s` | `string` | `""` | Filter by severity (`info`, `warning`, `error`, `critical`) |
+| `--outcome` | | `string` | `""` | Filter by outcome (`success`, `failure`, `denied`) |
+| `--source` | | `string` | `""` | Filter by source IP address |
+| `--actor` | | `string` | `""` | Filter by actor identity |
+| `--request-id` | | `string` | `""` | Filter by correlation request ID |
+| `--limit` | `-l` | `int` | `100` | Maximum number of events to return |
+| `--offset` | | `int` | `0` | Pagination offset |
+| `--json` | | `bool` | `false` | Output results in structured JSON |
+| `--csv` | | `bool` | `false` | Output results in CSV format |
+
+#### Flags (`audit export`)
+| Flag | Shorthand | Type | Default | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| `--output` | `-o` | `string` | `""` | File path to write exported records (default: stdout) |
+| `--format` | `-f` | `string` | `json` | Export format: `json` or `csv` |
+| `--since` | | `string` | `""` | Filter events created since duration or timestamp |
+| `--until` | | `string` | `""` | Filter events created until duration or timestamp |
+| `--event-type` | `-t` | `string` | `""` | Filter by audit event type |
+| `--severity` | `-s` | `string` | `""` | Filter by severity |
+| `--outcome` | | `string` | `""` | Filter by outcome |
+| `--source` | | `string` | `""` | Filter by source IP address |
+| `--actor` | | `string` | `""` | Filter by actor identity |
+| `--limit` | `-l` | `int` | `1000` | Maximum number of events to export |
+
+#### Flags (`audit purge`)
+| Flag | Shorthand | Type | Default | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| `--retention-days` | | `int` | `0` | Purge records older than N days |
+| `--older-than` | | `string` | `""` | Purge records older than duration or timestamp (e.g. `90d`, `720h`) |
+| `--force` | `-f` | `bool` | `false` | Confirm purge execution without interactive prompt |
+
+#### Examples
+```bash
+# List all audit events from the last 24 hours
+watchdog audit list
+
+# Filter authentication failures and output JSON
+watchdog audit list --event-type auth.failure --json
+
+# Export past 30 days of audit logs to CSV
+watchdog audit export --since 30d --format csv --output ./audit_export.csv
+
+# Purge audit logs older than 90 days
+watchdog audit purge --retention-days 90 --force
+```
+
+---
+
+### 9. `watchdog export`
 
 Exports real-time snapshot data or historical time-series metric series from the local SQLite storage engine.
 
@@ -270,7 +342,7 @@ watchdog export [flags]
 
 ---
 
-### 9. `watchdog completion`
+### 10. `watchdog completion`
 
 Generates autocompletion scripts for supported shells.
 
@@ -290,7 +362,7 @@ watchdog completion powershell | Out-String | Invoke-Expression
 
 ---
 
-### 10. `watchdog version`
+### 11. `watchdog version`
 
 Displays detailed version and build metadata.
 

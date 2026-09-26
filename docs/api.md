@@ -101,3 +101,64 @@ Returns active and historical alert events.
 
 #### `GET /api/v1/anomalies` (Authenticated)
 Returns statistical anomaly detection Z-scores and scores.
+
+#### `GET /api/v1/audit/events` (Authenticated)
+Queries recorded security audit events with flexible filtering and pagination.
+
+**Query Parameters**:
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `since` | string | `""` | Lookback timestamp or duration (e.g. `24h`, `7d`, `2026-09-26T12:00:00Z`) |
+| `until` | string | `""` | Upper timestamp or duration cutoff |
+| `event_type` | string | `""` | Filter by event type (e.g. `auth.failure`, `server.start`) |
+| `severity` | string | `""` | Filter by severity (`info`, `notice`, `warning`, `error`, `critical`) |
+| `outcome` | string | `""` | Filter by outcome (`success`, `failure`, `denied`) |
+| `source` | string | `""` | Filter by source IP address |
+| `actor` | string | `""` | Filter by actor identity |
+| `request_id` | string | `""` | Filter by correlation request ID |
+| `limit` | int | `100` | Maximum records to return (capped at `audit.max_query_limit`) |
+| `offset` | int | `0` | Pagination record offset |
+
+**Response Schema (`application/json`)**:
+```json
+{
+  "total": 42,
+  "count": 1,
+  "limit": 100,
+  "offset": 0,
+  "events": [
+    {
+      "id": "evt-7f8e9d0a1b2c",
+      "timestamp": "2026-09-26T14:32:00Z",
+      "event_type": "auth.failure",
+      "severity": "warning",
+      "outcome": "denied",
+      "actor": {
+        "type": "anonymous_client",
+        "identity": "token:sha256:a1b2c3d4"
+      },
+      "source": {
+        "address": "192.168.1.100:54321",
+        "endpoint": "/api/v1/snapshot",
+        "method": "GET",
+        "request_id": "c1f3a2b4-5d6e-4f7a-8b9c-0d1e2f3a4b5c",
+        "user_agent": "curl/7.88.1"
+      },
+      "message": "Authentication failed: invalid credentials"
+    }
+  ],
+  "timestamp": "2026-09-26T14:32:05Z"
+}
+```
+
+---
+
+## 3. Request Correlation (`X-Request-ID`)
+
+All incoming HTTP requests are assigned a unique Request ID. If the client provides a valid `X-Request-ID` header matching `^[a-zA-Z0-9_-]{1,64}$`, it is preserved; otherwise, a cryptographically random RFC 4122 UUID v4 is generated.
+
+The Request ID is:
+- Attached to the request context across internal handlers.
+- Echoed back in the HTTP response header `X-Request-ID`.
+- Recorded in all associated security audit logs (`source.request_id`) for cross-system distributed tracing and incident investigation.
+
