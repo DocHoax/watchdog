@@ -21,6 +21,7 @@ Watchdog is an all-in-one system health monitoring, diagnostic automation, and l
 - 📈 **Statistical Anomaly Detection**: Pure-Go online Exponentially Weighted Moving Average (EWMA) filtering and rolling $Z$-score metric evaluation ($Z \ge 2.5$).
 - 💾 **Embedded SQLite Time-Series**: Embedded WAL-mode database powered by `modernc.org/sqlite` with automated background retention pruning.
 - 🛡️ **Structured Security Audit Trails**: Zero-credential-leakage audit logging for authentication, lifecycle, TLS, config, and admin events with SQLite persistence, DoS flood throttling, and CSV formula injection neutralization.
+- 🔒 **Hardened Software Supply Chain**: Keyless Sigstore/Cosign signing, SLSA Build Provenance via GitHub Attestations, SPDX 2.3 SBOMs, and bit-for-bit reproducible builds.
 - 📊 **Self-Contained Multi-Format Reports**: Single-file dark-themed HTML5 reports with inline SVG vector sparklines (zero external JS/CDN requests), structured JSON, CSV, and ANSI terminal summaries.
 - 🌐 **Prometheus Exporter & REST API**: Native `/metrics` OpenMetrics endpoint, authenticated REST APIs, and runtime `pprof` profiling.
 
@@ -281,6 +282,7 @@ audit:
 | :--- | :--- |
 | 🚀 [**Getting Started**](docs/getting-started.md) | First-run tour, initial configuration, and basic operations. |
 | 📦 [**Installation Guide**](docs/installation.md) | Package managers, tarball verification, container images, and source compilation. |
+| 🛡️ [**Release & Supply Chain Verification**](docs/release-verification.md) | Keyless Sigstore signing, GitHub provenance attestations, SPDX SBOM inspection, and reproducibility. |
 | 🛠️ [**CLI Command Reference**](docs/cli-reference.md) | Exhaustive breakdown of all CLI subcommands, flags, defaults, and aliases. |
 | ⚙️ [**Configuration Reference**](docs/configuration.md) | Full YAML schema specification, precedence hierarchy, and defaults. |
 | 🖥️ [**TUI & Real-Time Monitoring**](docs/monitoring.md) | Interactive AltScreen navigation, vim keybindings, process management, and themes. |
