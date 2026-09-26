@@ -114,6 +114,33 @@ func (s *SQLiteStorage) migrate(ctx context.Context) error {
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_diagnostics_time ON diagnostics_history(timestamp);
+
+	CREATE TABLE IF NOT EXISTS audit_events (
+		id TEXT PRIMARY KEY,
+		timestamp INTEGER NOT NULL,
+		event_type TEXT NOT NULL,
+		severity TEXT NOT NULL,
+		outcome TEXT NOT NULL,
+		actor_type TEXT,
+		actor_identity TEXT,
+		source_address TEXT,
+		transport TEXT,
+		protocol TEXT,
+		user_agent TEXT,
+		endpoint TEXT,
+		method TEXT,
+		request_id TEXT,
+		resource TEXT,
+		action TEXT,
+		message TEXT NOT NULL,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_events(timestamp DESC);
+	CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_events(event_type);
+	CREATE INDEX IF NOT EXISTS idx_audit_severity ON audit_events(severity);
+	CREATE INDEX IF NOT EXISTS idx_audit_outcome ON audit_events(outcome);
+	CREATE INDEX IF NOT EXISTS idx_audit_request_id ON audit_events(request_id);
 	`
 
 	_, err := s.db.ExecContext(ctx, schema)
