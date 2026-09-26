@@ -257,16 +257,15 @@ watchdog config [command]
 ### 8. `watchdog audit`
 *Aliases*: `audits`
 
-Inspects, queries, exports, and manages security audit logs stored in the local SQLite database.
+Inspects, queries, and exports security audit logs stored in the local SQLite database.
 
 ```bash
 watchdog audit [command] [flags]
 ```
 
 #### Subcommands
-- `watchdog audit list [flags]`: List and filter recorded security audit events (table, JSON, or CSV).
-- `watchdog audit export [flags]`: Export audit logs to JSON or CSV file with automated formula injection protection.
-- `watchdog audit purge [flags]`: Permanently remove historical audit records older than a retention cutoff.
+- `watchdog audit list [flags]`: List and filter recorded security audit events (table or JSON).
+- `watchdog audit export [flags]`: Export audit logs to JSON or CSV format.
 
 #### Flags (`audit list`)
 | Flag | Shorthand | Type | Default | Description |
@@ -279,10 +278,10 @@ watchdog audit [command] [flags]
 | `--source` | | `string` | `""` | Filter by source IP address |
 | `--actor` | | `string` | `""` | Filter by actor identity |
 | `--request-id` | | `string` | `""` | Filter by correlation request ID |
-| `--limit` | `-l` | `int` | `100` | Maximum number of events to return |
+| `--limit` | `-l` | `int` | `100` | Maximum number of events to return (default 100, max 1000) |
 | `--offset` | | `int` | `0` | Pagination offset |
-| `--json` | | `bool` | `false` | Output results in structured JSON |
-| `--csv` | | `bool` | `false` | Output results in CSV format |
+| `--format` | `-f` | `string` | `terminal` | Output format: `terminal` or `json` |
+| `--json` | | `bool` | `false` | Output results in structured JSON (shorthand for `--format json`) |
 
 #### Flags (`audit export`)
 | Flag | Shorthand | Type | Default | Description |
