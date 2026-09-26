@@ -8,10 +8,12 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
+  attestations: write
 
 jobs:
   goreleaser:
-    name: Build & Publish Release
+    name: Build, Sign & Attest Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -25,6 +27,15 @@ jobs:
           go-version: '1.22'
           cache: true
 
+      - name: Verify Module Dependencies
+        run: go mod verify
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
@@ -33,3 +44,45 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate Release Artifacts & SBOMs
+        run: |
+          echo "Validating release artifacts..."
+          test -f dist/checksums.txt
+          test -s dist/checksums.txt
+          test -f dist/checksums.txt.sigstore.json
+          test -s dist/checksums.txt.sigstore.json
+
+          echo "Validating generated SPDX SBOMs..."
+          sbom_count=0
+          for sbom in dist/*.sbom.json; do
+            if [ -f "$sbom" ]; then
+              echo "Validating JSON syntax: $sbom"
+              test -s "$sbom"
+              jq -e '.spdxVersion' "$sbom" > /dev/null
+              sbom_count=$((sbom_count + 1))
+            fi
+          done
+
+          if [ "$sbom_count" -eq 0 ]; then
+            echo "Error: No SBOM JSON documents found in dist/"
+            exit 1
+          fi
+          echo "Successfully validated $sbom_count SBOM documents."
+
+      - name: Attest Build Provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.deb
+            dist/*.rpm
+            dist/*.apk
+            dist/checksums.txt
+
+      - name: Attest SBOMs
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: 'dist/*.tar.gz,dist/*.zip,dist/*.deb,dist/*.rpm,dist/*.apk'
+          sbom-path: 'dist/*.sbom.json'

@@ -37,6 +37,29 @@ jobs:
       - name: Go Vet
         run: go vet ./...
 
+      - name: Verify Module Dependencies
+        run: go mod verify
+
+  goreleaser-check:
+    name: Validate Release Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run GoReleaser Check
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: check
+
   test-matrix:
     name: Unit & Integration Tests (${{ matrix.os }})
     needs: lint
@@ -99,11 +122,30 @@ jobs:
           go-version: '1.22'
           cache: true
 
-      - name: Compile for ${{ matrix.target.os }}/${{ matrix.target.arch }}
+      - name: Compile for ${{ matrix.target.os }}/${{ matrix.target.arch }} with -trimpath
         env:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.target.os }}
           GOARCH: ${{ matrix.target.arch }}
         run: |
           mkdir -p bin
-          go build -ldflags="-s -w" -o bin/watchdog-${{ matrix.target.os }}-${{ matrix.target.arch }} .
+          go build -trimpath -ldflags="-s -w" -o bin/watchdog-${{ matrix.target.os }}-${{ matrix.target.arch }} .
+
+  reproducibility-check:
+    name: Deterministic Build Verification
+    runs-on: ubuntu-latest
+    needs: cross-compile
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run Reproducibility Verification
+        run: |
+          chmod +x scripts/verify-reproducibility.sh
+          ./scripts/verify-reproducibility.sh

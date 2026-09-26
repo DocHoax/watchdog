@@ -11,6 +11,8 @@ builds:
   - id: watchdog
     main: ./main.go
     binary: watchdog
+    flags:
+      - -trimpath
     env:
       - CGO_ENABLED=0
     goos:
@@ -53,6 +55,31 @@ archives:
       - LICENSE
       - CHANGELOG.md
       - docs/*
+
+sboms:
+  - id: archive-sboms
+    artifacts: archive
+    documents:
+      - "${artifact}.sbom.json"
+    cmd: syft
+    args: ["$artifact", "--output", "spdx-json=$document"]
+  - id: package-sboms
+    artifacts: package
+    documents:
+      - "${artifact}.sbom.json"
+    cmd: syft
+    args: ["$artifact", "--output", "spdx-json=$document"]
+
+signs:
+  - id: checksums-cosign
+    artifacts: checksum
+    cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
 
 checksum:
   name_template: 'checksums.txt'
