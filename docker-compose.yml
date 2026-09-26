@@ -13,11 +13,26 @@ services:
     environment:
       - WATCHDOG_PROMETHEUS_PORT=9100
       - WATCHDOG_PROMETHEUS_ENABLED=true
+      # To enable authenticated API access, set the token:
+      #   WATCHDOG_AUTH_TOKEN=<your-secret-token>
+      # or use a .env file / Docker secrets.
+      #
+      # When using network_mode: host, the server binds to localhost by default.
+      # To bind externally, both --token and --tls-cert/--tls-key are required.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - watchdog_data:/home/watchdog/.watchdog
+      # For TLS-enabled external binding, mount your certs:
+      # - /etc/ssl/watchdog:/certs:ro
+    # Default command binds to localhost (no auth/TLS required).
+    # For external exposure, override with:
+    #   command: ["serve", "--prometheus", "--port", "9100",
+    #     "--host", "0.0.0.0",
+    #     "--token", "${WATCHDOG_AUTH_TOKEN}",
+    #     "--tls-cert", "/certs/cert.pem",
+    #     "--tls-key", "/certs/key.pem"]
     healthcheck:
       test: ["CMD", "/usr/local/bin/watchdog", "diagnose", "--json"]
       interval: 30s

@@ -36,6 +36,23 @@ subjects:
     name: watchdog-agent
     namespace: watchdog-system
 ---
+# Secret for authentication token.
+# Create with:
+#   kubectl create secret generic watchdog-auth \
+#     --namespace=watchdog-system \
+#     --from-literal=token="$(openssl rand -base64 32)"
+#
+# Do NOT commit real secrets to version control.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: watchdog-auth
+  namespace: watchdog-system
+type: Opaque
+data: {}
+# Populate the "token" key via kubectl create secret (see above) or a
+# secrets management system (Vault, Sealed Secrets, External Secrets Operator).
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -57,13 +74,37 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: watchdog-agent
+      # hostNetwork is required so Watchdog can:
+      #   1. Collect host-level network interface metrics (RX/TX bytes, errors,
+      #      connection states) that are invisible from a pod's virtual network
+      #      namespace.
+      #   2. Bind its Prometheus /metrics endpoint to the node's IP, enabling
+      #      direct node-port scraping without a Service or kube-proxy hop.
+      # Without hostNetwork, network metrics would reflect only the pod's veth
+      # pair rather than the physical/virtual NICs on the node.
       hostNetwork: true
+      # hostPID is required to enumerate and monitor all host processes via
+      # /proc for process tree mapping, zombie detection, and runaway process
+      # identification.
       hostPID: true
       containers:
         - name: watchdog
           image: watchdog:latest
           imagePullPolicy: IfNotPresent
-          args: ["serve", "--prometheus", "--port", "9100"]
+          args:
+            - "serve"
+            - "--prometheus"
+            - "--port"
+            - "9100"
+            - "--token"
+            - "$(WATCHDOG_AUTH_TOKEN)"
+          env:
+            - name: WATCHDOG_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: watchdog-auth
+                  key: token
+                  optional: true
           ports:
             - name: prometheus
               containerPort: 9100
