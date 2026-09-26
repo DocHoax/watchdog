@@ -141,3 +141,31 @@ func TestGenerateEventID(t *testing.T) {
 		t.Errorf("expected 36-character UUID, got len %d (%s)", len(id1), id1)
 	}
 }
+
+func TestSanitizer_MaskToken(t *testing.T) {
+	tok1 := "my-secret-token-12345"
+	m1 := MaskToken(tok1)
+	m2 := MaskToken(tok1)
+	if m1 == "" {
+		t.Fatalf("expected non-empty masked token")
+	}
+	if m1 != m2 {
+		t.Errorf("expected deterministic masked token, got %s and %s", m1, m2)
+	}
+	if !strings.HasPrefix(m1, "token:sha256:") {
+		t.Errorf("expected token:sha256: prefix, got %s", m1)
+	}
+	if strings.Contains(m1, tok1) {
+		t.Errorf("masked token must not contain raw token: %s", m1)
+	}
+
+	// Bearer prefix should be stripped before hashing
+	mBearer := MaskToken("Bearer " + tok1)
+	if mBearer != m1 {
+		t.Errorf("MaskToken with Bearer prefix should match raw token mask: got %s, expected %s", mBearer, m1)
+	}
+
+	if MaskToken("") != "" {
+		t.Errorf("MaskToken on empty string should be empty")
+	}
+}
