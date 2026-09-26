@@ -302,7 +302,7 @@ func TestRunAuditPurge(t *testing.T) {
 
 func TestRenderAuditTable(t *testing.T) {
 	// Should not panic on empty or non-empty events
-	renderAuditTable([]model.AuditEvent{}, 0, 0, 10)
+	renderAuditTable([]model.AuditEvent{}, 0, 0)
 
 	events := []model.AuditEvent{
 		{
@@ -322,7 +322,7 @@ func TestRenderAuditTable(t *testing.T) {
 		},
 	}
 
-	renderAuditTable(events, 1, 0, 10)
+	renderAuditTable(events, 1, 0)
 }
 
 func TestRenderAuditEventsCSV(t *testing.T) {
