@@ -46,9 +46,10 @@ var configShowCmd = &cobra.Command{
 		if cfg == nil {
 			cfg = config.DefaultConfig()
 		}
+		redactedCfg := cfg.Redacted()
 
 		if configShowJSON {
-			data, err := json.MarshalIndent(cfg, "", "  ")
+			data, err := json.MarshalIndent(redactedCfg, "", "  ")
 			if err != nil {
 				return NewExitError(ExitConfigError, "failed to format JSON: %w", err)
 			}
@@ -56,7 +57,7 @@ var configShowCmd = &cobra.Command{
 			return nil
 		}
 
-		data, err := yaml.Marshal(cfg)
+		data, err := yaml.Marshal(redactedCfg)
 		if err != nil {
 			return NewExitError(ExitConfigError, "failed to format YAML: %w", err)
 		}
