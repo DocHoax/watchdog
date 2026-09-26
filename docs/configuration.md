@@ -120,9 +120,15 @@ agent:
   enabled: false                     # Enable remote agent listener
   port: 8443                         # Remote agent TCP port
   bind_address: "127.0.0.1"          # Secure default (use 0.0.0.0 for all interfaces)
-  token: ""                          # Mandatory Bearer token for authentication
-  tls_cert: ""                       # Optional path to TLS certificate PEM file
-  tls_key: ""                        # Optional path to TLS private key PEM file
+  token: ""                          # Bearer token for authentication (or use token_file/token_env)
+  token_file: ""                     # Path to secret file containing token (e.g. /etc/watchdog/token)
+  token_env: ""                      # Environment variable name containing token
+  tls_cert: ""                       # Path to TLS certificate PEM file
+  tls_cert_file: ""                  # Path to file containing TLS certificate path
+  tls_cert_env: ""                   # Environment variable name containing TLS certificate path
+  tls_key: ""                        # Path to TLS private key PEM file
+  tls_key_file: ""                   # Path to file containing TLS private key path
+  tls_key_env: ""                    # Environment variable name containing TLS private key path
 
 # ------------------------------------------------------------------------------
 # Container & Orchestration Discovery
