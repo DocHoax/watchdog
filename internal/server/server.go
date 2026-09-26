@@ -14,6 +14,7 @@ import (
 
 	"github.com/DocHoax/watchdog/internal/alerts"
 	"github.com/DocHoax/watchdog/internal/anomaly"
+	"github.com/DocHoax/watchdog/internal/audit"
 	"github.com/DocHoax/watchdog/internal/collector"
 	"github.com/DocHoax/watchdog/internal/config"
 	"github.com/DocHoax/watchdog/internal/diagnostics"
@@ -90,6 +91,7 @@ type Server struct {
 	alertEng  *alerts.Engine
 	anomDet   *anomaly.Detector
 	exporter  *PrometheusExporter
+	auditLog  audit.AuditLogger
 
 	httpServer *http.Server
 	startTime  time.Time
@@ -110,6 +112,13 @@ func NewServer(
 	alertEng *alerts.Engine,
 	anomDet *anomaly.Detector,
 ) *Server {
+	var auditLog audit.AuditLogger
+	if cfg != nil && cfg.Audit.Enabled {
+		auditLog = audit.New(cfg.Audit, store, nil)
+	} else {
+		auditLog = audit.NewNopAuditLogger()
+	}
+
 	return &Server{
 		cfg:       cfg,
 		collector: col,
@@ -118,8 +127,16 @@ func NewServer(
 		alertEng:  alertEng,
 		anomDet:   anomDet,
 		exporter:  NewPrometheusExporter(),
+		auditLog:  auditLog,
 		startTime: time.Now(),
 	}
+}
+
+// SetAuditLogger overrides or configures the audit logger for the server.
+func (s *Server) SetAuditLogger(al audit.AuditLogger) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.auditLog = al
 }
 
 // Start runs the HTTP server and background collection worker until ctx is cancelled.
