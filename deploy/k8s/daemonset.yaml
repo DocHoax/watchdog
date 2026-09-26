@@ -96,15 +96,8 @@ spec:
             - "--prometheus"
             - "--port"
             - "9100"
-            - "--token"
-            - "$(WATCHDOG_AUTH_TOKEN)"
-          env:
-            - name: WATCHDOG_AUTH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: watchdog-auth
-                  key: token
-                  optional: true
+            - "--token-file"
+            - "/etc/watchdog/secrets/token"
           ports:
             - name: prometheus
               containerPort: 9100
@@ -135,6 +128,9 @@ spec:
               readOnly: true
             - name: watchdog-storage
               mountPath: /home/watchdog/.watchdog
+            - name: watchdog-auth-secret
+              mountPath: /etc/watchdog/secrets
+              readOnly: true
       volumes:
         - name: proc
           hostPath:
@@ -147,3 +143,7 @@ spec:
             path: /var/run/docker.sock
         - name: watchdog-storage
           emptyDir: {}
+        - name: watchdog-auth-secret
+          secret:
+            secretName: watchdog-auth
+            optional: true
