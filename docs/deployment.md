@@ -36,7 +36,7 @@ watchdog server --port 8443
 watchdog server \
   --host 0.0.0.0 \
   --port 8443 \
-  --token "$(cat /etc/watchdog/token)" \
+  --token-file /etc/watchdog/token \
   --tls-cert /etc/ssl/watchdog/cert.pem \
   --tls-key /etc/ssl/watchdog/key.pem
 ```
@@ -72,12 +72,13 @@ docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -v /proc:/host/proc:ro \
   -v /sys:/host/sys:ro \
+  -v /etc/watchdog/token:/etc/watchdog/token:ro \
   -v /etc/ssl/watchdog:/certs:ro \
   -v watchdog-data:/home/watchdog/.watchdog \
   watchdog:latest server \
     --host 0.0.0.0 \
     --port 9100 \
-    --token "$(cat /etc/watchdog/token)" \
+    --token-file /etc/watchdog/token \
     --tls-cert /certs/cert.pem \
     --tls-key /certs/key.pem
 ```
@@ -115,12 +116,12 @@ For network-exposed systemd deployments, add token and TLS flags to `ExecStart`:
 ExecStart=/usr/local/bin/watchdog server \
   --host 0.0.0.0 \
   --port 9100 \
-  --token ${WATCHDOG_TOKEN} \
+  --token-file /etc/watchdog/token \
   --tls-cert /etc/ssl/watchdog/cert.pem \
   --tls-key /etc/ssl/watchdog/key.pem
 ```
 
-Store the token in a systemd credential or environment file (`EnvironmentFile=/etc/watchdog/env`) rather than embedding it directly in the unit file.
+Store the token in a dedicated secret file with `0600` permissions (`/etc/watchdog/token`) or use systemd credential management rather than embedding plaintext credentials directly in unit files.
 
 Enable and start the service:
 ```bash
