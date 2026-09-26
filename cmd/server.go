@@ -71,6 +71,11 @@ func runServer(cmd *cobra.Command, args []string) error {
 		cfg.Agent.TLSKey = serverTLSKey
 	}
 
+	// Pre-flight security validation — fail fast before allocating resources.
+	if err := server.ValidateServerSecurity(&cfg.Agent); err != nil {
+		return NewExitError(ExitConfigError, "%v", err)
+	}
+
 	var store storage.Storage
 	if cfg.Storage.Enabled {
 		var err error
@@ -101,13 +106,27 @@ func runServer(cmd *cobra.Command, args []string) error {
 		cancel()
 	}()
 
-	fmt.Printf("🐺 Watchdog Server starting on %s:%d\n", cfg.Agent.BindAddress, cfg.Agent.Port)
+	bindDisplay := cfg.Agent.BindAddress
+	if bindDisplay == "" {
+		bindDisplay = "127.0.0.1"
+	}
+	scheme := "http"
+	if cfg.Agent.TLSCert != "" {
+		scheme = "https"
+	}
+
+	fmt.Printf("🐺 Watchdog Server starting on %s:%d\n", bindDisplay, cfg.Agent.Port)
 	if cfg.Agent.Token != "" {
 		fmt.Println("🔒 Bearer Token authentication enabled")
 	} else {
-		fmt.Println("⚠️  Warning: No authentication token configured (open API)")
+		if server.IsLoopback(cfg.Agent.BindAddress) {
+			fmt.Println("ℹ️  No authentication token configured (localhost-only access)")
+		} else {
+			// Should not reach here due to validation above, but defensive.
+			fmt.Println("⚠️  Warning: No authentication token configured (open API)")
+		}
 	}
-	fmt.Printf("📊 Prometheus metrics available at: http://%s:%d/metrics\n", cfg.Agent.BindAddress, cfg.Agent.Port)
+	fmt.Printf("📊 Prometheus metrics available at: %s://%s:%d/metrics\n", scheme, bindDisplay, cfg.Agent.Port)
 
 	if err := srv.Start(ctx); err != nil {
 		return NewExitError(ExitNetworkError, "server error: %w", err)
