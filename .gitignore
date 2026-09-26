@@ -27,3 +27,23 @@ watchdog.db
 *~
 .DS_Store
 Thumbs.db
+
+# Secrets, tokens, credentials, and TLS certificates
+*.pem
+*.crt
+*.key
+*.token
+*.secret
+*.env
+.env
+.env.*
+!.env.example
+secrets/
+certs/
+token
+token.txt
+cert.pem
+key.pem
+tls.crt
+tls.key
+
