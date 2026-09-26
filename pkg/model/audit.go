@@ -31,9 +31,9 @@ const (
 	EventConfigSaveFailure       = "config.save.failure"
 
 	// Security Configuration Events
-	EventSecurityAuthEnabled = "security.auth.enabled"
-	EventSecurityAuthFailure = "security.auth.configuration.failure"
-	EventSecurityTLSFailure  = "security.tls.configuration.failure"
+	EventSecurityAuthEnabled   = "security.auth.enabled"
+	EventSecurityAuthFailure   = "security.auth.configuration.failure"
+	EventSecurityTLSFailure    = "security.tls.configuration.failure"
 	EventSecuritySecretFailure = "security.secret.source.failure"
 
 	// Administrative Events

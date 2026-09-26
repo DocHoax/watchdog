@@ -20,6 +20,7 @@ Watchdog is an all-in-one system health monitoring, diagnostic automation, and l
 - 🚨 **Temporal Alerting Engine**: Hysteresis-aware threshold alerts with verification duration windows, suppression cooldowns, and SQLite event auditing.
 - 📈 **Statistical Anomaly Detection**: Pure-Go online Exponentially Weighted Moving Average (EWMA) filtering and rolling $Z$-score metric evaluation ($Z \ge 2.5$).
 - 💾 **Embedded SQLite Time-Series**: Embedded WAL-mode database powered by `modernc.org/sqlite` with automated background retention pruning.
+- 🛡️ **Structured Security Audit Trails**: Zero-credential-leakage audit logging for authentication, lifecycle, TLS, config, and admin events with SQLite persistence, DoS flood throttling, and CSV formula injection neutralization.
 - 📊 **Self-Contained Multi-Format Reports**: Single-file dark-themed HTML5 reports with inline SVG vector sparklines (zero external JS/CDN requests), structured JSON, CSV, and ANSI terminal summaries.
 - 🌐 **Prometheus Exporter & REST API**: Native `/metrics` OpenMetrics endpoint, authenticated REST APIs, and runtime `pprof` profiling.
 
@@ -167,7 +168,13 @@ watchdog alert list
 # 7. Export time-series metrics from embedded SQLite database
 watchdog export --format csv --metric cpu_usage_pct --since 24h --output cpu_24h.csv
 
-# 8. Check version information
+# 8. List security audit events from the past 24 hours
+watchdog audit list --since 24h
+
+# 9. Export audit events to CSV for compliance review
+watchdog audit export --since 30d --format csv --output audit.csv
+
+# 10. Check version information
 watchdog version
 watchdog version --short
 watchdog version --json
@@ -185,6 +192,7 @@ watchdog version --json
 | **`watchdog server`** | `serve`, `daemon` | `-p, --port`, `-b, --host`, `--token`, `--tls-cert`, `--tls-key` | Runs Prometheus `/metrics` exporter and REST API. |
 | **`watchdog agent`** | — | `-p, --port`, `-b, --host`, `--token`, `--tls-cert`, `--tls-key` | Runs headless background telemetry agent. |
 | **`watchdog alert`** | `list`, `history`, `test` | `--limit` | Queries active and historical alerts or emits test events. |
+| **`watchdog audit`** | `list`, `export`, `purge`, `audits` | `--since`, `--until`, `-t, --event-type`, `-s, --severity`, `--outcome`, `--limit`, `--json`, `--csv` | Manages and queries security audit event logs. |
 | **`watchdog config`** | `init`, `validate`, `show`, `path` | `[path]`, `--json` | Manages and validates YAML configuration. |
 | **`watchdog export`** | — | `-f, --format`, `-m, --metric`, `-s, --since`, `-o, --output` | Dumps metrics from embedded SQLite database. |
 | **`watchdog completion`** | `bash`, `zsh`, `fish`, `powershell` | — | Generates shell autocomplete scripts. |
@@ -258,6 +266,11 @@ prometheus:
   enabled: false
   port: 9100
   path: "/metrics"
+
+audit:
+  enabled: true                      # Structured security audit logging
+  retention_days: 90                 # Audit log retention window (in days)
+  max_query_limit: 1000              # Maximum events per query
 ```
 
 ---

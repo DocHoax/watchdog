@@ -154,3 +154,35 @@ kubectl create secret generic watchdog-auth \
 ```
 
 *(See `deploy/k8s/daemonset.yaml` for complete RBAC, Secret, and volume mount specifications).*
+
+---
+
+## 5. Security Audit Logging & Production Retention
+
+Watchdog records structured security audit events for all authentication attempts, server lifecycle transitions, TLS configurations, configuration modifications, and administrative operations.
+
+### Audit Persistence & Volume Management
+In containerized (Docker / Kubernetes) deployments, ensure the data directory (default: `~/.watchdog` containing `watchdog.db`) is mounted to a persistent volume so that security audit logs are retained across container lifecycles.
+
+### Automated Retention & Periodic Pruning
+- Configure `audit.retention_days` in `config.yaml` (default: 90 days) for automatic retention pruning during background collection cycles.
+- For scheduled administrative maintenance, use `watchdog audit purge`:
+  ```bash
+  # Purge audit events older than 90 days
+  watchdog audit purge --retention-days 90 --force
+  ```
+
+### Auditing & Compliance Operations
+- List recent security events:
+  ```bash
+  watchdog audit list --since 24h
+  ```
+- Export audit logs to CSV for compliance reviews (with automated formula injection protection):
+  ```bash
+  watchdog audit export --since 30d --format csv --output /var/log/watchdog/audit_report.csv
+  ```
+- Query audit events over REST API (requires Bearer token):
+  ```bash
+  curl -H "Authorization: Bearer <TOKEN>" "https://localhost:8443/api/v1/audit/events?event_type=auth.failure&since=24h"
+  ```
+
