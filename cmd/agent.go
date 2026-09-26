@@ -19,9 +19,17 @@ import (
 )
 
 var (
-	agentInterval time.Duration
-	agentPort     int
-	agentToken    string
+	agentInterval    time.Duration
+	agentPort        int
+	agentToken       string
+	agentTokenFile   string
+	agentTokenEnv    string
+	agentTLSCert     string
+	agentTLSCertFile string
+	agentTLSCertEnv  string
+	agentTLSKey      string
+	agentTLSKeyFile  string
+	agentTLSKeyEnv   string
 )
 
 var agentCmd = &cobra.Command{
@@ -42,7 +50,10 @@ Key Functions:
   watchdog agent --interval 5s --port 9090
 
   # Start agent secured with API bearer token
-  watchdog agent --port 8443 --token s3cr3t-t0k3n
+  watchdog agent --port 8443 --token <token>
+
+  # Start agent with token from secret file
+  watchdog agent --port 8443 --token-file /etc/watchdog/token
 
   # Run agent with structured JSON logging for container logs
   watchdog agent --json-logs --quiet`,
@@ -59,6 +70,38 @@ func runAgent(cmd *cobra.Command, args []string) error {
 	}
 	if agentToken != "" {
 		cfg.Agent.Token = agentToken
+	}
+	if agentTokenFile != "" {
+		cfg.Agent.TokenFile = agentTokenFile
+	}
+	if agentTokenEnv != "" {
+		cfg.Agent.TokenEnv = agentTokenEnv
+	}
+	if agentTLSCert != "" {
+		cfg.Agent.TLSCert = agentTLSCert
+	}
+	if agentTLSCertFile != "" {
+		cfg.Agent.TLSCertFile = agentTLSCertFile
+	}
+	if agentTLSCertEnv != "" {
+		cfg.Agent.TLSCertEnv = agentTLSCertEnv
+	}
+	if agentTLSKey != "" {
+		cfg.Agent.TLSKey = agentTLSKey
+	}
+	if agentTLSKeyFile != "" {
+		cfg.Agent.TLSKeyFile = agentTLSKeyFile
+	}
+	if agentTLSKeyEnv != "" {
+		cfg.Agent.TLSKeyEnv = agentTLSKeyEnv
+	}
+
+	if err := cfg.ResolveSecrets(); err != nil {
+		return NewExitError(ExitConfigError, "failed to resolve agent secrets: %w", err)
+	}
+
+	if err := server.ValidateServerSecurity(&cfg.Agent); err != nil {
+		return NewExitError(ExitConfigError, "%v", err)
 	}
 
 	var store storage.Storage
