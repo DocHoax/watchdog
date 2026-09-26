@@ -15,11 +15,13 @@ import (
 )
 
 var (
-	dashInterval time.Duration
-	dashTheme    string
-	dashRemote   string
-	dashToken    string
-	dashInsecure bool
+	dashInterval  time.Duration
+	dashTheme     string
+	dashRemote    string
+	dashToken     string
+	dashTokenFile string
+	dashTokenEnv  string
+	dashInsecure  bool
 )
 
 var dashCmd = &cobra.Command{
@@ -41,7 +43,10 @@ Features:
   watchdog dash --interval 500ms --theme dark
 
   # Connect to a remote server instance with token authentication
-  watchdog dash --remote https://node-01.internal:8443 --token s3cr3t-t0k3n
+  watchdog dash --remote https://node-01.internal:8443 --token <token>
+
+  # Connect to a remote server instance with token from secret file
+  watchdog dash --remote https://node-01.internal:8443 --token-file /etc/watchdog/token
 
   # Fast alias directly from root
   watchdog`,
@@ -55,6 +60,18 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	}
 	if dashTheme != "" {
 		cfg.Dashboard.Theme = dashTheme
+	}
+
+	// Resolve remote token if configured
+	if dashRemote != "" {
+		remoteAgent := config.AgentConfig{
+			Token:     dashToken,
+			TokenFile: dashTokenFile,
+			TokenEnv:  dashTokenEnv,
+		}
+		if token, err := remoteAgent.ResolveToken(); err == nil && token != "" {
+			dashToken = token
+		}
 	}
 
 	var store storage.Storage
@@ -101,6 +118,8 @@ func init() {
 	dashCmd.Flags().StringVar(&dashTheme, "theme", "", "color theme palette (default, dark, light)")
 	dashCmd.Flags().StringVar(&dashRemote, "remote", "", "connect to remote Watchdog agent URL (e.g. https://10.0.0.5:8443)")
 	dashCmd.Flags().StringVar(&dashToken, "token", "", "authentication bearer token for remote agent")
+	dashCmd.Flags().StringVar(&dashTokenFile, "token-file", "", "path to file containing authentication token for remote agent")
+	dashCmd.Flags().StringVar(&dashTokenEnv, "token-env", "", "environment variable name containing authentication token for remote agent")
 	dashCmd.Flags().BoolVar(&dashInsecure, "insecure", false, "skip TLS certificate verification for remote agent")
 
 	RootCmd.AddCommand(dashCmd)

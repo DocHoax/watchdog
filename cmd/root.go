@@ -44,7 +44,7 @@ Key Capabilities:
   watchdog report -f html -o /tmp/report.html
 
   # Start the background Prometheus metrics and REST server on port 8443
-  watchdog server --port 8443 --token s3cr3t-t0k3n
+  watchdog server --port 8443 --token <token>
 
   # Run with custom configuration and verbose debug logging
   watchdog --config /etc/watchdog.yaml --verbose`,
