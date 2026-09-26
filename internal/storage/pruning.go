@@ -22,6 +22,9 @@ func (s *SQLiteStorage) PruneOlderThan(ctx context.Context, retention time.Durat
 	_, _ = s.db.ExecContext(ctx, `DELETE FROM alerts_history WHERE triggered_at < ? AND status = 'RESOLVED'`, alertCutoff)
 	_, _ = s.db.ExecContext(ctx, `DELETE FROM diagnostics_history WHERE timestamp < ?`, alertCutoff)
 
+	// Also prune audit events older than retention
+	_, _ = s.db.ExecContext(ctx, `DELETE FROM audit_events WHERE timestamp < ?`, cutoff)
+
 	return rowsDeleted, nil
 }
 
