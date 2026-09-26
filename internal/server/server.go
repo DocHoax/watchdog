@@ -5,8 +5,10 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/pprof"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +21,65 @@ import (
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
+
+// IsLoopback reports whether the given bind address is a loopback/local address.
+// The addresses 127.0.0.1, ::1, and "localhost" are treated as loopback.
+// An empty string is also considered loopback because it falls back to 127.0.0.1.
+func IsLoopback(addr string) bool {
+	if addr == "" || strings.EqualFold(addr, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback()
+}
+
+// ValidateServerSecurity checks that the server configuration meets security
+// requirements for the configured bind address. Non-loopback addresses require
+// both an authentication token and a complete TLS configuration. Incomplete TLS
+// configuration (cert without key or vice versa) is always rejected regardless
+// of bind address.
+func ValidateServerSecurity(cfg *config.AgentConfig) error {
+	// Reject incomplete TLS configuration regardless of bind address.
+	hasCert := cfg.TLSCert != ""
+	hasKey := cfg.TLSKey != ""
+	if hasCert != hasKey {
+		if hasCert {
+			return fmt.Errorf("incomplete TLS configuration: tls_cert is set but tls_key is missing; provide both or neither")
+		}
+		return fmt.Errorf("incomplete TLS configuration: tls_key is set but tls_cert is missing; provide both or neither")
+	}
+
+	bindAddr := cfg.BindAddress
+	if IsLoopback(bindAddr) {
+		// Loopback binding is safe without token or TLS.
+		return nil
+	}
+
+	// Non-loopback binding requires authentication.
+	if cfg.Token == "" {
+		return fmt.Errorf(
+			"Watchdog server refuses to bind to %s without authentication: "+
+				"externally exposed API requires a token; configure agent.token "+
+				"or bind to localhost (127.0.0.1)",
+			bindAddr,
+		)
+	}
+
+	// Non-loopback binding requires TLS.
+	if !hasCert {
+		return fmt.Errorf(
+			"Watchdog server refuses to bind to %s without TLS: "+
+				"externally exposed API requires encryption; configure agent.tls_cert "+
+				"and agent.tls_key or bind to localhost (127.0.0.1)",
+			bindAddr,
+		)
+	}
+
+	return nil
+}
 
 // Server represents the Watchdog HTTP API server / remote agent.
 type Server struct {
@@ -63,6 +124,11 @@ func NewServer(
 
 // Start runs the HTTP server and background collection worker until ctx is cancelled.
 func (s *Server) Start(ctx context.Context) error {
+	// Validate security requirements before starting.
+	if err := ValidateServerSecurity(&s.cfg.Agent); err != nil {
+		return fmt.Errorf("server security check failed: %w", err)
+	}
+
 	mux := http.NewServeMux()
 
 	// Register routes
@@ -70,7 +136,9 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/api/v1/health", s.handleHealth)
 	mux.HandleFunc("/metrics", s.exporter.Handler())
 
-	// Secured API routes
+	// Secured API routes — authentication is always enforced when a token is
+	// configured; when binding to a non-loopback address the validation above
+	// guarantees a token is present.
 	mux.Handle("/api/v1/snapshot", s.authMiddleware(http.HandlerFunc(s.handleSnapshot)))
 	mux.Handle("/api/v1/diagnostics", s.authMiddleware(http.HandlerFunc(s.handleDiagnostics)))
 	mux.Handle("/api/v1/alerts", s.authMiddleware(http.HandlerFunc(s.handleAlerts)))
@@ -90,7 +158,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	bindAddr := s.cfg.Agent.BindAddress
 	if bindAddr == "" {
-		bindAddr = "0.0.0.0"
+		bindAddr = "127.0.0.1"
 	}
 	port := s.cfg.Agent.Port
 	if port == 0 {
