@@ -435,10 +435,8 @@ func (s *Server) handleGetPrompt(ctx context.Context, mcpCtx MCPContext, req *JS
 	}
 }
 
-// StartHTTP starts the network transport HTTP/SSE listener.
-func (s *Server) StartHTTP(ctx context.Context) error {
-	addr := fmt.Sprintf("%s:%d", s.cfg.BindAddress, s.cfg.Port)
-
+// Handler returns the configured http.Handler for the MCP server.
+func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/mcp", s.handleHTTPPost)
 	mux.HandleFunc("/sse", s.handleSSE)
@@ -446,10 +444,21 @@ func (s *Server) StartHTTP(ctx context.Context) error {
 	mux.HandleFunc("/health", s.handleHealth)
 	mux.HandleFunc("/healthz", s.handleHealth)
 	mux.HandleFunc("/metrics", s.handleMetrics)
+	return s.authAndLimitMiddleware(mux)
+}
+
+// ServeHTTP implements http.Handler for the MCP server.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.Handler().ServeHTTP(w, r)
+}
+
+// StartHTTP starts the network transport HTTP/SSE listener.
+func (s *Server) StartHTTP(ctx context.Context) error {
+	addr := fmt.Sprintf("%s:%d", s.cfg.BindAddress, s.cfg.Port)
 
 	s.httpServer = &http.Server{
 		Addr:         addr,
-		Handler:      s.authAndLimitMiddleware(mux),
+		Handler:      s.Handler(),
 		ReadTimeout:  s.cfg.ReadTimeout,
 		WriteTimeout: s.cfg.WriteTimeout,
 	}
@@ -554,8 +563,8 @@ func (s *Server) authAndLimitMiddleware(next http.Handler) http.Handler {
 					"MCP authentication invalid token", nil)
 
 				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusForbidden)
-				_ = json.NewEncoder(w).Encode(NewJSONRPCError(CodeForbidden, "Forbidden: invalid authentication token", nil))
+				w.WriteHeader(http.StatusUnauthorized)
+				_ = json.NewEncoder(w).Encode(NewJSONRPCError(CodeUnauthorized, "Unauthorized: invalid authentication token", nil))
 				return
 			}
 		}
