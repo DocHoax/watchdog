@@ -56,50 +56,56 @@ type AuditFilter struct {
 	Offset        int       `json:"offset"`
 }
 
+// ReadOnlyStorage defines the strict read-only query contract for metrics, alerts, diagnostics, audit events, and fleet telemetry.
+type ReadOnlyStorage interface {
+	Ping(ctx context.Context) error
+	QueryMetrics(ctx context.Context, q TimeRangeQuery) ([]MetricPoint, error)
+	GetMetricAggregate(ctx context.Context, metric string, start, end time.Time) (*MetricAggregate, error)
+	GetAvailableMetrics(ctx context.Context) ([]string, error)
+	GetAlertHistory(ctx context.Context, limit int, offset int) ([]model.AlertEvent, error)
+	GetActiveAlerts(ctx context.Context) ([]model.AlertEvent, error)
+	GetLatestDiagnosticReport(ctx context.Context) (*model.DiagnosticReport, error)
+	GetDiagnosticHistory(ctx context.Context, limit int) ([]model.DiagnosticReport, error)
+	QueryAuditEvents(ctx context.Context, filter AuditFilter) ([]model.AuditEvent, error)
+	CountAuditEvents(ctx context.Context, filter AuditFilter) (int64, error)
+	GetFleetNode(ctx context.Context, nodeID string) (*model.FleetNode, error)
+	ListFleetNodes(ctx context.Context, filter model.FleetFilter) ([]model.FleetNode, int, error)
+	GetNodeTelemetrySubmissions(ctx context.Context, nodeID string, since time.Time, limit int) ([]model.TelemetrySubmission, error)
+	GetDatabaseSize() (int64, error)
+}
+
 // Storage defines the contract for storing and querying system metrics, alerts, diagnostics, and audit events.
 type Storage interface {
+	ReadOnlyStorage
+
 	// Lifecycle
 	Close() error
-	Ping(ctx context.Context) error
 
 	// Metrics
 	SaveSnapshot(ctx context.Context, snapshot *model.SystemSnapshot) error
 	SaveMetricPoint(ctx context.Context, pt MetricPoint) error
 	SaveMetricPoints(ctx context.Context, pts []MetricPoint) error
-	QueryMetrics(ctx context.Context, q TimeRangeQuery) ([]MetricPoint, error)
-	GetMetricAggregate(ctx context.Context, metric string, start, end time.Time) (*MetricAggregate, error)
-	GetAvailableMetrics(ctx context.Context) ([]string, error)
 
 	// Alerts
 	SaveAlertEvent(ctx context.Context, alert model.AlertEvent) error
 	UpdateAlertStatus(ctx context.Context, id string, status model.AlertStatus, resolvedAt *time.Time) error
-	GetAlertHistory(ctx context.Context, limit int, offset int) ([]model.AlertEvent, error)
-	GetActiveAlerts(ctx context.Context) ([]model.AlertEvent, error)
 
 	// Diagnostics
 	SaveDiagnosticReport(ctx context.Context, report *model.DiagnosticReport) error
-	GetLatestDiagnosticReport(ctx context.Context) (*model.DiagnosticReport, error)
-	GetDiagnosticHistory(ctx context.Context, limit int) ([]model.DiagnosticReport, error)
 
 	// Audit Events
 	SaveAuditEvent(ctx context.Context, event model.AuditEvent) error
 	SaveAuditEvents(ctx context.Context, events []model.AuditEvent) error
-	QueryAuditEvents(ctx context.Context, filter AuditFilter) ([]model.AuditEvent, error)
-	CountAuditEvents(ctx context.Context, filter AuditFilter) (int64, error)
 	PruneAuditEvents(ctx context.Context, retention time.Duration) (int64, error)
 	PurgeAuditEvents(ctx context.Context, before time.Time) (int64, error)
 
 	// Retention & Maintenance
 	PruneOlderThan(ctx context.Context, retention time.Duration) (int64, error)
-	GetDatabaseSize() (int64, error)
 	Vacuum(ctx context.Context) error
 
 	// Fleet & Telemetry
 	SaveFleetNode(ctx context.Context, node *model.FleetNode) error
-	GetFleetNode(ctx context.Context, nodeID string) (*model.FleetNode, error)
-	ListFleetNodes(ctx context.Context, filter model.FleetFilter) ([]model.FleetNode, int, error)
 	DeleteFleetNode(ctx context.Context, nodeID string) error
 	SaveTelemetrySubmission(ctx context.Context, sub *model.TelemetrySubmission) error
-	GetNodeTelemetrySubmissions(ctx context.Context, nodeID string, since time.Time, limit int) ([]model.TelemetrySubmission, error)
 	PruneFleetTelemetry(ctx context.Context, retention time.Duration) (int64, error)
 }
