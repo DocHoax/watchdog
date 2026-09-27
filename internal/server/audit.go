@@ -115,7 +115,7 @@ func (s *Server) handleAuditEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := map[string]interface{}{
+	resp := map[string]any{
 		"events":    events,
 		"count":     len(events),
 		"total":     total,
@@ -148,6 +148,9 @@ func parseTimeOrDuration(s string) (time.Time, error) {
 	if strings.HasSuffix(s, "d") || strings.HasSuffix(s, "D") {
 		daysStr := s[:len(s)-1]
 		if days, err := strconv.Atoi(daysStr); err == nil && days >= 0 {
+			if days > 100000 {
+				return time.Time{}, fmt.Errorf("days duration exceeds maximum allowable range: %s", s)
+			}
 			dur := time.Duration(days) * 24 * time.Hour
 			return time.Now().UTC().Add(-dur), nil
 		}
