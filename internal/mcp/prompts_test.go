@@ -92,12 +92,15 @@ func TestPromptRegistry(t *testing.T) {
 	})
 
 	t.Run("GetPrompt analyze_fleet_health", func(t *testing.T) {
-		res, err := registry.GetPrompt("analyze_fleet_health", map[string]string{"focus": "incidents"})
+		res, err := registry.GetPrompt("analyze_fleet_health", map[string]string{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !strings.Contains(res.Messages[0].Content.Text, `focusing on "incidents"`) {
-			t.Errorf("expected message to contain focus, got: %s", res.Messages[0].Content.Text)
+		if len(res.Messages) != 1 {
+			t.Fatalf("expected 1 message, got %d", len(res.Messages))
+		}
+		if !strings.Contains(res.Messages[0].Content.Text, "get_fleet_intelligence") {
+			t.Errorf("expected message to contain get_fleet_intelligence, got: %s", res.Messages[0].Content.Text)
 		}
 	})
 
@@ -125,13 +128,19 @@ func TestPromptRegistry(t *testing.T) {
 			t.Fatalf("expected error when node_id is missing")
 		}
 
+		// Invalid node_id
+		_, err = registry.GetPrompt("triage_node_degradation", map[string]string{"node_id": "bad/../node"})
+		if err == nil {
+			t.Fatalf("expected error when node_id is invalid format, got nil")
+		}
+
 		// Valid node_id
-		res, err := registry.GetPrompt("triage_node_degradation", map[string]string{"node_id": "worker-02", "metric_window": "6h"})
+		res, err := registry.GetPrompt("triage_node_degradation", map[string]string{"node_id": "worker-02"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !strings.Contains(res.Messages[0].Content.Text, `worker-02`) || !strings.Contains(res.Messages[0].Content.Text, `window 6h`) {
-			t.Errorf("expected message to contain node_id and window, got: %s", res.Messages[0].Content.Text)
+		if !strings.Contains(res.Messages[0].Content.Text, `worker-02`) || !strings.Contains(res.Messages[0].Content.Text, `get_node_intelligence`) {
+			t.Errorf("expected message to contain node_id and get_node_intelligence, got: %s", res.Messages[0].Content.Text)
 		}
 	})
 
