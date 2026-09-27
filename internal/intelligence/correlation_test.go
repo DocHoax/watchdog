@@ -31,7 +31,7 @@ func TestCorrelateSignals(t *testing.T) {
 		ptsA := make([]storage.MetricPoint, 20)
 		ptsB := make([]storage.MetricPoint, 20)
 
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			ts := now.Add(time.Duration(i*10) * time.Second)
 			ptsA[i] = storage.MetricPoint{Timestamp: ts, Value: float64(10 + i*2)}
 			ptsB[i] = storage.MetricPoint{Timestamp: ts, Value: float64(50 + i*4)}
@@ -56,7 +56,7 @@ func TestCorrelateSignals(t *testing.T) {
 		ptsA := make([]storage.MetricPoint, 20)
 		ptsB := make([]storage.MetricPoint, 20)
 
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			ts := now.Add(time.Duration(i*10) * time.Second)
 			ptsA[i] = storage.MetricPoint{Timestamp: ts, Value: float64(10 + i)}
 			ptsB[i] = storage.MetricPoint{Timestamp: ts, Value: float64(100 - i)}
@@ -78,7 +78,7 @@ func TestCorrelateSignals(t *testing.T) {
 		ptsA := make([]storage.MetricPoint, 20)
 		ptsB := make([]storage.MetricPoint, 20)
 
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			ts := now.Add(time.Duration(i*10) * time.Second)
 			ptsA[i] = storage.MetricPoint{Timestamp: ts, Value: float64(i)}
 			// Alternating values with zero correlation to linear trend

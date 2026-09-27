@@ -28,7 +28,7 @@ func TestCalculateTrend(t *testing.T) {
 	t.Run("Linear Increasing Trend", func(t *testing.T) {
 		// Value increases by 1.0 every 60 seconds (rate = 60.0 units/hour)
 		points := make([]storage.MetricPoint, 10)
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			points[i] = storage.MetricPoint{
 				Timestamp: now.Add(time.Duration(i*60) * time.Second),
 				Value:     float64(10 + i),
@@ -50,7 +50,7 @@ func TestCalculateTrend(t *testing.T) {
 	t.Run("Linear Decreasing Trend", func(t *testing.T) {
 		// Value decreases by 0.5 every 60 seconds (rate = -30.0 units/hour)
 		points := make([]storage.MetricPoint, 10)
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			points[i] = storage.MetricPoint{
 				Timestamp: now.Add(time.Duration(i*60) * time.Second),
 				Value:     float64(50) - float64(i)*0.5,
@@ -68,7 +68,7 @@ func TestCalculateTrend(t *testing.T) {
 
 	t.Run("Flatline Stable Trend", func(t *testing.T) {
 		points := make([]storage.MetricPoint, 10)
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			points[i] = storage.MetricPoint{
 				Timestamp: now.Add(time.Duration(i*60) * time.Second),
 				Value:     42.0,
@@ -113,7 +113,7 @@ func TestCalculateBaseline(t *testing.T) {
 	t.Run("Verified statistical distribution", func(t *testing.T) {
 		// Values: 10, 20, 30, 40, 50, 60, 70, 80, 90, 100
 		points := make([]storage.MetricPoint, 10)
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			points[i] = storage.MetricPoint{
 				Timestamp: now.Add(time.Duration(i*60) * time.Second),
 				Value:     float64((i + 1) * 10),
