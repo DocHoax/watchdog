@@ -43,6 +43,11 @@ const (
 	EventAdminExport       = "admin.export"
 	EventAdminAuditPurge   = "admin.audit.purge"
 
+	// Incident Management Events
+	EventIncidentCreated      = "incident.created"
+	EventIncidentStatusChange = "incident.status.change"
+	EventIncidentUpdated      = "incident.updated"
+
 	// Fleet Management Events
 	EventFleetNodeRegistered    = "fleet.node.registered"
 	EventFleetNodeDeregistered  = "fleet.node.deregistered"

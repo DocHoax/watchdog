@@ -19,6 +19,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/config"
 	"github.com/DocHoax/watchdog/internal/diagnostics"
 	"github.com/DocHoax/watchdog/internal/fleet"
+	"github.com/DocHoax/watchdog/internal/incidents"
 	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/storage"
@@ -96,6 +97,7 @@ type Server struct {
 	auditLog     audit.AuditLogger
 	fleetService fleet.FleetService
 	intelService intelligence.IntelligenceService
+	incService   incidents.Service
 
 	httpServer *http.Server
 	startTime  time.Time
@@ -133,6 +135,11 @@ func NewServer(
 		intelSvc = intelligence.NewService(store, fleetSvc, anomDet, logger.GetDefault(), nil)
 	}
 
+	var incSvc incidents.Service
+	if store != nil {
+		incSvc = incidents.NewService(store, 15*time.Minute)
+	}
+
 	return &Server{
 		cfg:          cfg,
 		collector:    col,
@@ -144,8 +151,23 @@ func NewServer(
 		auditLog:     auditLog,
 		fleetService: fleetSvc,
 		intelService: intelSvc,
+		incService:   incSvc,
 		startTime:    time.Now(),
 	}
+}
+
+// SetIncidentService configures the incident operations service instance for the server.
+func (s *Server) SetIncidentService(is incidents.Service) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.incService = is
+}
+
+// IncidentService returns the configured incident operations service instance.
+func (s *Server) IncidentService() incidents.Service {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.incService
 }
 
 // SetAuditLogger overrides or configures the audit logger for the server.
@@ -237,6 +259,10 @@ func (s *Server) Start(ctx context.Context) error {
 	// Intelligence API routes
 	mux.Handle("/api/v1/intelligence", s.authMiddleware(http.HandlerFunc(s.handleIntelligenceRoute)))
 	mux.Handle("/api/v1/intelligence/", s.authMiddleware(http.HandlerFunc(s.handleIntelligenceRoute)))
+
+	// Incident Operations API routes
+	mux.Handle("/api/v1/incidents", s.authMiddleware(http.HandlerFunc(s.handleIncidentsRoute)))
+	mux.Handle("/api/v1/incidents/", s.authMiddleware(http.HandlerFunc(s.handleIncidentsRoute)))
 
 	// Diagnostic Profiling (pprof)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
