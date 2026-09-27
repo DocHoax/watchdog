@@ -290,6 +290,7 @@ audit:
 | 🚀 [**Getting Started**](docs/getting-started.md) | First-run tour, initial configuration, and basic operations. |
 | 📦 [**Installation Guide**](docs/installation.md) | Package managers, tarball verification, container images, and source compilation. |
 | 🛡️ [**Release & Supply Chain Verification**](docs/release-verification.md) | Keyless Sigstore signing, GitHub provenance attestations, SPDX SBOM inspection, and reproducibility. |
+| 🔒 [**Enterprise Security Audit**](docs/security-audit.md) | Threat model, read-only guarantees, fuzzing results, and security controls matrix. |
 | 🛠️ [**CLI Command Reference**](docs/cli-reference.md) | Exhaustive breakdown of all CLI subcommands, flags, defaults, and aliases. |
 | ⚙️ [**Configuration Reference**](docs/configuration.md) | Full YAML schema specification, precedence hierarchy, and defaults. |
 | 🖥️ [**TUI & Real-Time Monitoring**](docs/monitoring.md) | Interactive AltScreen navigation, vim keybindings, process management, and themes. |

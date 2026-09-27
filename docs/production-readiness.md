@@ -35,13 +35,12 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 | **Audit** | `internal/audit/` | Structured security audit logging & sanitization | Thread-safe, non-blocking fallback |
 | **Fleet** | `internal/fleet/` | Multi-node registry, health aggregation & heartbeats | `sync.RWMutex` protecting cluster state |
 | **MCP** | `internal/mcp/` | Model Context Protocol server (stdio/http/sse) | Read-only interfaces, token-bucket rate limiter |
-| **API** | `internal/api/` | REST API routes & client abstractions | Stateless HTTP handlers, Bearer auth |
-| **Client** | `internal/client/` | HTTP telemetry client with retry & backoff | Thread-safe `http.Client` reuse |
 | **Storage** | `internal/storage/` | SQLite persistence, queries, pruning & audit | `sync.Mutex` on SQLite connection, WAL mode |
 | **Reporting** | `internal/reporting/` | Multi-format report generation | Pure functions & immutable data |
-| **Server** | `internal/server/` | Prometheus exporter & REST API | `http.Server`, atomic metrics collection |
+| **Server** | `internal/server/` | Prometheus exporter & REST API routes | `http.Server`, atomic metrics collection |
 | **TUI** | `internal/tui/` | Interactive terminal UI | Bubble Tea event loop, async tick commands |
 | **Logger** | `internal/logger/` | Structured levelled logging | `sync.Mutex` protecting output io.Writer |
+| **Domain Models** | `pkg/model/` | Telemetry, diagnostic, alert and audit models | Value types & thread-safe data structures |
 | **Utilities** | `pkg/util/` | String, byte unit, network probing helpers | Pure stateless helper functions |
 
 ---
@@ -155,8 +154,9 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 
 ## 6. Current Test Coverage Baseline
 
-- All unit and integration tests across all 13 Go packages pass (`cmd`, `internal/alerts`, `internal/anomaly`, `internal/audit`, `internal/collector`, `internal/config`, `internal/diagnostics`, `internal/logger`, `internal/reporting`, `internal/server`, `internal/storage`, `internal/tui`, `pkg/model`, `pkg/util`).
-- Security validation tests comprehensively cover: `IsLoopback()` for all address types, `ValidateServerSecurity()` for all bind address × token × TLS combinations, HTTP-level auth enforcement via httptest, concurrent request safety, method restriction, path traversal rejection, Request ID propagation, audit sanitization, token masking, flood limiting, SQLite audit queries and pruning, and graceful shutdown.
+- All unit, integration, and fuzz tests across all 15 Go packages pass (`cmd`, `internal/alerts`, `internal/anomaly`, `internal/audit`, `internal/collector`, `internal/config`, `internal/diagnostics`, `internal/fleet`, `internal/logger`, `internal/mcp`, `internal/reporting`, `internal/server`, `internal/storage`, `internal/tui`, `pkg/model`, `pkg/util`).
+- Security validation tests comprehensively cover: `IsLoopback()` for all address types, `ValidateServerSecurity()` for all bind address × token × TLS combinations, HTTP-level auth enforcement via httptest (401 vs 403), concurrent request safety, method restriction, path traversal rejection, Request ID propagation, audit sanitization, token masking, flood limiting, SQLite audit queries and pruning, and graceful shutdown.
+- Fuzz testing suites (`testing.F`) cover: JSON-RPC parsing (`FuzzJSONRPCParse`), node ID traversal validation (`FuzzValidateNodeID`), metric name normalization (`FuzzValidateMetricName`), flexible duration parsing (`FuzzParseFlexibleDuration`), tool dispatch allowlists (`FuzzToolExecution`), timestamp/duration parsing (`FuzzParseTimeOrDuration`), and Request ID header sanitization (`FuzzServerRequestIDValidation`).
 - Supply chain security tests cover: version metadata formatting (`cmd/version_test.go`), deterministic build reproducibility verification (`cmd/reproducibility_test.go`), GoReleaser v2 configuration validation (`goreleaser check`), and module checksum verification (`go mod verify`).
 
 ---
@@ -188,4 +188,19 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 | **Kubernetes DaemonSet Hardening**| Non-root user (1000), read-only root FS, dropped capabilities | `kubectl apply --dry-run=client -f deploy/k8s/daemonset.yaml` | :white_check_mark: Verified |
 | **Prometheus Operator Support** | Native `ServiceMonitor` manifest | `kubectl apply --dry-run=client -f deploy/k8s/servicemonitor.yaml` | :white_check_mark: Verified |
 | **Multi-Environment Configs** | Production, server, agent, development templates in `examples/` | `watchdog config validate examples/production.yaml` | :white_check_mark: Verified |
+
+---
+
+## 9. Model Context Protocol (MCP) Security & AI Safety Checklist
+
+| Security Control | Implementation | Verification Tool / Command | Status |
+| :--- | :--- | :--- | :--- |
+| **Structural Read-Only Guarantee** | Interfaces limited to `ReadOnlyFleetService` & `ReadOnlyStorage` | Compile-time interface assertion in `internal/mcp` | :white_check_mark: Verified |
+| **Static Tool Allowlist** | `AllowedReadOperations` allowlist; all others return `-32601` | `go test -v ./internal/mcp -run TestSecurity_StrictReadOnlyAllowlist` | :white_check_mark: Verified |
+| **Path Traversal Defense** | `ValidateNodeID` regex `^[a-zA-Z0-9_\-\.]{1,128}$` | `go test -v ./internal/mcp -run TestSecurity_PathTraversalRejection` | :white_check_mark: Verified |
+| **Integer Overflow Defense** | `ParseFlexibleDuration` bounds days `<= 100,000` | `go test -v ./internal/mcp -run TestSecurity_ParseFlexibleDuration_Overflow` | :white_check_mark: Verified |
+| **Auth Error Differentiation** | 401 Unauthorized for missing tokens, 403 Forbidden for invalid | `go test -v ./internal/mcp -run TestSecurity_AuthAndTransportHardening` | :white_check_mark: Verified |
+| **Native Go Fuzzing Suite** | Fuzz tests covering JSON-RPC, arguments, durations, and request IDs | `go test -v ./internal/mcp -run Fuzz` | :white_check_mark: Verified |
+| **Comprehensive Security Audit** | Formally documented threat model, proofs, and matrices in `docs/security-audit.md` | `docs/security-audit.md` | :white_check_mark: Verified |
+
 

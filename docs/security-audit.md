@@ -355,7 +355,7 @@ gh attestation verify watchdog_1.0.0_linux_amd64.tar.gz.sbom.json \
 
 ## 9. Verification & Compliance Sign-Off
 
-- **Unit & Integration Test Suite**: 100% Pass across all 17 packages (`go test -count=1 ./...`).
+- **Unit & Integration Test Suite**: 100% Pass across all packages (`go test -count=1 ./...`).
 - **Adversarial & Fuzz Test Suite**: 100% Pass across server and MCP fuzzers (`go test -fuzz=...`).
 - **Static Analysis**: `go vet ./...` clean; `gofmt -w .` compliant.
 - **Dependency Integrity**: `go mod verify` validated against locked `go.sum`.

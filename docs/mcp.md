@@ -39,11 +39,13 @@ Operating strictly as a **read-only observability interface**, Watchdog MCP enab
 
 ## 🔒 Security Principles & Invariants
 
-1. **Strict Read-Only Guarantee**: The MCP server is fundamentally incapable of modifying system state, terminating processes, modifying firewall rules, changing configuration files, or executing arbitrary commands.
-2. **Secure-by-Default Networking**: Binding to external or non-loopback network interfaces (`0.0.0.0`, LAN IPs) strictly mandates both Bearer token authentication and valid TLS certificates (`--tls-cert` and `--tls-key`).
-3. **Stdio Protocol Isolation**: In `stdio` transport mode, all application logs and operational banners are strictly redirected to `stderr`, keeping `stdout` dedicated to framed JSON-RPC 2.0 messages.
-4. **Token-Bucket Rate Limiting**: Embedded per-client token-bucket rate limiter prevents runaway AI tool loops from exhausting host memory or CPU resources.
-5. **Comprehensive Audit Logging**: Every tool invocation, resource read, prompt retrieval, and authentication event is audited and recorded with caller identity and timing metrics.
+1. **Strict Read-Only Guarantee**: The MCP server is fundamentally incapable of modifying system state, terminating processes, modifying firewall rules, changing configuration files, or executing arbitrary commands. Structural interface segregation (`ReadOnlyFleetService` and `ReadOnlyStorage`) ensures mutation methods cannot be compiled or called.
+2. **Static Tool Allowlist**: Enforces a compile-time allowlist (`AllowedReadOperations`) strictly limiting execution to the 8 approved read tools. Unrecognized or mutation requests return JSON-RPC `-32601` (`CodeMethodNotFound`).
+3. **Secure-by-Default Networking**: Binding to external or non-loopback network interfaces (`0.0.0.0`, LAN IPs) strictly mandates both Bearer token authentication and valid TLS certificates (`--tls-cert` and `--tls-key`).
+4. **Stdio Protocol Isolation**: In `stdio` transport mode, all application logs and operational banners are strictly redirected to `stderr`, keeping `stdout` dedicated to framed JSON-RPC 2.0 messages.
+5. **Token-Bucket Rate Limiting**: Embedded per-client token-bucket rate limiter prevents runaway AI tool loops from exhausting host memory or CPU resources.
+6. **Comprehensive Audit Logging**: Every tool invocation, resource read, prompt retrieval, and authentication event is audited and recorded with caller identity and timing metrics.
+7. **Security Audit Report**: For full threat modeling, interface proofs, fuzzing reports, and compliance matrices, see [`docs/security-audit.md`](security-audit.md).
 
 ---
 
