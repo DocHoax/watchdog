@@ -29,6 +29,8 @@ var (
 	intelCategory    string
 	intelMinSeverity string
 	intelIncidentID  string
+	intelHorizon     string
+	intelSince       string
 )
 
 var intelligenceCmd = &cobra.Command{
@@ -141,6 +143,50 @@ var intelligenceFindingsCmd = &cobra.Command{
 	RunE: runIntelligenceFindings,
 }
 
+var intelligencePredictionsCmd = &cobra.Command{
+	Use:     "predictions [node-id|prediction-id] [flags]",
+	Aliases: []string{"predict", "forecast", "pred"},
+	Short:   "Display deterministic metric threshold predictions and crossing estimates",
+	Long:    `Evaluates deterministic linear threshold projections (t = (T-x)/m) with R² fit quality and confidence levels across nodes or the entire fleet.`,
+	Example: `  # View fleet-wide threshold predictions over a 24-hour horizon
+  watchdog intelligence predictions
+
+  # View threshold predictions for a specific node
+  watchdog intelligence predictions node-prod-01 --horizon 6h
+
+  # Inspect a single prediction by ID
+  watchdog intelligence predictions pred-node-prod-01-cpu-80`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runIntelligencePredictions,
+}
+
+var intelligenceCapacityCmd = &cobra.Command{
+	Use:     "capacity [node-id] [flags]",
+	Aliases: []string{"cap", "exhaustion"},
+	Short:   "Display multi-subsystem capacity exhaustion forecasts and cluster pressure",
+	Long:    `Forecasts CPU, Memory, Swap, and Disk exhaustion runways and projects horizon utilization with warning and critical thresholds.`,
+	Example: `  # View cluster-wide capacity pressure and top risk nodes
+  watchdog intelligence capacity
+
+  # View capacity exhaustion report for a specific node
+  watchdog intelligence capacity node-prod-01 --horizon 24h`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runIntelligenceCapacity,
+}
+
+var intelligenceRecurrenceCmd = &cobra.Command{
+	Use:     "recurrence [flags]",
+	Aliases: []string{"recurring", "periodic", "patterns"},
+	Short:   "Display recurring incident patterns, periodicity, and interval statistics",
+	Long:    `Analyzes historical incident clustering, inter-arrival interval distributions, and coefficient of variation (CV) regularity over a lookback window.`,
+	Example: `  # View recurring patterns over default 24h lookback
+  watchdog intelligence recurrence
+
+  # View recurring patterns over 7-day lookback
+  watchdog intelligence recurrence --since 7d`,
+	RunE: runIntelligenceRecurrence,
+}
+
 func init() {
 	// Persistent flags on intelligenceCmd
 	intelligenceCmd.PersistentFlags().StringVar(&intelServerURL, "server", "", "centralized fleet server URL (e.g. https://fleet.internal:8443)")
@@ -151,6 +197,8 @@ func init() {
 	intelligenceCmd.PersistentFlags().DurationVar(&intelTimeout, "timeout", 10*time.Second, "HTTP request timeout duration")
 	intelligenceCmd.PersistentFlags().StringVarP(&intelFormat, "format", "f", "text", "output format (text, json, yaml)")
 	intelligenceCmd.PersistentFlags().StringVarP(&intelWindow, "window", "w", "1h", "time window duration (e.g. 15m, 1h, 6h, 24h)")
+	intelligenceCmd.PersistentFlags().StringVar(&intelHorizon, "horizon", "24h", "forecast horizon duration (e.g. 15m, 1h, 6h, 24h, 7d)")
+	intelligenceCmd.PersistentFlags().StringVar(&intelSince, "since", "24h", "lookback duration for recurrence analysis (e.g. 24h, 7d)")
 
 	// Findings specific flags
 	intelligenceFindingsCmd.Flags().StringVar(&intelCategory, "category", "", "filter findings by category (resource_exhaustion, performance_degradation, fleet_pattern, stability_risk, anomaly_cluster)")
@@ -166,6 +214,9 @@ func init() {
 	intelligenceCmd.AddCommand(intelligenceBaselinesCmd)
 	intelligenceCmd.AddCommand(intelligenceCorrelationsCmd)
 	intelligenceCmd.AddCommand(intelligenceFindingsCmd)
+	intelligenceCmd.AddCommand(intelligencePredictionsCmd)
+	intelligenceCmd.AddCommand(intelligenceCapacityCmd)
+	intelligenceCmd.AddCommand(intelligenceRecurrenceCmd)
 
 	RootCmd.AddCommand(intelligenceCmd)
 }
@@ -661,6 +712,284 @@ func runIntelligenceFindings(cmd *cobra.Command, args []string) error {
 				fmt.Printf("      - %s\n", s)
 			}
 		}
+	}
+	return nil
+}
+
+func runIntelligencePredictions(cmd *cobra.Command, args []string) error {
+	client, err := getIntelligenceClient()
+	if err != nil {
+		return err
+	}
+
+	horizon := parseDurationFlag(intelHorizon, 24*time.Hour)
+	ctx, cancel := context.WithTimeout(context.Background(), intelTimeout)
+	defer cancel()
+
+	if len(args) == 1 {
+		target := args[0]
+		if strings.HasPrefix(target, "pred-") {
+			pred, err := client.GetPrediction(ctx, target)
+			if err != nil {
+				return NewExitError(ExitNetworkError, "failed to get prediction: %w", err)
+			}
+			if intelFormat == "json" || intelFormat == "yaml" || intelFormat == "yml" {
+				return outputFormatted(pred)
+			}
+
+			fmt.Printf("🔮 Prediction Details: %s\n", pred.ID)
+			fmt.Printf("  Node ID:          %s\n", pred.NodeID)
+			fmt.Printf("  Metric:           %s\n", pred.Metric)
+			fmt.Printf("  Current Value:    %.2f\n", pred.CurrentValue)
+			fmt.Printf("  Target Threshold: %.2f\n", pred.TargetThreshold)
+			fmt.Printf("  Direction:        %s\n", pred.Direction)
+			fmt.Printf("  Slope/Minute:     %+.4f\n", pred.SlopePerMinute)
+			fmt.Printf("  R² Fit Quality:   %.3f\n", pred.RSquared)
+			fmt.Printf("  Confidence:       %s\n", pred.Confidence)
+			if pred.EstimatedTimeToThreshold != nil {
+				fmt.Printf("  Time to Thresh:   %v\n", pred.EstimatedTimeToThreshold.Round(time.Second))
+			} else {
+				fmt.Printf("  Time to Thresh:   N/A\n")
+			}
+			if pred.PredictedCrossingTime != nil {
+				fmt.Printf("  Predicted Time:   %s\n", pred.PredictedCrossingTime.Local().Format(time.RFC3339))
+			}
+			fmt.Printf("  Horizon:          %v\n", pred.Horizon)
+			fmt.Printf("  Samples Analyzed: %d\n", pred.SampleCount)
+			if len(pred.Evidence) > 0 {
+				fmt.Println("  Evidence:")
+				for _, ev := range pred.Evidence {
+					fmt.Printf("    • %s\n", ev)
+				}
+			}
+			return nil
+		}
+
+		// Query predictions for node
+		preds, err := client.GetNodePredictions(ctx, target, horizon)
+		if err != nil {
+			return NewExitError(ExitNetworkError, "failed to get node predictions: %w", err)
+		}
+
+		if intelFormat == "json" || intelFormat == "yaml" || intelFormat == "yml" {
+			return outputFormatted(preds)
+		}
+
+		if len(preds) == 0 {
+			fmt.Printf("No active threshold predictions for node %q within %s horizon.\n", target, horizon)
+			return nil
+		}
+
+		fmt.Printf("🔮 Threshold Predictions for Node %q (Horizon: %s)\n", target, horizon)
+		tw := util.NewTableWriter("Metric", "Current", "Target", "Direction", "Slope/min", "R²", "Conf", "Time to Thresh", "Predicted Crossing")
+		for _, p := range preds {
+			timeStr := "N/A"
+			if p.EstimatedTimeToThreshold != nil {
+				timeStr = p.EstimatedTimeToThreshold.Round(time.Minute).String()
+			}
+			crossingStr := "N/A"
+			if p.PredictedCrossingTime != nil {
+				crossingStr = p.PredictedCrossingTime.Local().Format("15:04:05")
+			}
+			tw.Append(
+				p.Metric,
+				fmt.Sprintf("%.2f", p.CurrentValue),
+				fmt.Sprintf("%.2f", p.TargetThreshold),
+				string(p.Direction),
+				fmt.Sprintf("%+.4f", p.SlopePerMinute),
+				fmt.Sprintf("%.2f", p.RSquared),
+				string(p.Confidence),
+				timeStr,
+				crossingStr,
+			)
+		}
+		tw.Render(os.Stdout)
+		return nil
+	}
+
+	// Fleet-wide predictions summary
+	summary, err := client.GetFleetPredictions(ctx, horizon)
+	if err != nil {
+		return NewExitError(ExitNetworkError, "failed to get fleet predictions: %w", err)
+	}
+
+	if intelFormat == "json" || intelFormat == "yaml" || intelFormat == "yml" {
+		return outputFormatted(summary)
+	}
+
+	fmt.Printf("🔮 Fleet Capacity & Threshold Predictions (Horizon: %s)\n", horizon)
+	fmt.Printf("  Evaluated At:             %s\n", summary.EvaluatedAt.Local().Format(time.RFC3339))
+	fmt.Printf("  Total Nodes:              %d\n", summary.TotalNodes)
+	fmt.Printf("  CPU Pressure Fleet %%:     %.1f%%\n", summary.CPUPressurePercent)
+	fmt.Printf("  Memory Pressure Fleet %%:  %.1f%%\n", summary.MemoryPressurePercent)
+	fmt.Printf("  Disk Pressure Fleet %%:    %.1f%%\n", summary.DiskPressurePercent)
+	fmt.Printf("  Approaching Warning:      %d nodes\n", summary.NodesApproachingWarning)
+	fmt.Printf("  Approaching Critical:     %d nodes\n", summary.NodesApproachingCritical)
+
+	if len(summary.FleetPredictions) > 0 {
+		fmt.Printf("\n📋 Active Fleet Predictions (%d):\n", len(summary.FleetPredictions))
+		tw := util.NewTableWriter("Node ID", "Metric", "Current", "Target", "Direction", "Slope/min", "R²", "Confidence", "Time to Thresh")
+		for _, p := range summary.FleetPredictions {
+			timeStr := "N/A"
+			if p.EstimatedTimeToThreshold != nil {
+				timeStr = p.EstimatedTimeToThreshold.Round(time.Minute).String()
+			}
+			tw.Append(
+				p.NodeID,
+				p.Metric,
+				fmt.Sprintf("%.2f", p.CurrentValue),
+				fmt.Sprintf("%.2f", p.TargetThreshold),
+				string(p.Direction),
+				fmt.Sprintf("%+.4f", p.SlopePerMinute),
+				fmt.Sprintf("%.2f", p.RSquared),
+				string(p.Confidence),
+				timeStr,
+			)
+		}
+		tw.Render(os.Stdout)
+	}
+	return nil
+}
+
+func runIntelligenceCapacity(cmd *cobra.Command, args []string) error {
+	client, err := getIntelligenceClient()
+	if err != nil {
+		return err
+	}
+
+	horizon := parseDurationFlag(intelHorizon, 24*time.Hour)
+	ctx, cancel := context.WithTimeout(context.Background(), intelTimeout)
+	defer cancel()
+
+	if len(args) == 1 {
+		nodeID := args[0]
+		report, err := client.GetNodeCapacityForecast(ctx, nodeID, horizon)
+		if err != nil {
+			return NewExitError(ExitNetworkError, "failed to get node capacity forecast: %w", err)
+		}
+
+		if intelFormat == "json" || intelFormat == "yaml" || intelFormat == "yml" {
+			return outputFormatted(report)
+		}
+
+		fmt.Printf("📊 Capacity Exhaustion Forecast: %s (%s)\n", report.NodeID, report.Hostname)
+		fmt.Printf("  Status:       %s\n", report.Status)
+		fmt.Printf("  Evaluated At: %s\n", report.EvaluatedAt.Local().Format(time.RFC3339))
+		fmt.Printf("  Horizon:      %s\n\n", horizon)
+
+		tw := util.NewTableWriter("Resource", "Current", "Baseline", "Slope/min", "Time to Warn", "Time to Crit", "Projected", "Confidence")
+		for _, f := range report.Forecasts {
+			timeWarnStr := "N/A"
+			if f.TimeToWarning != nil {
+				timeWarnStr = f.TimeToWarning.Round(time.Minute).String()
+			}
+			timeCritStr := "N/A"
+			if f.TimeToCritical != nil {
+				timeCritStr = f.TimeToCritical.Round(time.Minute).String()
+			}
+			tw.Append(
+				string(f.Resource),
+				fmt.Sprintf("%.1f%s", f.CurrentUtilization, f.Unit),
+				fmt.Sprintf("%.1f%s", f.BaselineUtilization, f.Unit),
+				fmt.Sprintf("%+.3f%s", f.TrendSlopePerMinute, f.Unit),
+				timeWarnStr,
+				timeCritStr,
+				fmt.Sprintf("%.1f%s", f.ProjectedUtilizationAfterHorizon, f.Unit),
+				string(f.Confidence),
+			)
+		}
+		tw.Render(os.Stdout)
+
+		for _, f := range report.Forecasts {
+			if len(f.Evidence) > 0 {
+				fmt.Printf("\n  %s Evidence:\n", strings.ToUpper(string(f.Resource)))
+				for _, ev := range f.Evidence {
+					fmt.Printf("    • %s\n", ev)
+				}
+			}
+		}
+		return nil
+	}
+
+	// Fleet capacity summary
+	summary, err := client.GetFleetPredictions(ctx, horizon)
+	if err != nil {
+		return NewExitError(ExitNetworkError, "failed to get fleet capacity summary: %w", err)
+	}
+
+	if intelFormat == "json" || intelFormat == "yaml" || intelFormat == "yml" {
+		return outputFormatted(summary)
+	}
+
+	fmt.Printf("📊 Fleet Capacity & Resource Pressure (Horizon: %s)\n", horizon)
+	fmt.Printf("  Total Nodes Evaluated:      %d\n", summary.TotalNodes)
+	fmt.Printf("  CPU Pressure Nodes:         %.1f%%\n", summary.CPUPressurePercent)
+	fmt.Printf("  Memory Pressure Nodes:      %.1f%%\n", summary.MemoryPressurePercent)
+	fmt.Printf("  Disk Pressure Nodes:        %.1f%%\n", summary.DiskPressurePercent)
+	fmt.Printf("  Nodes Approaching Warning:  %d\n", summary.NodesApproachingWarning)
+	fmt.Printf("  Nodes Approaching Critical: %d\n", summary.NodesApproachingCritical)
+
+	if len(summary.TopCapacityRisks) > 0 {
+		fmt.Printf("\n⚠️  Top Capacity Risk Nodes (%d):\n", len(summary.TopCapacityRisks))
+		tw := util.NewTableWriter("Node ID", "Hostname", "Status", "Forecasts", "Predictions")
+		for _, node := range summary.TopCapacityRisks {
+			tw.Append(
+				node.NodeID,
+				node.Hostname,
+				string(node.Status),
+				fmt.Sprintf("%d forecasts", len(node.Forecasts)),
+				fmt.Sprintf("%d predictions", len(node.Predictions)),
+			)
+		}
+		tw.Render(os.Stdout)
+	}
+	return nil
+}
+
+func runIntelligenceRecurrence(cmd *cobra.Command, args []string) error {
+	client, err := getIntelligenceClient()
+	if err != nil {
+		return err
+	}
+
+	since := parseDurationFlag(intelSince, 24*time.Hour)
+	ctx, cancel := context.WithTimeout(context.Background(), intelTimeout)
+	defer cancel()
+
+	patterns, err := client.GetRecurringIncidents(ctx, since)
+	if err != nil {
+		return NewExitError(ExitNetworkError, "failed to get recurring incidents: %w", err)
+	}
+
+	if intelFormat == "json" || intelFormat == "yaml" || intelFormat == "yml" {
+		return outputFormatted(patterns)
+	}
+
+	if len(patterns) == 0 {
+		fmt.Printf("No recurring incident patterns detected over lookback window %s.\n", since)
+		return nil
+	}
+
+	fmt.Printf("🔁 Recurring Incident Patterns (%d detected, Lookback: %s)\n", len(patterns), since)
+	tw := util.NewTableWriter("Pattern ID", "Scope", "Target", "Event Type", "Count", "Avg Interval", "Median Interval", "CV", "Confidence")
+	for _, p := range patterns {
+		tw.Append(
+			p.ID,
+			string(p.Scope),
+			p.TargetID,
+			p.EventType,
+			fmt.Sprintf("%d", p.OccurrenceCount),
+			p.AverageInterval.Round(time.Minute).String(),
+			p.MedianInterval.Round(time.Minute).String(),
+			fmt.Sprintf("%.2f", p.CoefficientOfVariation),
+			string(p.Confidence),
+		)
+	}
+	tw.Render(os.Stdout)
+
+	fmt.Println("\nPattern Summaries:")
+	for _, p := range patterns {
+		fmt.Printf("  • [%s] %s\n", p.ID, p.Summary)
 	}
 	return nil
 }
