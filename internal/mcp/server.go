@@ -563,8 +563,8 @@ func (s *Server) authAndLimitMiddleware(next http.Handler) http.Handler {
 					"MCP authentication invalid token", nil)
 
 				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusUnauthorized)
-				_ = json.NewEncoder(w).Encode(NewJSONRPCError(CodeUnauthorized, "Unauthorized: invalid authentication token", nil))
+				w.WriteHeader(http.StatusForbidden)
+				_ = json.NewEncoder(w).Encode(NewJSONRPCError(CodeForbidden, "Forbidden: invalid authentication token", nil))
 				return
 			}
 		}

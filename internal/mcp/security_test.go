@@ -271,15 +271,15 @@ func TestSecurity_AuthAndTransportHardening(t *testing.T) {
 		t.Errorf("expected status 401 for unauthenticated request, got %d", w.Code)
 	}
 
-	// 2. Verify invalid token returns 401 Unauthorized
+	// 2. Verify invalid token returns 403 Forbidden
 	req = httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"ping"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer invalid-token")
 	w = httptest.NewRecorder()
 
 	srv.ServeHTTP(w, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected status 401 for invalid token, got %d", w.Code)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected status 403 for invalid token, got %d", w.Code)
 	}
 
 	// 3. Verify valid token returns 200 OK
