@@ -3,6 +3,7 @@ package mcp
 import (
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -60,10 +61,18 @@ func ParseFlexibleDuration(dStr string, defaultDur time.Duration) (time.Duration
 	if strings.HasSuffix(trimmed, "d") || strings.HasSuffix(trimmed, "D") {
 		daysStr := trimmed[:len(trimmed)-1]
 		days, err := strconv.ParseFloat(daysStr, 64)
-		if err != nil || days <= 0 {
+		if err != nil || days <= 0 || math.IsNaN(days) || math.IsInf(days, 0) {
 			return 0, fmt.Errorf("invalid days duration: %s", dStr)
 		}
-		return time.Duration(days * float64(24*time.Hour)), nil
+		// Max allowed days is ~100,000 to prevent int64 duration overflow (math.MaxInt64 ns ≈ 106,751 days)
+		if days > 100000 {
+			return 0, fmt.Errorf("duration exceeds maximum allowable range: %s", dStr)
+		}
+		totalNs := days * float64(24*time.Hour)
+		if totalNs <= 0 || totalNs > float64(math.MaxInt64) {
+			return 0, fmt.Errorf("duration exceeds maximum allowable range: %s", dStr)
+		}
+		return time.Duration(totalNs), nil
 	}
 
 	d, err := time.ParseDuration(trimmed)
