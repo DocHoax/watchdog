@@ -114,6 +114,20 @@ Watchdog incorporates a hardened software supply chain framework across all rele
 ### 9. Filesystem and Path Safety
 All output file paths for reports, SQLite databases, and exported data are validated against directory traversal attacks.
 
+### 10. Model Context Protocol (MCP) Read-Only Architecture & AI Safety
+The Model Context Protocol (MCP) subsystem (`internal/mcp`) is engineered with strict read-only structural constraints:
+- **Compile-Time Interface Segregation**: Dependencies are enclosed within `ReadOnlyFleetService` and `ReadOnlyStorage` Go interfaces. Mutation methods (`RegisterNode`, `DeleteNode`, `SaveSnapshot`, `SaveAlertEvent`, `Vacuum`) cannot be compiled or called by MCP tool handlers.
+- **Static Tool Allowlist**: Exactly 8 read-only tools are allowed (`list_nodes`, `get_node`, `get_node_health`, `get_node_snapshot`, `get_fleet_health`, `get_node_metrics`, `get_recent_diagnostics`, `get_active_alerts`). Any attempt to invoke mutation or shell execution tools is rejected with JSON-RPC `CodeMethodNotFound` (`-32601`).
+- **Input Validation & Duration Overflow Protection**: Node IDs are validated against directory traversal, and duration parsing enforces a strict upper bound (`days <= 100,000`) to prevent `int64` nanosecond overflow.
+- **Constant-Time Authentication**: HTTP and SSE transports enforce constant-time Bearer token verification, returning `401 Unauthorized` for missing tokens and `403 Forbidden` for invalid tokens.
+
+### 11. HTTP Server Hardening, Request Limits & Panic Recovery
+- **Max Body Size**: Inbound HTTP request bodies are wrapped with `http.MaxBytesReader` enforcing a strict 1MB (1,048,576 bytes) limit, returning `413 Payload Too Large` to prevent memory exhaustion DoS.
+- **Panic Recovery Middleware**: Unhandled panics in HTTP handlers are caught, logged with stack traces, recorded as critical security audit events, and returned as sanitized `500 Internal Server Error` JSON without crashing the server process.
+- **Request ID Sanitization**: Incoming `X-Request-ID` headers are validated against `^[a-zA-Z0-9_-]{1,64}$` to eliminate header injection and response splitting.
+
+For the complete enterprise security audit report, threat model, and verification matrix, see [`docs/security-audit.md`](docs/security-audit.md).
+
 ---
 
 ## Defensive & Authorized Scope

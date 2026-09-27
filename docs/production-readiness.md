@@ -33,6 +33,10 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 | **Alerts** | `internal/alerts/` | Stateful threshold monitoring & cooldowns | `sync.RWMutex` protecting active alert state |
 | **Anomaly** | `internal/anomaly/` | EWMA and Z-score time-series analysis | `sync.RWMutex` protecting statistical histories |
 | **Audit** | `internal/audit/` | Structured security audit logging & sanitization | Thread-safe, non-blocking fallback |
+| **Fleet** | `internal/fleet/` | Multi-node registry, health aggregation & heartbeats | `sync.RWMutex` protecting cluster state |
+| **MCP** | `internal/mcp/` | Model Context Protocol server (stdio/http/sse) | Read-only interfaces, token-bucket rate limiter |
+| **API** | `internal/api/` | REST API routes & client abstractions | Stateless HTTP handlers, Bearer auth |
+| **Client** | `internal/client/` | HTTP telemetry client with retry & backoff | Thread-safe `http.Client` reuse |
 | **Storage** | `internal/storage/` | SQLite persistence, queries, pruning & audit | `sync.Mutex` on SQLite connection, WAL mode |
 | **Reporting** | `internal/reporting/` | Multi-format report generation | Pure functions & immutable data |
 | **Server** | `internal/server/` | Prometheus exporter & REST API | `http.Server`, atomic metrics collection |
