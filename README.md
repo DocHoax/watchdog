@@ -306,6 +306,7 @@ audit:
 | 📈 [**Statistical Anomaly Detection**](docs/anomaly-detection.md) | Ring buffer calculations, EWMA smoothing, and rolling Z-score evaluation. |
 | 📊 [**Standalone Reporting**](docs/reporting.md) | Self-contained HTML5 reports with inline SVG vector graphs, CSV, and JSON schemas. |
 | 🌐 [**Prometheus & REST API**](docs/prometheus-api.md) | OpenMetrics `/metrics` exposition, Bearer token auth, and remote TUI connection. |
+| 🧠 [**Fleet Intelligence Layer**](docs/intelligence.md) | Explainable 0–100 health scoring, linear slope trends, baselines, correlations, and incident clustering. |
 | 🤖 [**Model Context Protocol (MCP)**](docs/mcp.md) | Standardized, read-only AI integration interface for Claude Desktop, tools, resources, and prompts. |
 | 🛰️ [**Fleet Management & Telemetry**](docs/fleet.md) | Centralized hub-and-spoke telemetry streaming, node lifecycle, and offline buffering. |
 | 📜 [**REST API v1 Specification**](docs/api-v1.md) | Versioned REST API endpoints, DTO contracts, authentication scopes, and error envelopes. |
