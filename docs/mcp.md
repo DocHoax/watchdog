@@ -28,10 +28,10 @@ Operating strictly as a **read-only observability interface**, Watchdog MCP enab
                │               │               │
                ▼               ▼               ▼
       ┌────────────────┐┌──────────────┐┌──────────────┐
-      │  8 Core Tools  ││ 5 Resources  ││  4 Prompts   │
+      │ 13 Core Tools  ││ 8 Resources  ││  7 Prompts   │
       │ (list_nodes,   ││ (watchdog:// ││ (system_     │
       │  get_node,     ││  fleet,      ││  health_     │
-      │  metrics, ...) ││  snapshot,..)││  audit, ...) │
+      │  intelligence) ││  intel://...)││  audit, ...) │
       └────────────────┘└──────────────┘└──────────────┘
 ```
 
@@ -39,8 +39,8 @@ Operating strictly as a **read-only observability interface**, Watchdog MCP enab
 
 ## 🔒 Security Principles & Invariants
 
-1. **Strict Read-Only Guarantee**: The MCP server is fundamentally incapable of modifying system state, terminating processes, modifying firewall rules, changing configuration files, or executing arbitrary commands. Structural interface segregation (`ReadOnlyFleetService` and `ReadOnlyStorage`) ensures mutation methods cannot be compiled or called.
-2. **Static Tool Allowlist**: Enforces a compile-time allowlist (`AllowedReadOperations`) strictly limiting execution to the 8 approved read tools. Unrecognized or mutation requests return JSON-RPC `-32601` (`CodeMethodNotFound`).
+1. **Strict Read-Only Guarantee**: The MCP server is fundamentally incapable of modifying system state, terminating processes, modifying firewall rules, changing configuration files, or executing arbitrary commands. Structural interface segregation (`ReadOnlyFleetService`, `ReadOnlyStorage`, and `IntelligenceService`) ensures mutation methods cannot be compiled or called.
+2. **Static Tool Allowlist**: Enforces a compile-time allowlist (`AllowedReadOperations`) strictly limiting execution to the 13 approved read tools. Unrecognized or mutation requests return JSON-RPC `-32601` (`CodeMethodNotFound`).
 3. **Secure-by-Default Networking**: Binding to external or non-loopback network interfaces (`0.0.0.0`, LAN IPs) strictly mandates both Bearer token authentication and valid TLS certificates (`--tls-cert` and `--tls-key`).
 4. **Stdio Protocol Isolation**: In `stdio` transport mode, all application logs and operational banners are strictly redirected to `stderr`, keeping `stdout` dedicated to framed JSON-RPC 2.0 messages.
 5. **Token-Bucket Rate Limiting**: Embedded per-client token-bucket rate limiter prevents runaway AI tool loops from exhausting host memory or CPU resources.
@@ -78,26 +78,31 @@ watchdog mcp serve --transport sse --host 0.0.0.0 --port 8444 \
 
 ---
 
-## 🛠️ MCP Tools (8 Registered)
+## 🛠️ MCP Tools (13 Registered)
 
-AI assistants can invoke any of the following 8 registered tools:
+AI assistants can invoke any of the following 13 registered tools:
 
-| Tool Name | Description | Parameters |
-| :--- | :--- | :--- |
-| `list_nodes` | Lists registered fleet nodes with health status and tags | `status` (optional), `limit` (optional), `offset` (optional) |
-| `get_node` | Retrieves metadata and hardware specs for a node | `node_id` (required) |
-| `get_node_health` | Evaluates multi-subsystem health scores and diagnostics | `node_id` (required) |
-| `get_node_snapshot` | Returns real-time CPU, RAM, disk, network, and process snapshot | `node_id` (required) |
-| `get_fleet_health` | Computes cluster-wide aggregate health summary | *(none)* |
-| `get_node_metrics` | Queries historical time-series metric data points | `node_id` (required), `metric` (required), `duration` (optional) |
-| `get_recent_diagnostics` | Runs diagnostic rules and returns active issues | `node_id` (optional), `severity` (optional) |
-| `get_active_alerts` | Queries currently firing threshold alerts | `severity` (optional), `subsystem` (optional) |
+| Tool Name | Category | Description | Parameters |
+| :--- | :--- | :--- | :--- |
+| `list_nodes` | Fleet Telemetry | Lists registered fleet nodes with health status and tags | `status`, `search`, `since`, `sort_by`, `sort_direction`, `limit`, `offset` |
+| `get_node` | Fleet Telemetry | Retrieves metadata and hardware specs for a node | `node_id` (required) |
+| `get_node_health` | Health & Diag | Evaluates multi-subsystem health scores and diagnostics | `node_id` (required) |
+| `get_node_snapshot` | Telemetry | Returns real-time CPU, RAM, disk, network, and process snapshot | `node_id` (required) |
+| `get_fleet_health` | Fleet Summary | Computes cluster-wide aggregate health summary | *(none)* |
+| `get_node_metrics` | Time-Series | Queries historical time-series metric data points | `node_id` (required), `metric` (required), `since`, `limit` |
+| `get_recent_diagnostics` | Diagnostics | Runs diagnostic rules and returns active issues | `node_id`, `severity`, `since`, `limit` |
+| `get_active_alerts` | Alerting | Queries currently firing threshold alerts | `node_id`, `severity`, `limit` |
+| `get_fleet_intelligence` | Intelligence | Computes 0-100 fleet health score, trends, incidents, and findings | *(none)* |
+| `get_node_intelligence` | Intelligence | Explainable 0-100 score, factor deductions, trajectory, and incidents | `node_id` (required) |
+| `get_fleet_incidents` | Intelligence | Queries active clustered incidents, affected nodes, and timelines | `incident_id` (optional) |
+| `get_intelligence_findings` | Intelligence | Structured findings filtered by category and minimum severity | `category`, `min_severity` |
+| `get_node_trends` | Intelligence | Linear regression metric trends and statistical baseline percentiles | `node_id` (required), `window` (optional) |
 
 ---
 
-## 📦 MCP Resources (5 Registered)
+## 📦 MCP Resources (8 Registered)
 
-Readable resources exposed under the `watchdog://` URI scheme:
+Readable resources exposed under the `watchdog://` and `intelligence://` URI schemes:
 
 | Resource URI | MIME Type | Description |
 | :--- | :--- | :--- |
@@ -106,19 +111,25 @@ Readable resources exposed under the `watchdog://` URI scheme:
 | `watchdog://fleet/{node_id}/health` | `application/json` | Multi-subsystem health evaluation |
 | `watchdog://fleet/{node_id}/snapshot` | `application/json` | Latest point-in-time telemetry snapshot |
 | `watchdog://fleet/{node_id}/alerts` | `application/json` | Active alerts for specified node |
+| `intelligence://fleet/summary` | `application/json` | Aggregated 0-100 fleet health score, trends, incidents, and findings |
+| `intelligence://incidents/active` | `application/json` | Active clustered incidents with root symptoms and timelines across the fleet |
+| `intelligence://nodes/{node_id}/summary` | `application/json` | Explainable health score breakdown and trend assessment for a node |
 
 ---
 
-## 💡 MCP Prompt Templates (4 Registered)
+## 💡 MCP Prompt Templates (7 Registered)
 
-Pre-configured diagnostic workflows and incident triage prompt recipes:
+Pre-configured diagnostic workflows, health audits, and incident triage prompt recipes:
 
 | Prompt Name | Arguments | Workflow Description |
 | :--- | :--- | :--- |
 | `system_health_audit` | `severity` (optional) | Comprehensive system health and performance analysis |
-| `diagnose_node` | `node_id` (required), `focus` (optional) | In-depth troubleshooting workflow for an unhealthy host |
-| `incident_triage` | `alert_id` (optional), `subsystem` (optional) | Root-cause analysis and remediation runbook generation |
-| `fleet_status_report` | `cluster` (optional) | High-level executive overview of fleet capacity and health |
+| `diagnose_node` | `node_id` (required) | In-depth troubleshooting workflow for an unhealthy host |
+| `incident_triage` | `time_window` (optional) | Multi-signal triage across active alerts and anomalies |
+| `fleet_status_report` | `tag` (optional) | High-level executive overview of fleet capacity and health |
+| `analyze_fleet_health` | *(none)* | Assesses fleet-wide health scores, trajectories, incidents, and systemic degradation patterns |
+| `investigate_incident` | `incident_id` (required) | Deep-dive investigation into a clustered incident with chronological timeline events and affected nodes |
+| `triage_node_degradation` | `node_id` (required) | Triages a degrading node using explainable factor deductions, regression rates of change, and baselines |
 
 ---
 
