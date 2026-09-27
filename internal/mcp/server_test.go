@@ -209,8 +209,8 @@ func TestServer_Stdio(t *testing.T) {
 	var toolsRes ListToolsResult
 	toolsBytes, _ := json.Marshal(resp3.Result)
 	_ = json.Unmarshal(toolsBytes, &toolsRes)
-	if len(toolsRes.Tools) != 8 {
-		t.Errorf("expected 8 tools, got %d", len(toolsRes.Tools))
+	if len(toolsRes.Tools) != 13 {
+		t.Errorf("expected 13 tools, got %d", len(toolsRes.Tools))
 	}
 
 	// Response 4: Call Tool (list_nodes)
