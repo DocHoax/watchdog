@@ -87,6 +87,44 @@ func (p *PromptRegistry) ListPrompts() []Prompt {
 				},
 			},
 		},
+		{
+			Name:        "forecast_node_capacity",
+			Description: "Forecast multi-subsystem resource runway and threshold exhaustion for a specific fleet node.",
+			Arguments: []PromptArgument{
+				{
+					Name:        "node_id",
+					Description: "Identifier of the target fleet node to forecast",
+					Required:    true,
+				},
+				{
+					Name:        "horizon",
+					Description: "Forecast horizon window (e.g. 15m, 1h, 6h, 24h, 7d)",
+					Required:    false,
+				},
+			},
+		},
+		{
+			Name:        "analyze_fleet_capacity",
+			Description: "Evaluate fleet-wide capacity pressure, top capacity risks, and multi-node threshold predictions.",
+			Arguments: []PromptArgument{
+				{
+					Name:        "horizon",
+					Description: "Forecast horizon window across the fleet (e.g. 1h, 6h, 24h, 7d)",
+					Required:    false,
+				},
+			},
+		},
+		{
+			Name:        "investigate_recurring_incidents",
+			Description: "Analyze statistical recurrence patterns, inter-arrival intervals, and periodic flapping incidents across the fleet.",
+			Arguments: []PromptArgument{
+				{
+					Name:        "since",
+					Description: "Lookback window for recurrence analysis (e.g. 24h, 7d)",
+					Required:    false,
+				},
+			},
+		},
 	}
 }
 
@@ -266,6 +304,89 @@ func (p *PromptRegistry) GetPrompt(name string, args map[string]string) (*GetPro
 								"3. Call `get_node_snapshot` with node_id=%q to inspect current process table and disk partition states.\n"+
 								"4. Explain the primary contributors to health score deduction and suggest non-invasive verification steps.",
 							nodeID, nodeID, nodeID, nodeID,
+						),
+					},
+				},
+			},
+		}, nil
+
+	case "forecast_node_capacity":
+		nodeID, ok := args["node_id"]
+		if !ok || strings.TrimSpace(nodeID) == "" {
+			return nil, NewInvalidParamsError("missing required argument 'node_id'")
+		}
+		nodeID = strings.TrimSpace(nodeID)
+		if err := ValidateNodeID(nodeID); err != nil {
+			return nil, NewInvalidNodeIDError(err.Error())
+		}
+		horizon := "24h"
+		if h, ok := args["horizon"]; ok && strings.TrimSpace(h) != "" {
+			horizon = strings.TrimSpace(h)
+		}
+		return &GetPromptResult{
+			Description: fmt.Sprintf("Forecast multi-subsystem capacity for node %s", nodeID),
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: PromptContent{
+						Type: "text",
+						Text: fmt.Sprintf(
+							"Please forecast multi-subsystem capacity runway for node %q over horizon %q:\n"+
+								"1. Call `get_node_capacity_forecast` with node_id=%q and horizon=%q to evaluate CPU, memory, swap, and disk exhaustion runways.\n"+
+								"2. Call `get_node_predictions` with node_id=%q and horizon=%q to evaluate threshold crossing predictions and regression quality (R²).\n"+
+								"3. Call `get_node_trends` with node_id=%q to inspect short-term rate of change.\n"+
+								"4. Summarize critical resources approaching exhaustion, confidence tiers, and recommend non-invasive capacity planning actions.",
+							nodeID, horizon, nodeID, horizon, nodeID, horizon, nodeID,
+						),
+					},
+				},
+			},
+		}, nil
+
+	case "analyze_fleet_capacity":
+		horizon := "24h"
+		if h, ok := args["horizon"]; ok && strings.TrimSpace(h) != "" {
+			horizon = strings.TrimSpace(h)
+		}
+		return &GetPromptResult{
+			Description: "Evaluate fleet-wide capacity pressure and top capacity risks",
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: PromptContent{
+						Type: "text",
+						Text: fmt.Sprintf(
+							"Please analyze fleet-wide capacity pressure and threshold risks across horizon %q:\n"+
+								"1. Call `get_fleet_predictions` with horizon=%q to assess cluster CPU, memory, and disk pressure percentages.\n"+
+								"2. Review top capacity risk nodes and their projected exhaustion timelines.\n"+
+								"3. Call `get_intelligence_findings` with category=\"capacity_risk\" to review flagged multi-node capacity findings.\n"+
+								"4. Provide an executive capacity forecast highlighting at-risk nodes and operational recommendations.",
+							horizon, horizon,
+						),
+					},
+				},
+			},
+		}, nil
+
+	case "investigate_recurring_incidents":
+		since := "24h"
+		if s, ok := args["since"]; ok && strings.TrimSpace(s) != "" {
+			since = strings.TrimSpace(s)
+		}
+		return &GetPromptResult{
+			Description: "Analyze recurring incidents and flapping patterns across the fleet",
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: PromptContent{
+						Type: "text",
+						Text: fmt.Sprintf(
+							"Please investigate recurring incident patterns across the fleet over lookback window %q:\n"+
+								"1. Call `get_recurring_incidents` with since=%q to inspect statistical recurrence patterns and inter-arrival intervals.\n"+
+								"2. Review regularity metrics including Coefficient of Variation (CV) and median intervals for flapping incidents.\n"+
+								"3. For flapping nodes, call `get_node_intelligence` and `get_node_trends` to identify underlying trigger factors.\n"+
+								"4. Synthesize observational recurrence patterns and non-invasive investigation guidance.",
+							since, since,
 						),
 					},
 				},

@@ -121,6 +121,30 @@ func (r *ResourceRegistry) ListResources(ctx context.Context) ([]Resource, error
 			Description: "Explainable health score breakdown and trend assessment for the local host",
 			MIMEType:    "application/json",
 		},
+		{
+			URI:         fmt.Sprintf("intelligence://nodes/%s/predictions", r.localIdentity.NodeID),
+			Name:        "Local Node Predictions",
+			Description: "Linear threshold forecasts and time-to-exhaustion predictions for the local host",
+			MIMEType:    "application/json",
+		},
+		{
+			URI:         fmt.Sprintf("intelligence://nodes/%s/capacity", r.localIdentity.NodeID),
+			Name:        "Local Node Capacity Forecast",
+			Description: "Multi-resource capacity runway and projected exhaustion times for the local host",
+			MIMEType:    "application/json",
+		},
+		{
+			URI:         "intelligence://fleet/predictions",
+			Name:        "Fleet Predictions & Capacity Summary",
+			Description: "Fleet-wide capacity pressure, risk rankings, and threshold predictions",
+			MIMEType:    "application/json",
+		},
+		{
+			URI:         "intelligence://incidents/recurring",
+			Name:        "Recurring Incident Patterns",
+			Description: "Statistical recurrence patterns and periodic flapping incident clusters across the fleet",
+			MIMEType:    "application/json",
+		},
 	}
 
 	// If fleetService is available, add discovered nodes
@@ -141,6 +165,18 @@ func (r *ResourceRegistry) ListResources(ctx context.Context) ([]Resource, error
 					URI:         fmt.Sprintf("intelligence://nodes/%s/summary", n.Identity.NodeID),
 					Name:        fmt.Sprintf("Intelligence Summary for %s", n.Identity.Hostname),
 					Description: fmt.Sprintf("Explainable health score and trends for %s", n.Identity.Hostname),
+					MIMEType:    "application/json",
+				})
+				resources = append(resources, Resource{
+					URI:         fmt.Sprintf("intelligence://nodes/%s/predictions", n.Identity.NodeID),
+					Name:        fmt.Sprintf("Predictions for %s", n.Identity.Hostname),
+					Description: fmt.Sprintf("Metric threshold predictions for %s", n.Identity.Hostname),
+					MIMEType:    "application/json",
+				})
+				resources = append(resources, Resource{
+					URI:         fmt.Sprintf("intelligence://nodes/%s/capacity", n.Identity.NodeID),
+					Name:        fmt.Sprintf("Capacity Forecast for %s", n.Identity.Hostname),
+					Description: fmt.Sprintf("Capacity runway forecast for %s", n.Identity.Hostname),
 					MIMEType:    "application/json",
 				})
 			}
@@ -206,12 +242,28 @@ func (r *ResourceRegistry) readIntelligenceResource(ctx context.Context, origURI
 		return resourceResult(origURI, summary)
 	}
 
+	if path == "fleet/predictions" {
+		fleetCap, err := svc.GetFleetPredictions(ctx, 24*time.Hour)
+		if err != nil {
+			return nil, NewInternalError(fmt.Sprintf("failed to evaluate fleet predictions: %v", err))
+		}
+		return resourceResult(origURI, fleetCap)
+	}
+
 	if path == "incidents/active" || path == "incidents" {
 		incidents, err := svc.GetActiveIncidents(ctx)
 		if err != nil {
 			return nil, NewInternalError(fmt.Sprintf("failed to retrieve active incidents: %v", err))
 		}
 		return resourceResult(origURI, incidents)
+	}
+
+	if path == "incidents/recurring" || path == "recurrence" {
+		patterns, err := svc.GetRecurringIncidents(ctx, 24*time.Hour)
+		if err != nil {
+			return nil, NewInternalError(fmt.Sprintf("failed to retrieve recurring incidents: %v", err))
+		}
+		return resourceResult(origURI, patterns)
 	}
 
 	if strings.HasPrefix(path, "nodes/") {
@@ -221,14 +273,58 @@ func (r *ResourceRegistry) readIntelligenceResource(ctx context.Context, origURI
 		if err := ValidateNodeID(nodeID); err != nil {
 			return nil, NewInvalidNodeIDError(err.Error())
 		}
-		summary, err := svc.EvaluateNodeHealth(ctx, nodeID)
-		if err != nil {
-			if strings.Contains(strings.ToLower(err.Error()), "not found") {
-				return nil, NewNodeNotFoundError(nodeID)
+
+		if len(parts) == 1 || parts[1] == "summary" {
+			summary, err := svc.EvaluateNodeHealth(ctx, nodeID)
+			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "not found") {
+					return nil, NewNodeNotFoundError(nodeID)
+				}
+				return nil, NewInternalError(fmt.Sprintf("failed to evaluate node health for '%s': %v", nodeID, err))
 			}
-			return nil, NewInternalError(fmt.Sprintf("failed to evaluate node health for '%s': %v", nodeID, err))
+			return resourceResult(origURI, summary)
 		}
-		return resourceResult(origURI, summary)
+
+		switch parts[1] {
+		case "predictions":
+			preds, err := svc.GetNodePredictions(ctx, nodeID, 24*time.Hour)
+			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "not found") {
+					return nil, NewNodeNotFoundError(nodeID)
+				}
+				return nil, NewInternalError(fmt.Sprintf("failed to evaluate node predictions for '%s': %v", nodeID, err))
+			}
+			return resourceResult(origURI, preds)
+		case "capacity":
+			capReport, err := svc.GetNodeCapacityForecast(ctx, nodeID, 24*time.Hour)
+			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "not found") {
+					return nil, NewNodeNotFoundError(nodeID)
+				}
+				return nil, NewInternalError(fmt.Sprintf("failed to evaluate node capacity forecast for '%s': %v", nodeID, err))
+			}
+			return resourceResult(origURI, capReport)
+		case "trends":
+			trends, err := svc.GetNodeTrends(ctx, nodeID, 1*time.Hour)
+			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "not found") {
+					return nil, NewNodeNotFoundError(nodeID)
+				}
+				return nil, NewInternalError(fmt.Sprintf("failed to evaluate node trends for '%s': %v", nodeID, err))
+			}
+			return resourceResult(origURI, trends)
+		case "baselines":
+			baselines, err := svc.GetNodeBaselines(ctx, nodeID, 24*time.Hour)
+			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "not found") {
+					return nil, NewNodeNotFoundError(nodeID)
+				}
+				return nil, NewInternalError(fmt.Sprintf("failed to evaluate node baselines for '%s': %v", nodeID, err))
+			}
+			return resourceResult(origURI, baselines)
+		default:
+			return nil, NewResourceNotFoundError(origURI)
+		}
 	}
 
 	return nil, NewResourceNotFoundError(origURI)

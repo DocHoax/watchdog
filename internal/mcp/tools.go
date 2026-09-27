@@ -20,19 +20,23 @@ import (
 
 // AllowedReadOperations defines the strict, static allowlist of permissible MCP read operations.
 var AllowedReadOperations = map[string]bool{
-	"list_nodes":                true,
-	"get_node":                  true,
-	"get_node_health":           true,
-	"get_node_snapshot":         true,
-	"get_fleet_health":          true,
-	"get_node_metrics":          true,
-	"get_recent_diagnostics":    true,
-	"get_active_alerts":         true,
-	"get_fleet_intelligence":    true,
-	"get_node_intelligence":     true,
-	"get_fleet_incidents":       true,
-	"get_intelligence_findings": true,
-	"get_node_trends":           true,
+	"list_nodes":                 true,
+	"get_node":                   true,
+	"get_node_health":            true,
+	"get_node_snapshot":          true,
+	"get_fleet_health":           true,
+	"get_node_metrics":           true,
+	"get_recent_diagnostics":     true,
+	"get_active_alerts":          true,
+	"get_fleet_intelligence":     true,
+	"get_node_intelligence":      true,
+	"get_fleet_incidents":        true,
+	"get_intelligence_findings":  true,
+	"get_node_trends":            true,
+	"get_node_predictions":       true,
+	"get_node_capacity_forecast": true,
+	"get_fleet_predictions":      true,
+	"get_recurring_incidents":    true,
 }
 
 // ToolRegistry manages and executes read-only MCP tools against domain services.
@@ -87,7 +91,7 @@ func (r *ToolRegistry) getIntelligenceService() intelligence.IntelligenceService
 	return intelligence.NewService(r.storage, r.fleetService, anomaly.NewDetector(nil), logger.GetDefault(), nil)
 }
 
-// ToolDefinitions returns the full list of 13 supported read-only MCP tools with JSON schemas.
+// ToolDefinitions returns the full list of 17 supported read-only MCP tools with JSON schemas.
 func ToolDefinitions() []Tool {
 	minLimit := 1.0
 	maxLimit100 := 100.0
@@ -322,7 +326,10 @@ func ToolDefinitions() []Tool {
 					"category": {
 						Type:        "string",
 						Description: "Filter findings by category",
-						Enum:        []string{"resource_exhaustion", "performance_degradation", "fleet_pattern", "stability_risk", "anomaly_cluster"},
+						Enum: []string{
+							"resource_exhaustion", "performance_degradation", "fleet_pattern", "stability_risk", "anomaly_cluster",
+							"capacity_risk", "predicted_degradation", "threshold_forecast", "recurring_incident", "fleet_capacity_pressure", "accelerating_resource_usage",
+						},
 					},
 					"min_severity": {
 						Type:        "string",
@@ -349,6 +356,72 @@ func ToolDefinitions() []Tool {
 					},
 				},
 				Required: []string{"node_id"},
+			},
+		},
+		{
+			Name:        "get_node_predictions",
+			Description: "Retrieve deterministic threshold crossing forecasts and metric trend predictions for a specific node.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"node_id": {
+						Type:        "string",
+						Description: "Unique identifier of the fleet node",
+					},
+					"horizon": {
+						Type:        "string",
+						Description: "Forecast horizon window (e.g. '15m', '1h', '6h', '24h', '7d', default: '24h')",
+						Default:     "24h",
+					},
+				},
+				Required: []string{"node_id"},
+			},
+		},
+		{
+			Name:        "get_node_capacity_forecast",
+			Description: "Retrieve multi-subsystem capacity exhaustion analysis, runway, and projected utilization for CPU, memory, swap, and disk on a specific node.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"node_id": {
+						Type:        "string",
+						Description: "Unique identifier of the fleet node",
+					},
+					"horizon": {
+						Type:        "string",
+						Description: "Forecast horizon window (e.g. '15m', '1h', '6h', '24h', '7d', default: '24h')",
+						Default:     "24h",
+					},
+				},
+				Required: []string{"node_id"},
+			},
+		},
+		{
+			Name:        "get_fleet_predictions",
+			Description: "Retrieve cluster-wide capacity intelligence, aggregated resource pressure percentages, and nodes approaching warning or critical capacity exhaustion thresholds.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"horizon": {
+						Type:        "string",
+						Description: "Forecast horizon window (e.g. '1h', '6h', '24h', '7d', default: '24h')",
+						Default:     "24h",
+					},
+				},
+			},
+		},
+		{
+			Name:        "get_recurring_incidents",
+			Description: "Retrieve detected historical incident recurrence patterns across nodes and fleet, including occurrence counts, mean/median intervals, and regularity coefficient of variation.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"since": {
+						Type:        "string",
+						Description: "Lookback window for recurrence analysis (e.g. '24h', '7d', '30d', default: '24h')",
+						Default:     "24h",
+					},
+				},
 			},
 		},
 	}
@@ -401,6 +474,14 @@ func (r *ToolRegistry) Execute(ctx context.Context, mcpCtx MCPContext, name stri
 		return r.handleGetIntelligenceFindings(ctx, args)
 	case "get_node_trends":
 		return r.handleGetNodeTrends(ctx, args)
+	case "get_node_predictions":
+		return r.handleGetNodePredictions(ctx, args)
+	case "get_node_capacity_forecast":
+		return r.handleGetNodeCapacityForecast(ctx, args)
+	case "get_fleet_predictions":
+		return r.handleGetFleetPredictions(ctx, args)
+	case "get_recurring_incidents":
+		return r.handleGetRecurringIncidents(ctx, args)
 	default:
 		return nil, NewMethodNotFoundError(fmt.Sprintf("tool '%s'", name))
 	}
@@ -837,6 +918,86 @@ func (r *ToolRegistry) handleGetNodeTrends(ctx context.Context, args map[string]
 		"baselines": baselines,
 	}
 	return jsonResult(result)
+}
+
+func (r *ToolRegistry) handleGetNodePredictions(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	nodeID := getStringArg(args, "node_id")
+	if err := ValidateNodeID(nodeID); err != nil {
+		return nil, NewInvalidNodeIDError(err.Error())
+	}
+
+	horizonStr := getStringArg(args, "horizon")
+	horizon, err := ParseFlexibleDuration(horizonStr, 24*time.Hour)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	svc := r.getIntelligenceService()
+	predictions, err := svc.GetNodePredictions(ctx, nodeID, horizon)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, NewNodeNotFoundError(nodeID)
+		}
+		return nil, NewInternalError(fmt.Sprintf("failed to get predictions for node '%s': %v", nodeID, err))
+	}
+
+	return jsonResult(predictions)
+}
+
+func (r *ToolRegistry) handleGetNodeCapacityForecast(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	nodeID := getStringArg(args, "node_id")
+	if err := ValidateNodeID(nodeID); err != nil {
+		return nil, NewInvalidNodeIDError(err.Error())
+	}
+
+	horizonStr := getStringArg(args, "horizon")
+	horizon, err := ParseFlexibleDuration(horizonStr, 24*time.Hour)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	svc := r.getIntelligenceService()
+	forecast, err := svc.GetNodeCapacityForecast(ctx, nodeID, horizon)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, NewNodeNotFoundError(nodeID)
+		}
+		return nil, NewInternalError(fmt.Sprintf("failed to get capacity forecast for node '%s': %v", nodeID, err))
+	}
+
+	return jsonResult(forecast)
+}
+
+func (r *ToolRegistry) handleGetFleetPredictions(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	horizonStr := getStringArg(args, "horizon")
+	horizon, err := ParseFlexibleDuration(horizonStr, 24*time.Hour)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	svc := r.getIntelligenceService()
+	fleetCap, err := svc.GetFleetPredictions(ctx, horizon)
+	if err != nil {
+		return nil, NewInternalError(fmt.Sprintf("failed to get fleet predictions: %v", err))
+	}
+
+	return jsonResult(fleetCap)
+}
+
+func (r *ToolRegistry) handleGetRecurringIncidents(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	sinceStr := getStringArg(args, "since")
+	since, err := ParseFlexibleDuration(sinceStr, 24*time.Hour)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	svc := r.getIntelligenceService()
+	recurring, err := svc.GetRecurringIncidents(ctx, since)
+	if err != nil {
+		return nil, NewInternalError(fmt.Sprintf("failed to get recurring incidents: %v", err))
+	}
+
+	return jsonResult(recurring)
 }
 
 func jsonResult(v any) (*CallToolResult, *JSONRPCError) {

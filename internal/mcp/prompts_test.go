@@ -10,8 +10,8 @@ func TestPromptRegistry(t *testing.T) {
 
 	t.Run("ListPrompts", func(t *testing.T) {
 		prompts := registry.ListPrompts()
-		if len(prompts) != 7 {
-			t.Fatalf("expected 7 prompts, got %d", len(prompts))
+		if len(prompts) != 10 {
+			t.Fatalf("expected 10 prompts, got %d", len(prompts))
 		}
 
 		names := make(map[string]bool)
@@ -27,6 +27,9 @@ func TestPromptRegistry(t *testing.T) {
 			"analyze_fleet_health",
 			"investigate_incident",
 			"triage_node_degradation",
+			"forecast_node_capacity",
+			"analyze_fleet_capacity",
+			"investigate_recurring_incidents",
 		}
 		for _, name := range expected {
 			if !names[name] {
@@ -141,6 +144,49 @@ func TestPromptRegistry(t *testing.T) {
 		}
 		if !strings.Contains(res.Messages[0].Content.Text, `worker-02`) || !strings.Contains(res.Messages[0].Content.Text, `get_node_intelligence`) {
 			t.Errorf("expected message to contain node_id and get_node_intelligence, got: %s", res.Messages[0].Content.Text)
+		}
+	})
+
+	t.Run("GetPrompt forecast_node_capacity", func(t *testing.T) {
+		// Missing node_id
+		_, err := registry.GetPrompt("forecast_node_capacity", map[string]string{})
+		if err == nil {
+			t.Fatalf("expected error when node_id missing, got nil")
+		}
+
+		// Invalid node_id
+		_, err = registry.GetPrompt("forecast_node_capacity", map[string]string{"node_id": "invalid/../id"})
+		if err == nil {
+			t.Fatalf("expected error when node_id invalid, got nil")
+		}
+
+		// Valid
+		res, err := registry.GetPrompt("forecast_node_capacity", map[string]string{"node_id": "worker-01", "horizon": "6h"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res.Messages[0].Content.Text, `worker-01`) || !strings.Contains(res.Messages[0].Content.Text, `6h`) {
+			t.Errorf("expected prompt text to include node_id and horizon: %s", res.Messages[0].Content.Text)
+		}
+	})
+
+	t.Run("GetPrompt analyze_fleet_capacity", func(t *testing.T) {
+		res, err := registry.GetPrompt("analyze_fleet_capacity", map[string]string{"horizon": "7d"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res.Messages[0].Content.Text, `7d`) || !strings.Contains(res.Messages[0].Content.Text, `get_fleet_predictions`) {
+			t.Errorf("expected prompt text to include 7d and get_fleet_predictions: %s", res.Messages[0].Content.Text)
+		}
+	})
+
+	t.Run("GetPrompt investigate_recurring_incidents", func(t *testing.T) {
+		res, err := registry.GetPrompt("investigate_recurring_incidents", map[string]string{"since": "7d"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res.Messages[0].Content.Text, `7d`) || !strings.Contains(res.Messages[0].Content.Text, `get_recurring_incidents`) {
+			t.Errorf("expected prompt text to include 7d and get_recurring_incidents: %s", res.Messages[0].Content.Text)
 		}
 	})
 
