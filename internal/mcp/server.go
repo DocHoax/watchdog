@@ -98,78 +98,60 @@ func (s *Server) ServeStdio(ctx context.Context, in io.Reader, out io.Writer) er
 	reader := bufio.NewReaderSize(in, 1024*1024) // 1MB buffer for incoming lines
 	writer := bufio.NewWriter(out)
 
-	type responseTuple struct {
-		resp *JSONRPCResponse
-		err  error
-	}
-
-	respChan := make(chan responseTuple, 16)
-	errChan := make(chan error, 1)
-
-	// Background request processing loop
-	go func() {
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				if errors.Is(err, io.EOF) {
-					errChan <- nil
-					return
-				}
-				errChan <- err
-				return
-			}
-
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-
-			var req JSONRPCRequest
-			if err := json.Unmarshal([]byte(line), &req); err != nil {
-				s.metrics.RecordError("parse", ErrCodeStrInvalidArgument)
-				respChan <- responseTuple{
-					resp: &JSONRPCResponse{
-						JSONRPC: "2.0",
-						ID:      nil,
-						Error:   NewParseError(err.Error()),
-					},
-				}
-				continue
-			}
-
-			mcpCtx := MCPContext{
-				RequestID: audit.GenerateEventID(),
-				ClientID:  "stdio-client",
-				Actor:     "cli",
-				Timestamp: time.Now().UTC(),
-			}
-
-			// Notifications (requests without an ID) do not yield a JSON-RPC response
-			isNotification := req.ID == nil
-
-			resp := s.HandleRequest(ctx, mcpCtx, &req)
-			if !isNotification && resp != nil {
-				respChan <- responseTuple{resp: resp}
-			}
-		}
-	}()
-
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case err := <-errChan:
-			return err
-		case tuple := <-respChan:
-			if tuple.resp != nil {
-				data, err := json.Marshal(tuple.resp)
-				if err != nil {
-					continue
-				}
-				_, _ = writer.Write(data)
-				_, _ = writer.WriteString("\n")
-				_ = writer.Flush()
+		default:
+		}
+
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
 			}
+			return err
+		}
+
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var req JSONRPCRequest
+		if err := json.Unmarshal([]byte(line), &req); err != nil {
+			s.metrics.RecordError("parse", ErrCodeStrInvalidArgument)
+			resp := &JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      nil,
+				Error:   NewParseError(err.Error()),
+			}
+			data, _ := json.Marshal(resp)
+			_, _ = writer.Write(data)
+			_, _ = writer.WriteString("\n")
+			_ = writer.Flush()
+			continue
+		}
+
+		mcpCtx := MCPContext{
+			RequestID: audit.GenerateEventID(),
+			ClientID:  "stdio-client",
+			Actor:     "cli",
+			Timestamp: time.Now().UTC(),
+		}
+
+		// Notifications (requests without an ID) do not yield a JSON-RPC response
+		isNotification := req.ID == nil
+
+		resp := s.HandleRequest(ctx, mcpCtx, &req)
+		if !isNotification && resp != nil {
+			data, err := json.Marshal(resp)
+			if err != nil {
+				continue
+			}
+			_, _ = writer.Write(data)
+			_, _ = writer.WriteString("\n")
+			_ = writer.Flush()
 		}
 	}
 }
