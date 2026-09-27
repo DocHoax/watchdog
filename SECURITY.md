@@ -116,12 +116,19 @@ All output file paths for reports, SQLite databases, and exported data are valid
 
 ### 10. Model Context Protocol (MCP) Read-Only Architecture & AI Safety
 The Model Context Protocol (MCP) subsystem (`internal/mcp`) is engineered with strict read-only structural constraints:
-- **Compile-Time Interface Segregation**: Dependencies are enclosed within `ReadOnlyFleetService` and `ReadOnlyStorage` Go interfaces. Mutation methods (`RegisterNode`, `DeleteNode`, `SaveSnapshot`, `SaveAlertEvent`, `Vacuum`) cannot be compiled or called by MCP tool handlers.
-- **Static Tool Allowlist**: Exactly 8 read-only tools are allowed (`list_nodes`, `get_node`, `get_node_health`, `get_node_snapshot`, `get_fleet_health`, `get_node_metrics`, `get_recent_diagnostics`, `get_active_alerts`). Any attempt to invoke mutation or shell execution tools is rejected with JSON-RPC `CodeMethodNotFound` (`-32601`).
+- **Compile-Time Interface Segregation**: Dependencies are enclosed within `ReadOnlyFleetService`, `ReadOnlyStorage`, and `IntelligenceService` Go interfaces. Mutation methods (`RegisterNode`, `DeleteNode`, `SaveSnapshot`, `SaveAlertEvent`, `Vacuum`) cannot be compiled or called by MCP tool handlers.
+- **Static Tool Allowlist**: Exactly 17 read-only tools are allowed across fleet telemetry, diagnostics, and intelligence (`list_nodes`, `get_node`, `get_node_health`, `get_node_snapshot`, `get_fleet_health`, `get_node_metrics`, `get_recent_diagnostics`, `get_active_alerts`, `get_active_incidents`, `get_node_trends`, `get_node_baselines`, `get_fleet_correlations`, `get_intelligence_findings`, `get_node_predictions`, `get_node_capacity_forecast`, `get_fleet_predictions`, `get_recurring_incidents`). Any attempt to invoke mutation or shell execution tools is rejected with JSON-RPC `CodeMethodNotFound` (`-32601`).
 - **Input Validation & Duration Overflow Protection**: Node IDs are validated against directory traversal, and duration parsing enforces a strict upper bound (`days <= 100,000`) to prevent `int64` nanosecond overflow.
 - **Constant-Time Authentication**: HTTP and SSE transports enforce constant-time Bearer token verification, returning `401 Unauthorized` for missing tokens and `403 Forbidden` for invalid tokens.
 
-### 11. HTTP Server Hardening, Request Limits & Panic Recovery
+### 11. Predictive Operations & Capacity Forecasting Invariants (Phase 2B)
+The Predictive Operations and Capacity Intelligence engine (`internal/intelligence`) is strictly observational and analytical:
+- **Zero Remediation / Zero Mutation**: The predictive subsystem never terminates processes, modifies firewall/network rules, triggers automatic restarts, modifies host configuration, or executes arbitrary shell commands.
+- **Explainable Closed-Form Linear Extrapolations**: Projections rely exclusively on deterministic Ordinary Least Squares (OLS) linear regressions with explicit goodness-of-fit ($R^2$), sample variance, and sample count thresholds ($N \ge 10$).
+- **Strict Numeric Sanitization**: All floating-point numbers undergo `math.IsNaN` / `math.IsInf` filtering to prevent numerical anomalies, NaN propagation, or unhandled divisions from leaking to clients or logs.
+- **Bounded Horizons**: Extrapolations are strictly bounded within predefined evaluation windows (15m, 30m, 1h, 6h, 24h, 7d) and never infer unbounded growth into infinity.
+
+### 12. HTTP Server Hardening, Request Limits & Panic Recovery
 - **Max Body Size**: Inbound HTTP request bodies are wrapped with `http.MaxBytesReader` enforcing a strict 1MB (1,048,576 bytes) limit, returning `413 Payload Too Large` to prevent memory exhaustion DoS.
 - **Panic Recovery Middleware**: Unhandled panics in HTTP handlers are caught, logged with stack traces, recorded as critical security audit events, and returned as sanitized `500 Internal Server Error` JSON without crashing the server process.
 - **Request ID Sanitization**: Incoming `X-Request-ID` headers are validated against `^[a-zA-Z0-9_-]{1,64}$` to eliminate header injection and response splitting.
