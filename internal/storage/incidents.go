@@ -241,10 +241,10 @@ func (s *SQLiteStorage) ListIncidents(ctx context.Context, filter incidents.Inci
 	if len(filter.Severity) > 0 {
 		placeholders := make([]string, len(filter.Severity))
 		for i, sv := range filter.Severity {
-			placeholders[i] = "?"
-			args = append(args, string(sv))
+			placeholders[i] = "UPPER(?)"
+			args = append(args, strings.ToUpper(string(sv)))
 		}
-		whereClauses = append(whereClauses, fmt.Sprintf("severity IN (%s)", strings.Join(placeholders, ",")))
+		whereClauses = append(whereClauses, fmt.Sprintf("UPPER(severity) IN (%s)", strings.Join(placeholders, ",")))
 	}
 
 	if len(filter.Scope) > 0 {
