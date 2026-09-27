@@ -130,7 +130,7 @@ func NewServer(
 
 	var intelSvc intelligence.IntelligenceService
 	if store != nil {
-		intelSvc = intelligence.NewService(store, fleetSvc, anomDet, logger.GetDefaultLogger(), nil)
+		intelSvc = intelligence.NewService(store, fleetSvc, anomDet, logger.GetDefault(), nil)
 	}
 
 	return &Server{
