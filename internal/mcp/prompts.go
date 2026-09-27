@@ -60,6 +60,33 @@ func (p *PromptRegistry) ListPrompts() []Prompt {
 				},
 			},
 		},
+		{
+			Name:        "analyze_fleet_health",
+			Description: "Assess fleet-wide health intelligence, score trajectories, active incidents, and systemic patterns.",
+			Arguments:   []PromptArgument{},
+		},
+		{
+			Name:        "investigate_incident",
+			Description: "Conduct a deep-dive investigation into a clustered fleet incident and its chronological timeline.",
+			Arguments: []PromptArgument{
+				{
+					Name:        "incident_id",
+					Description: "Identifier of the active clustered incident to investigate",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "triage_node_degradation",
+			Description: "Triage a degrading node using explainable factor deductions, metric rate-of-change trends, and baselines.",
+			Arguments: []PromptArgument{
+				{
+					Name:        "node_id",
+					Description: "Identifier of the target node to triage",
+					Required:    true,
+				},
+			},
+		},
 	}
 }
 
