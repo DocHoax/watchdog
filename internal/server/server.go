@@ -86,12 +86,12 @@ func ValidateServerSecurity(cfg *config.AgentConfig) error {
 
 // Server represents the Watchdog HTTP API server / remote agent.
 type Server struct {
-	cfg       *config.Config
-	collector *collector.Manager
-	storage   storage.Storage
-	diagEng   *diagnostics.Engine
-	alertEng  *alerts.Engine
-	anomDet   *anomaly.Detector
+	cfg          *config.Config
+	collector    *collector.Manager
+	storage      storage.Storage
+	diagEng      *diagnostics.Engine
+	alertEng     *alerts.Engine
+	anomDet      *anomaly.Detector
 	exporter     *PrometheusExporter
 	auditLog     audit.AuditLogger
 	fleetService fleet.FleetService

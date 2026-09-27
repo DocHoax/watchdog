@@ -21,14 +21,14 @@ func setupFleetMockServer(t *testing.T) *httptest.Server {
 		switch {
 		case r.URL.Path == "/api/v1/fleet/summary" && r.Method == http.MethodGet:
 			_ = json.NewEncoder(w).Encode(model.FleetSummary{
-				TotalNodes:     10,
-				HealthyNodes:   8,
-				WarningNodes:   1,
-				CriticalNodes:  1,
-				AvgCPUPercent:  25.4,
-				AvgMemoryPct:   48.2,
-				TotalAlerts:    2,
-				LastUpdated:    time.Now().UTC(),
+				TotalNodes:    10,
+				HealthyNodes:  8,
+				WarningNodes:  1,
+				CriticalNodes: 1,
+				AvgCPUPercent: 25.4,
+				AvgMemoryPct:  48.2,
+				TotalAlerts:   2,
+				LastUpdated:   time.Now().UTC(),
 			})
 
 		case r.URL.Path == "/api/v1/fleet" && r.Method == http.MethodGet:

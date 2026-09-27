@@ -15,22 +15,22 @@ type ScoringConfig struct {
 	CPULoadWarningThreshold  float64
 	CPULoadCriticalThreshold float64
 
-	MemWarningThreshold      float64
-	MemCriticalThreshold     float64
-	SwapWarningThreshold     float64
-	SwapCriticalThreshold    float64
+	MemWarningThreshold   float64
+	MemCriticalThreshold  float64
+	SwapWarningThreshold  float64
+	SwapCriticalThreshold float64
 
-	DiskWarningThreshold     float64
-	DiskCriticalThreshold    float64
-	InodeWarningThreshold    float64
-	InodeCriticalThreshold   float64
+	DiskWarningThreshold   float64
+	DiskCriticalThreshold  float64
+	InodeWarningThreshold  float64
+	InodeCriticalThreshold float64
 
-	MaxCPUDeduction         float64
-	MaxMemDeduction         float64
-	MaxDiskDeduction        float64
-	MaxAlertDeduction       float64
-	MaxDiagnosticDeduction  float64
-	MaxAnomalyDeduction     float64
+	MaxCPUDeduction        float64
+	MaxMemDeduction        float64
+	MaxDiskDeduction       float64
+	MaxAlertDeduction      float64
+	MaxDiagnosticDeduction float64
+	MaxAnomalyDeduction    float64
 }
 
 // DefaultScoringConfig returns sensible production defaults for the health scoring engine.
@@ -41,15 +41,15 @@ func DefaultScoringConfig() ScoringConfig {
 		CPULoadWarningThreshold:  1.5,
 		CPULoadCriticalThreshold: 3.0,
 
-		MemWarningThreshold:      85.0,
-		MemCriticalThreshold:     95.0,
-		SwapWarningThreshold:     50.0,
-		SwapCriticalThreshold:    80.0,
+		MemWarningThreshold:   85.0,
+		MemCriticalThreshold:  95.0,
+		SwapWarningThreshold:  50.0,
+		SwapCriticalThreshold: 80.0,
 
-		DiskWarningThreshold:     85.0,
-		DiskCriticalThreshold:    95.0,
-		InodeWarningThreshold:    85.0,
-		InodeCriticalThreshold:   95.0,
+		DiskWarningThreshold:   85.0,
+		DiskCriticalThreshold:  95.0,
+		InodeWarningThreshold:  85.0,
+		InodeCriticalThreshold: 95.0,
 
 		MaxCPUDeduction:        25.0,
 		MaxMemDeduction:        25.0,

@@ -26,13 +26,13 @@ type FleetClient struct {
 
 // ClientConfig holds configuration parameters for FleetClient.
 type ClientConfig struct {
-	Endpoint   string
-	Token      string
-	NodeID     string
-	Version    string
-	Timeout    time.Duration
-	TLSConfig  *tls.Config
-	Buffer     *TelemetryBuffer
+	Endpoint  string
+	Token     string
+	NodeID    string
+	Version   string
+	Timeout   time.Duration
+	TLSConfig *tls.Config
+	Buffer    *TelemetryBuffer
 }
 
 // NewFleetClient initializes a new FleetClient.

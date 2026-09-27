@@ -145,24 +145,24 @@ type FleetFilter struct {
 	Since         time.Time         `json:"since,omitempty"`
 	Limit         int               `json:"limit,omitempty"`
 	Offset        int               `json:"offset,omitempty"`
-	SortBy        string            `json:"sort_by,omitempty"` // hostname, last_heartbeat, cpu, memory, status
+	SortBy        string            `json:"sort_by,omitempty"`        // hostname, last_heartbeat, cpu, memory, status
 	SortDirection string            `json:"sort_direction,omitempty"` // asc, desc
 }
 
 // FleetSummary provides aggregated overview metrics for the entire managed fleet.
 type FleetSummary struct {
-	TotalNodes     int          `json:"total_nodes"`
-	HealthyNodes   int          `json:"healthy_nodes"`
-	WarningNodes   int          `json:"warning_nodes"`
-	CriticalNodes  int          `json:"critical_nodes"`
-	StaleNodes     int          `json:"stale_nodes"`
-	OfflineNodes   int          `json:"offline_nodes"`
-	UnknownNodes   int          `json:"unknown_nodes"`
-	AvgCPUPercent  float64      `json:"avg_cpu_percent"`
-	AvgMemoryPct   float64      `json:"avg_memory_percent"`
-	TotalAlerts    int          `json:"total_alerts"`
-	LastUpdated    time.Time    `json:"last_updated"`
-	Nodes          []FleetNode  `json:"nodes,omitempty"`
+	TotalNodes    int         `json:"total_nodes"`
+	HealthyNodes  int         `json:"healthy_nodes"`
+	WarningNodes  int         `json:"warning_nodes"`
+	CriticalNodes int         `json:"critical_nodes"`
+	StaleNodes    int         `json:"stale_nodes"`
+	OfflineNodes  int         `json:"offline_nodes"`
+	UnknownNodes  int         `json:"unknown_nodes"`
+	AvgCPUPercent float64     `json:"avg_cpu_percent"`
+	AvgMemoryPct  float64     `json:"avg_memory_percent"`
+	TotalAlerts   int         `json:"total_alerts"`
+	LastUpdated   time.Time   `json:"last_updated"`
+	Nodes         []FleetNode `json:"nodes,omitempty"`
 }
 
 // FleetListResponse represents a paginated list of fleet nodes with summary counts.

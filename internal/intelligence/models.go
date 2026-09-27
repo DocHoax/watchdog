@@ -96,13 +96,13 @@ const (
 
 // Correlation represents a non-causal statistical or temporal co-occurrence between signals.
 type Correlation struct {
-	PrimarySignal      string                `json:"primary_signal"`
-	SecondarySignal    string                `json:"secondary_signal"`
-	Coefficient        float64               `json:"coefficient"`
-	TimeOffsetSeconds  int                   `json:"time_offset_seconds"`
-	CoOccurrenceCount  int                   `json:"co_occurrence_count"`
-	Confidence         CorrelationConfidence `json:"confidence"`
-	Description        string                `json:"description"`
+	PrimarySignal     string                `json:"primary_signal"`
+	SecondarySignal   string                `json:"secondary_signal"`
+	Coefficient       float64               `json:"coefficient"`
+	TimeOffsetSeconds int                   `json:"time_offset_seconds"`
+	CoOccurrenceCount int                   `json:"co_occurrence_count"`
+	Confidence        CorrelationConfidence `json:"confidence"`
+	Description       string                `json:"description"`
 }
 
 // IncidentStatus represents the state of a detected incident cluster.
@@ -143,11 +143,11 @@ type Incident struct {
 type FindingCategory string
 
 const (
-	FindingCategoryResourceExhaustion    FindingCategory = "resource_exhaustion"
+	FindingCategoryResourceExhaustion     FindingCategory = "resource_exhaustion"
 	FindingCategoryPerformanceDegradation FindingCategory = "performance_degradation"
-	FindingCategoryFleetPattern          FindingCategory = "fleet_pattern"
-	FindingCategoryStabilityRisk         FindingCategory = "stability_risk"
-	FindingCategoryAnomalyCluster        FindingCategory = "anomaly_cluster"
+	FindingCategoryFleetPattern           FindingCategory = "fleet_pattern"
+	FindingCategoryStabilityRisk          FindingCategory = "stability_risk"
+	FindingCategoryAnomalyCluster         FindingCategory = "anomaly_cluster"
 )
 
 // FindingConfidence rates the confidence of an intelligence finding.
@@ -175,29 +175,29 @@ type IntelligenceFinding struct {
 
 // NodeHealthSummary aggregates intelligence findings, score, and trends for a single node.
 type NodeHealthSummary struct {
-	NodeID          string                 `json:"node_id"`
-	Hostname        string                 `json:"hostname"`
-	Status          model.NodeStatus       `json:"status"`
-	HealthScore     HealthScore            `json:"health_score"`
-	Trends          []HealthTrend          `json:"trends"`
-	Baselines       []HistoricalBaseline   `json:"baselines"`
-	ActiveIncidents []Incident             `json:"active_incidents"`
-	Findings        []IntelligenceFinding  `json:"findings"`
-	EvaluatedAt     time.Time              `json:"evaluated_at"`
+	NodeID          string                `json:"node_id"`
+	Hostname        string                `json:"hostname"`
+	Status          model.NodeStatus      `json:"status"`
+	HealthScore     HealthScore           `json:"health_score"`
+	Trends          []HealthTrend         `json:"trends"`
+	Baselines       []HistoricalBaseline  `json:"baselines"`
+	ActiveIncidents []Incident            `json:"active_incidents"`
+	Findings        []IntelligenceFinding `json:"findings"`
+	EvaluatedAt     time.Time             `json:"evaluated_at"`
 }
 
 // FleetHealthSummary aggregates high-level fleet-wide health scores, trends, and incidents.
 type FleetHealthSummary struct {
-	EvaluatedAt         time.Time             `json:"evaluated_at"`
-	TotalNodes          int                   `json:"total_nodes"`
-	HealthyCount        int                   `json:"healthy_count"`
-	WarningCount        int                   `json:"warning_count"`
-	CriticalCount       int                   `json:"critical_count"`
-	StaleCount          int                   `json:"stale_count"`
-	OfflineCount        int                   `json:"offline_count"`
-	AverageScore        float64               `json:"average_score"`
-	LowestScoringNodes  []NodeHealthSummary   `json:"lowest_scoring_nodes"`
-	FleetTrends         []HealthTrend         `json:"fleet_trends"`
-	ActiveIncidents     []Incident            `json:"active_incidents"`
-	FleetFindings       []IntelligenceFinding `json:"fleet_findings"`
+	EvaluatedAt        time.Time             `json:"evaluated_at"`
+	TotalNodes         int                   `json:"total_nodes"`
+	HealthyCount       int                   `json:"healthy_count"`
+	WarningCount       int                   `json:"warning_count"`
+	CriticalCount      int                   `json:"critical_count"`
+	StaleCount         int                   `json:"stale_count"`
+	OfflineCount       int                   `json:"offline_count"`
+	AverageScore       float64               `json:"average_score"`
+	LowestScoringNodes []NodeHealthSummary   `json:"lowest_scoring_nodes"`
+	FleetTrends        []HealthTrend         `json:"fleet_trends"`
+	ActiveIncidents    []Incident            `json:"active_incidents"`
+	FleetFindings      []IntelligenceFinding `json:"fleet_findings"`
 }

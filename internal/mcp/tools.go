@@ -525,15 +525,15 @@ func (r *ToolRegistry) handleGetNodeHealth(ctx context.Context, args map[string]
 		}
 
 		healthSummary := map[string]any{
-			"node_id":              detail.Node.Identity.NodeID,
-			"hostname":             detail.Node.Identity.Hostname,
-			"status":               detail.Node.Status,
-			"status_message":       detail.Node.StatusMessage,
-			"last_heartbeat":       detail.Node.LastHeartbeat,
-			"last_telemetry":       detail.Node.LastTelemetry,
-			"summary":              detail.Node.Summary,
-			"active_alerts_count":  len(detail.ActiveAlerts),
-			"diagnostic_status":    "",
+			"node_id":             detail.Node.Identity.NodeID,
+			"hostname":            detail.Node.Identity.Hostname,
+			"status":              detail.Node.Status,
+			"status_message":      detail.Node.StatusMessage,
+			"last_heartbeat":      detail.Node.LastHeartbeat,
+			"last_telemetry":      detail.Node.LastTelemetry,
+			"summary":             detail.Node.Summary,
+			"active_alerts_count": len(detail.ActiveAlerts),
+			"diagnostic_status":   "",
 		}
 		if detail.LatestDiagnostics != nil {
 			healthSummary["diagnostic_status"] = detail.LatestDiagnostics.OverallStatus
