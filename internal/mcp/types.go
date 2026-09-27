@@ -201,6 +201,30 @@ type PromptArgument struct {
 	Required    bool   `json:"required,omitempty"`
 }
 
+// GetPromptParams holds parameters for prompts/get.
+type GetPromptParams struct {
+	Name      string            `json:"name"`
+	Arguments map[string]string `json:"arguments,omitempty"`
+}
+
+// GetPromptResult represents the response to prompts/get.
+type GetPromptResult struct {
+	Description string          `json:"description,omitempty"`
+	Messages    []PromptMessage `json:"messages"`
+}
+
+// PromptMessage represents a message in a prompt response.
+type PromptMessage struct {
+	Role    string        `json:"role"` // "user" or "assistant"
+	Content PromptContent `json:"content"`
+}
+
+// PromptContent represents the content inside a prompt message.
+type PromptContent struct {
+	Type string `json:"type"` // "text", "resource", "image"
+	Text string `json:"text,omitempty"`
+}
+
 // MCPContext holds request-scoped contextual metadata for MCP handlers.
 type MCPContext struct {
 	RequestID string

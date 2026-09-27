@@ -49,6 +49,16 @@ const (
 	EventFleetHeartbeat         = "fleet.heartbeat"
 	EventFleetTelemetryIngested = "fleet.telemetry.ingested"
 	EventFleetRateLimited       = "fleet.rate_limit.exceeded"
+
+	// MCP (Model Context Protocol) Events
+	EventMCPServerStart  = "mcp.server.start"
+	EventMCPServerStop   = "mcp.server.stop"
+	EventMCPInitialize   = "mcp.initialize"
+	EventMCPToolCall     = "mcp.tool.call"
+	EventMCPResourceRead = "mcp.resource.read"
+	EventMCPPromptGet    = "mcp.prompt.get"
+	EventMCPRateLimited  = "mcp.rate_limit.exceeded"
+	EventMCPAuthFailure  = "mcp.auth.failure"
 )
 
 // Audit Severity Constants
