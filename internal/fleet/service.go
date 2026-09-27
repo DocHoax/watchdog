@@ -23,15 +23,20 @@ var (
 	ErrInvalidTelemetry = errors.New("invalid telemetry submission: missing node_id")
 )
 
+// ReadOnlyFleetService defines the strict read-only query contract for fleet topology and health.
+type ReadOnlyFleetService interface {
+	GetNode(ctx context.Context, nodeID string) (*model.NodeDetailResponse, error)
+	ListNodes(ctx context.Context, filter model.FleetFilter) (*model.FleetListResponse, error)
+	GetFleetSummary(ctx context.Context) (*model.FleetSummary, error)
+}
+
 // FleetService defines the domain interface for managing fleet nodes and telemetry.
 type FleetService interface {
+	ReadOnlyFleetService
 	RegisterNode(ctx context.Context, req *model.NodeRegistrationRequest) (*model.NodeRegistrationResponse, error)
 	ProcessHeartbeat(ctx context.Context, hb *model.HeartbeatRequest) (*model.HeartbeatResponse, error)
 	IngestTelemetry(ctx context.Context, sub *model.TelemetrySubmission) error
-	GetNode(ctx context.Context, nodeID string) (*model.NodeDetailResponse, error)
-	ListNodes(ctx context.Context, filter model.FleetFilter) (*model.FleetListResponse, error)
 	DeleteNode(ctx context.Context, nodeID string) error
-	GetFleetSummary(ctx context.Context) (*model.FleetSummary, error)
 }
 
 // ServiceConfig holds operational configuration parameters for FleetService.
