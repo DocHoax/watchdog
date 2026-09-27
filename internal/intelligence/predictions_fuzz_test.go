@@ -71,10 +71,10 @@ func FuzzThresholdForecast(f *testing.F) {
 
 // FuzzPredictionConfidence fuzzes confidence tier evaluation against extreme statistical variance and sample distributions.
 func FuzzPredictionConfidence(f *testing.F) {
-	f.Add(25, 0.95, 0.1, 1000.0, 3600.0, true)
-	f.Add(5, 0.99, 0.01, 100.0, 3600.0, true)
-	f.Add(15, 0.50, 0.5, 5000.0, 3600.0, false)
-	f.Add(30, -0.5, 10.0, 100.0, 3600.0, true)
+	f.Add(25, 0.95, 0.1, 1000.0, true)
+	f.Add(5, 0.99, 0.01, 100.0, true)
+	f.Add(15, 0.50, 0.5, 5000.0, false)
+	f.Add(30, -0.5, 10.0, 100.0, true)
 
 	f.Fuzz(func(t *testing.T, sampleCount int, rSquared float64, cv float64, timeSec float64, bounded bool) {
 		cfg := DefaultForecastConfig()
