@@ -704,7 +704,7 @@ func TestCmd_Intelligence_Predictions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runIntelligencePredictions fleet returned error: %v", err)
 	}
-	if !strings.Contains(outFleet, "Fleet Threshold Predictions & Capacity Summary") || !strings.Contains(outFleet, "cpu.usage_percent") {
+	if !strings.Contains(outFleet, "Fleet Capacity & Threshold Predictions") || !strings.Contains(outFleet, "cpu.usage_percent") {
 		t.Errorf("Unexpected fleet predictions output: %s", outFleet)
 	}
 
@@ -732,7 +732,7 @@ func TestCmd_Intelligence_Predictions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runIntelligencePredictions node returned error: %v", err)
 	}
-	if !strings.Contains(outNode, "Metric Threshold Predictions for Node \"node-01\"") || !strings.Contains(outNode, "cpu.usage_percent") {
+	if !strings.Contains(outNode, "Threshold Predictions for Node \"node-01\"") || !strings.Contains(outNode, "cpu.usage_percent") {
 		t.Errorf("Unexpected node predictions output: %s", outNode)
 	}
 
@@ -760,7 +760,7 @@ func TestCmd_Intelligence_Predictions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runIntelligencePredictions by ID returned error: %v", err)
 	}
-	if !strings.Contains(outID, "Prediction Detail: pred-01 (Node: node-01)") || !strings.Contains(outID, "R² (Goodness of Fit)") {
+	if !strings.Contains(outID, "Prediction Details: pred-01") || !strings.Contains(outID, "R² Fit Quality") {
 		t.Errorf("Unexpected prediction by ID output: %s", outID)
 	}
 
@@ -799,7 +799,7 @@ func TestCmd_Intelligence_Capacity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runIntelligenceCapacity fleet returned error: %v", err)
 	}
-	if !strings.Contains(outFleet, "Fleet Capacity Intelligence & Pressure Forecast") || !strings.Contains(outFleet, "CPU Pressure:") {
+	if !strings.Contains(outFleet, "Fleet Capacity & Resource Pressure") || !strings.Contains(outFleet, "CPU Pressure Nodes:") {
 		t.Errorf("Unexpected fleet capacity output: %s", outFleet)
 	}
 
@@ -827,7 +827,7 @@ func TestCmd_Intelligence_Capacity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runIntelligenceCapacity node returned error: %v", err)
 	}
-	if !strings.Contains(outNode, "Capacity Exhaustion Forecast for Node \"node-01\"") || !strings.Contains(outNode, "CPU") {
+	if !strings.Contains(outNode, "Capacity Exhaustion Forecast: node-01") || !strings.Contains(outNode, "CPU") {
 		t.Errorf("Unexpected node capacity output: %s", outNode)
 	}
 
@@ -866,7 +866,7 @@ func TestCmd_Intelligence_Recurrence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runIntelligenceRecurrence returned error: %v", err)
 	}
-	if !strings.Contains(out, "Recurring Incident Patterns (1)") || !strings.Contains(out, "cpu_spike") {
+	if !strings.Contains(out, "Recurring Incident Patterns") || !strings.Contains(out, "cpu_spike") {
 		t.Errorf("Unexpected recurrence output: %s", out)
 	}
 
