@@ -940,5 +940,28 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("fleet.offline_threshold must be >= fleet.stale_threshold")
 		}
 	}
+	if c.MCP.Enabled {
+		transport := strings.ToLower(strings.TrimSpace(c.MCP.Transport))
+		if transport == "" {
+			transport = "stdio"
+		}
+		if transport != "stdio" && transport != "http" && transport != "sse" {
+			return fmt.Errorf("mcp.transport must be one of: stdio, http, sse (got %q)", c.MCP.Transport)
+		}
+		if transport == "http" || transport == "sse" {
+			if c.MCP.Port < 1 || c.MCP.Port > 65535 {
+				return fmt.Errorf("mcp.port must be between 1 and 65535")
+			}
+		}
+		if c.MCP.RateLimitRate < 0 {
+			return fmt.Errorf("mcp.rate_limit_rate must be >= 0")
+		}
+		if c.MCP.RateLimitBurst < 0 {
+			return fmt.Errorf("mcp.rate_limit_burst must be >= 0")
+		}
+		if c.MCP.MaxRequestBodyBytes < 0 {
+			return fmt.Errorf("mcp.max_request_body_bytes must be >= 0")
+		}
+	}
 	return nil
 }
