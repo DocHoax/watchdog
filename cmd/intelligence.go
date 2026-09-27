@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/DocHoax/watchdog/internal/config"
-	"github.com/DocHoax/watchdog/internal/fleet"
 	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/pkg/model"
 	"github.com/DocHoax/watchdog/pkg/util"
