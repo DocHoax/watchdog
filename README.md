@@ -22,6 +22,8 @@ Watchdog is an all-in-one system health monitoring, diagnostic automation, and l
 - 💾 **Embedded SQLite Time-Series**: Embedded WAL-mode database powered by `modernc.org/sqlite` with automated background retention pruning.
 - 🛡️ **Structured Security Audit Trails**: Zero-credential-leakage audit logging for authentication, lifecycle, TLS, config, and admin events with SQLite persistence, DoS flood throttling, and CSV formula injection neutralization.
 - 🔒 **Hardened Software Supply Chain**: Keyless Sigstore/Cosign signing, SLSA Build Provenance via GitHub Attestations, SPDX 2.3 SBOMs, and bit-for-bit reproducible builds.
+- 🛰️ **Distributed Fleet Management & Secure Telemetry**: Hub-and-spoke telemetry streaming with persistent node UUIDs, resilient offline buffering, token-bucket ingestion rate limiting, and centralized health querying.
+- 📜 **Versioned REST API & OpenAPI 3.0**: Production-ready `/api/v1/...` REST endpoints with constant-time Bearer token verification, role-based scopes, and uniform error envelopes.
 - ☸️ **Enterprise Kubernetes & Fleet Readiness**: Production-ready DaemonSet, ServiceMonitor, and ConfigMap manifests (`deploy/k8s/`), HTTP panic recovery, 1MB payload limits, and Kubernetes liveness/readiness probes (`/healthz`, `/readyz`).
 - 📊 **Self-Contained Multi-Format Reports**: Single-file dark-themed HTML5 reports with inline SVG vector sparklines (zero external JS/CDN requests), structured JSON, CSV, and ANSI terminal summaries.
 - 🌐 **Prometheus Exporter & REST API**: Native `/metrics` OpenMetrics endpoint, standard operational metrics (`watchdog_build_info`, `watchdog_up`), authenticated REST APIs, and runtime `pprof` profiling.
@@ -195,6 +197,8 @@ watchdog version --json
 | **`watchdog agent`** | — | `-p, --port`, `-b, --host`, `--token`, `--tls-cert`, `--tls-key` | Runs headless background telemetry agent. |
 | **`watchdog alert`** | `list`, `history`, `test` | `--limit` | Queries active and historical alerts or emits test events. |
 | **`watchdog audit`** | `list`, `export`, `audits` | `--since`, `--until`, `-t, --event-type`, `-s, --severity`, `--outcome`, `--limit`, `--format`, `--json` | Manages and queries security audit event logs. |
+| **`watchdog node`** | — | `-s, --short`, `--json`, `--node-id`, `--node-id-file`, `--tags` | Displays local machine identity, hardware specs, and persistent UUID. |
+| **`watchdog fleet`** | `status`, `list`, `get`, `register`, `heartbeat`, `deregister`, `fleets` | `--server`, `--token`, `--token-file`, `--insecure`, `--status`, `--search`, `--since`, `--sort-by` | Centralized fleet cluster management and observability querying. |
 | **`watchdog config`** | `init`, `validate`, `show`, `path` | `[path]`, `--json` | Manages and validates YAML configuration. |
 | **`watchdog export`** | — | `-f, --format`, `-m, --metric`, `-s, --since`, `-o, --output` | Dumps metrics from embedded SQLite database. |
 | **`watchdog completion`** | `bash`, `zsh`, `fish`, `powershell` | — | Generates shell autocomplete scripts. |
@@ -293,6 +297,9 @@ audit:
 | 📈 [**Statistical Anomaly Detection**](docs/anomaly-detection.md) | Ring buffer calculations, EWMA smoothing, and rolling Z-score evaluation. |
 | 📊 [**Standalone Reporting**](docs/reporting.md) | Self-contained HTML5 reports with inline SVG vector graphs, CSV, and JSON schemas. |
 | 🌐 [**Prometheus & REST API**](docs/prometheus-api.md) | OpenMetrics `/metrics` exposition, Bearer token auth, and remote TUI connection. |
+| 🛰️ [**Fleet Management & Telemetry**](docs/fleet.md) | Centralized hub-and-spoke telemetry streaming, node lifecycle, and offline buffering. |
+| 📜 [**REST API v1 Specification**](docs/api-v1.md) | Versioned REST API endpoints, DTO contracts, authentication scopes, and error envelopes. |
+| 📄 [**OpenAPI 3.0 Specification**](docs/openapi.yaml) | Full OpenAPI 3.0.3 machine-readable schema definition. |
 | 🐳 [**Docker Monitoring**](docs/docker.md) | Socket discovery, container resource metrics, and crashloop diagnostics. |
 | ☸️ [**Kubernetes Telemetry**](docs/kubernetes.md) | Cluster health, pod restart rates, node capacity, and DaemonSet deployment. |
 | 🚦 [**Troubleshooting & Exit Codes**](docs/troubleshooting.md) | Diagnostic resolutions, permission requirements, and deterministic exit codes. |

@@ -54,6 +54,14 @@ watchdog [command]
 ├── audit (audits)                # Security audit logging & event management
 │   ├── list                      # List and filter security audit events
 │   └── export                    # Export audit logs to JSON/CSV format
+├── node                          # Local node identity and hardware specs
+├── fleet (fleets)                # Centralized fleet cluster management
+│   ├── status                    # Aggregate fleet health summary
+│   ├── list                      # List and filter registered nodes
+│   ├── get                       # Inspect detailed node state & telemetry
+│   ├── register                  # Register a node with fleet controller
+│   ├── heartbeat                 # Transmit manual heartbeat ping
+│   └── deregister                # Decommission and remove a node
 ├── export                        # Export snapshots or metrics to JSON/CSV
 ├── completion                    # Generate shell completion scripts
 └── version                       # Print version and build metadata
@@ -311,7 +319,92 @@ watchdog audit export --since 30d --format json --output ./audit_export.json
 
 ---
 
-### 9. `watchdog export`
+### 9. `watchdog node`
+
+Inspects local machine identity, persistent cryptographic UUID, hardware specifications, network interfaces, and operational tags.
+
+```bash
+watchdog node [flags]
+```
+
+#### Flags
+| Flag | Shorthand | Type | Default | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| `--short` | `-s` | `bool` | `false` | Output only the persistent node ID |
+| `--json` | | `bool` | `false` | Output node identity in structured JSON format |
+| `--node-id` | | `string` | `""` | Explicit node ID to use instead of auto-generated UUID |
+| `--node-id-file` | | `string` | `""` | File path for persistent node ID storage (default: `~/.watchdog/node_id`) |
+| `--tags` | | `[]string` | `nil` | Comma-separated `key=value` operational tags |
+
+#### Examples
+```bash
+# Print formatted node identity summary
+watchdog node
+
+# Output node UUID only for shell scripting
+NODE_ID=$(watchdog node --short)
+
+# Output JSON identity payload
+watchdog node --json
+```
+
+---
+
+### 10. `watchdog fleet`
+*Aliases*: `fleets`
+
+Centralized fleet cluster management and observability querying against a remote fleet server.
+
+```bash
+watchdog fleet [command] [flags]
+```
+
+#### Global Fleet Flags
+| Flag | Type | Default | Description |
+| :--- | :---: | :---: | :--- |
+| `--server` | `string` | `""` | Central fleet server URL (e.g. `https://fleet.internal:8443`) |
+| `--token` | `string` | `""` | Authentication Bearer token |
+| `--token-file` | `string` | `""` | File path containing authentication token |
+| `--token-env` | `string` | `""` | Environment variable name containing token |
+| `--insecure` | `bool` | `false` | Skip TLS certificate verification |
+| `--timeout` | `duration` | `10s` | HTTP request timeout |
+| `--json` | `bool` | `false` | Output results in structured JSON format |
+
+#### Subcommands
+- `watchdog fleet status`: Display aggregated cluster health counts, node breakdown, and average resource utilization.
+- `watchdog fleet list`: List registered nodes with health status, CPU, memory, and last heartbeat.
+  - `--status`: Filter by state (`healthy`, `warning`, `critical`, `stale`, `offline`, `unknown`)
+  - `--search`: Search by node ID, hostname, or IP
+  - `--since`: Filter nodes active since duration (e.g. `15m`, `2h`)
+  - `--sort-by`: Sort field (`hostname`, `last_heartbeat`, `cpu`, `memory`, `status`)
+  - `--sort-direction`: `asc` or `desc`
+  - `--limit`, `--offset`: Pagination controls
+- `watchdog fleet get <node_id>`: Inspect detailed hardware specs, operational metadata, active alerts, and recent telemetry history for a specific node.
+- `watchdog fleet register`: Enrolls a node in the centralized fleet registry.
+  - `--node-id`, `--hostname`, `--tags`, `--metadata`
+- `watchdog fleet heartbeat`: Submits a manual liveness heartbeat ping for testing.
+  - `--node-id`, `--status`
+- `watchdog fleet deregister <node_id>`: Decommissions and removes a node from fleet tracking.
+  - `--force`: Force removal without prompt
+
+#### Examples
+```bash
+# View fleet cluster summary
+watchdog fleet status --server https://fleet.internal:8443 --token <token>
+
+# List nodes with warning or critical status
+watchdog fleet list --status warning
+
+# Inspect detailed node metadata and telemetry
+watchdog fleet get c56a4180-65aa-42ec-a945-5fd21dec0538
+
+# Deregister decommissioned node
+watchdog fleet deregister worker-old-01 --force
+```
+
+---
+
+### 11. `watchdog export`
 
 Exports real-time snapshot data or historical time-series metric series from the local SQLite storage engine.
 
@@ -330,7 +423,7 @@ watchdog export [flags]
 
 ---
 
-### 10. `watchdog completion`
+### 12. `watchdog completion`
 
 Generates autocompletion scripts for supported shells.
 
@@ -350,7 +443,7 @@ watchdog completion powershell | Out-String | Invoke-Expression
 
 ---
 
-### 11. `watchdog version`
+### 13. `watchdog version`
 
 Displays detailed version and build metadata.
 

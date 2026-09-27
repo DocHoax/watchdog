@@ -1,0 +1,594 @@
+openapi: 3.0.3
+info:
+  title: Watchdog Fleet & Telemetry REST API
+  description: Versioned REST API for local node observability, centralized fleet management, telemetry ingestion, and cluster health monitoring.
+  version: 1.0.0
+servers:
+  - url: https://fleet.internal:8443
+    description: Production Fleet Server
+  - url: http://127.0.0.1:8443
+    description: Local Agent Server
+
+paths:
+  /health:
+    get:
+      summary: Liveness Probe
+      description: Returns liveness status of the Watchdog process.
+      responses:
+        '200':
+          description: Process is alive and operational.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime_seconds:
+                    type: number
+                    example: 3600.5
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: 1.0.0
+
+  /ready:
+    get:
+      summary: Readiness Probe
+      description: Returns readiness status of collectors and storage subsystems.
+      responses:
+        '200':
+          description: Node is fully ready to serve traffic.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  collectors:
+                    type: string
+                    example: ok
+                  storage:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: Node is not ready (storage unavailable or collectors initializing).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIErrorResponse'
+
+  /api/v1/node:
+    get:
+      summary: Get Node Identity
+      description: Retrieves persistent cryptographic identity, hardware specs, and tags of the local machine.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Node identity details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeIdentity'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/telemetry:
+    post:
+      summary: Ingest Telemetry Snapshot
+      description: Receives structured telemetry submission from an agent node.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Watchdog-Node-ID
+          schema:
+            type: string
+          description: Optional explicit node ID
+        - in: header
+          name: X-Watchdog-Agent-Version
+          schema:
+            type: string
+          description: Agent version string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetrySubmission'
+      responses:
+        '200':
+          description: Telemetry successfully ingested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+
+  /api/v1/heartbeat:
+    post:
+      summary: Submit Heartbeat
+      description: Transmits periodic liveness signal to update last-seen timestamp and status.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+      responses:
+        '200':
+          description: Heartbeat acknowledged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeartbeatResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/fleet/register:
+    post:
+      summary: Register Fleet Node
+      description: Registers a new node in the centralized fleet registry.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeRegistrationRequest'
+      responses:
+        '200':
+          description: Node registration accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeRegistrationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/fleet:
+    get:
+      summary: List Fleet Nodes
+      description: Queries registered fleet nodes with filtering, pagination, and sorting.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [healthy, warning, critical, stale, offline, unknown]
+          description: Filter nodes by status
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search by node ID, hostname, or IP address
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+            enum: [hostname, last_heartbeat, cpu, memory, status]
+        - in: query
+          name: sort_direction
+          schema:
+            type: string
+            enum: [asc, desc]
+        - in: query
+          name: since
+          schema:
+            type: string
+          description: Active since RFC3339 timestamp or duration (e.g. 10m, 2h)
+      responses:
+        '200':
+          description: Filtered list of fleet nodes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/fleet/{node_id}:
+    get:
+      summary: Get Node Detail
+      description: Retrieves comprehensive status, hardware specs, diagnostics, and recent telemetry for a single node.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+          description: Unique node identifier
+      responses:
+        '200':
+          description: Detailed node information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeDetailResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Deregister Node
+      description: Removes a node from the fleet registry.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node successfully removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    example: true
+                  node_id:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/fleet/summary:
+    get:
+      summary: Get Fleet Summary
+      description: Aggregated health counts, node statuses, and cluster-wide resource utilization.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Fleet summary statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token
+
+  responses:
+    BadRequestError:
+      description: Invalid request parameters or payload.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIErrorResponse'
+    UnauthorizedError:
+      description: Missing or invalid authentication token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIErrorResponse'
+    NotFoundError:
+      description: Requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIErrorResponse'
+    RateLimitedError:
+      description: Ingestion rate limit exceeded for node.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIErrorResponse'
+
+  schemas:
+    APIErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              example: INVALID_TOKEN
+            message:
+              type: string
+              example: Bearer authentication token is missing or invalid
+            request_id:
+              type: string
+              example: c6a2b8e4-18c7-43cf-8ef3-d6c62c2f42a1
+            timestamp:
+              type: string
+              format: date-time
+
+    NodeIdentity:
+      type: object
+      required:
+        - node_id
+        - hostname
+        - os
+        - arch
+      properties:
+        node_id:
+          type: string
+          example: c56a4180-65aa-42ec-a945-5fd21dec0538
+        hostname:
+          type: string
+          example: prod-worker-01.internal
+        os:
+          type: string
+          example: linux
+        platform:
+          type: string
+          example: ubuntu
+        platform_version:
+          type: string
+          example: "22.04"
+        kernel_version:
+          type: string
+          example: "5.15.0-101-generic"
+        arch:
+          type: string
+          example: amd64
+        cpu_cores:
+          type: integer
+          example: 16
+        total_memory:
+          type: integer
+          format: int64
+          example: 34359738368
+        ip_addresses:
+          type: array
+          items:
+            type: string
+        mac_addresses:
+          type: array
+          items:
+            type: string
+        version:
+          type: string
+          example: 1.0.0
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+
+    TelemetrySubmission:
+      type: object
+      required:
+        - node_id
+        - timestamp
+      properties:
+        node_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        snapshot:
+          type: object
+        diagnostic_status:
+          type: string
+          example: HEALTHY
+        active_alerts_count:
+          type: integer
+          example: 0
+
+    TelemetryResponse:
+      type: object
+      properties:
+        accepted:
+          type: boolean
+          example: true
+        points_count:
+          type: integer
+          example: 1
+        buffered:
+          type: boolean
+          example: false
+        timestamp:
+          type: string
+          format: date-time
+
+    HeartbeatRequest:
+      type: object
+      required:
+        - node_id
+        - timestamp
+        - status
+      properties:
+        node_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [healthy, warning, critical]
+        cpu_usage_percent:
+          type: number
+        memory_usage_percent:
+          type: number
+        disk_usage_percent:
+          type: number
+        load1:
+          type: number
+        active_alerts_count:
+          type: integer
+        diagnostic_status:
+          type: string
+
+    HeartbeatResponse:
+      type: object
+      properties:
+        acknowledged:
+          type: boolean
+          example: true
+        node_status:
+          type: string
+          example: healthy
+        next_heartbeat_interval:
+          type: integer
+          example: 15
+        timestamp:
+          type: string
+          format: date-time
+
+    NodeRegistrationRequest:
+      type: object
+      required:
+        - identity
+      properties:
+        identity:
+          $ref: '#/components/schemas/NodeIdentity'
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+
+    NodeRegistrationResponse:
+      type: object
+      properties:
+        registered:
+          type: boolean
+          example: true
+        node_id:
+          type: string
+        registered_at:
+          type: string
+          format: date-time
+        heartbeat_interval_seconds:
+          type: integer
+          example: 15
+        telemetry_interval_seconds:
+          type: integer
+          example: 30
+        message:
+          type: string
+
+    FleetSummary:
+      type: object
+      properties:
+        total_nodes:
+          type: integer
+        healthy_nodes:
+          type: integer
+        warning_nodes:
+          type: integer
+        critical_nodes:
+          type: integer
+        stale_nodes:
+          type: integer
+        offline_nodes:
+          type: integer
+        unknown_nodes:
+          type: integer
+        avg_cpu_percent:
+          type: number
+        avg_memory_percent:
+          type: number
+        total_alerts:
+          type: integer
+        last_updated:
+          type: string
+          format: date-time
+
+    FleetListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        count:
+          type: integer
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetNode'
+
+    NodeDetailResponse:
+      type: object
+      properties:
+        node:
+          $ref: '#/components/schemas/FleetNode'
+        recent_telemetry:
+          type: array
+          items:
+            $ref: '#/components/schemas/TelemetrySubmission'
+        active_alerts:
+          type: array
+          items:
+            type: object
+
+    FleetNode:
+      type: object
+      properties:
+        identity:
+          $ref: '#/components/schemas/NodeIdentity'
+        status:
+          type: string
+          enum: [healthy, warning, critical, stale, offline, unknown]
+        status_message:
+          type: string
+        registered_at:
+          type: string
+          format: date-time
+        last_heartbeat:
+          type: string
+          format: date-time
+        last_telemetry:
+          type: string
+          format: date-time
+        summary:
+          type: object
+        metadata:
+          type: object
+          additionalProperties:
+            type: string

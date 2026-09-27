@@ -99,16 +99,33 @@ type HeartbeatResponse struct {
 	Directives            []string   `json:"directives,omitempty"` // Strictly read-only advisory instructions
 }
 
+// NodeRegistrationRequest is submitted by an agent to register its node identity with the central fleet server.
+type NodeRegistrationRequest struct {
+	Identity NodeIdentity      `json:"identity"`
+	Metadata map[string]string `json:"metadata,omitempty"`
+}
+
+// NodeRegistrationResponse confirms registration of a node and provides configuration parameters.
+type NodeRegistrationResponse struct {
+	Registered               bool      `json:"registered"`
+	NodeID                   string    `json:"node_id"`
+	RegisteredAt             time.Time `json:"registered_at"`
+	HeartbeatIntervalSeconds int       `json:"heartbeat_interval_seconds"`
+	TelemetryIntervalSeconds int       `json:"telemetry_interval_seconds"`
+	Message                  string    `json:"message,omitempty"`
+}
+
 // TelemetrySubmission encapsulates a batch of metric and health observations from an agent.
 type TelemetrySubmission struct {
-	NodeID       string            `json:"node_id"`
-	Timestamp    time.Time         `json:"timestamp"`
-	Sequence     int64             `json:"sequence"`
-	Snapshot     *SystemSnapshot   `json:"snapshot,omitempty"`
-	Diagnostics  *DiagnosticReport `json:"diagnostics,omitempty"`
-	ActiveAlerts []AlertEvent      `json:"active_alerts,omitempty"`
-	Metrics      map[string]float64`json:"metrics,omitempty"`
-	Tags         map[string]string `json:"tags,omitempty"`
+	NodeID       string             `json:"node_id"`
+	Timestamp    time.Time          `json:"timestamp"`
+	Sequence     int64              `json:"sequence"`
+	Snapshot     *SystemSnapshot    `json:"snapshot,omitempty"`
+	Diagnostics  *DiagnosticReport  `json:"diagnostics,omitempty"`
+	ActiveAlerts []AlertEvent       `json:"active_alerts,omitempty"`
+	Metrics      map[string]float64 `json:"metrics,omitempty"`
+	Tags         map[string]string  `json:"tags,omitempty"`
+	Metadata     map[string]string  `json:"metadata,omitempty"`
 }
 
 // TelemetryResponse confirms receipt and processing of a telemetry payload.
@@ -146,6 +163,17 @@ type FleetSummary struct {
 	TotalAlerts    int          `json:"total_alerts"`
 	LastUpdated    time.Time    `json:"last_updated"`
 	Nodes          []FleetNode  `json:"nodes,omitempty"`
+}
+
+// FleetListResponse represents a paginated list of fleet nodes with summary counts.
+type FleetListResponse struct {
+	Nodes     []FleetNode  `json:"nodes"`
+	Total     int          `json:"total"`
+	Count     int          `json:"count"`
+	Limit     int          `json:"limit"`
+	Offset    int          `json:"offset"`
+	Summary   FleetSummary `json:"summary"`
+	Timestamp time.Time    `json:"timestamp"`
 }
 
 // NodeDetailResponse provides comprehensive point-in-time telemetry and state for a single node.

@@ -18,6 +18,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/collector"
 	"github.com/DocHoax/watchdog/internal/config"
 	"github.com/DocHoax/watchdog/internal/diagnostics"
+	"github.com/DocHoax/watchdog/internal/fleet"
 	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
@@ -90,8 +91,9 @@ type Server struct {
 	diagEng   *diagnostics.Engine
 	alertEng  *alerts.Engine
 	anomDet   *anomaly.Detector
-	exporter  *PrometheusExporter
-	auditLog  audit.AuditLogger
+	exporter     *PrometheusExporter
+	auditLog     audit.AuditLogger
+	fleetService fleet.FleetService
 
 	httpServer *http.Server
 	startTime  time.Time
@@ -119,16 +121,22 @@ func NewServer(
 		auditLog = audit.NewNopAuditLogger()
 	}
 
+	var fleetSvc fleet.FleetService
+	if store != nil && cfg != nil {
+		fleetSvc = fleet.NewFleetService(store, cfg.Fleet)
+	}
+
 	return &Server{
-		cfg:       cfg,
-		collector: col,
-		storage:   store,
-		diagEng:   diagEng,
-		alertEng:  alertEng,
-		anomDet:   anomDet,
-		exporter:  NewPrometheusExporter(),
-		auditLog:  auditLog,
-		startTime: time.Now(),
+		cfg:          cfg,
+		collector:    col,
+		storage:      store,
+		diagEng:      diagEng,
+		alertEng:     alertEng,
+		anomDet:      anomDet,
+		exporter:     NewPrometheusExporter(),
+		auditLog:     auditLog,
+		fleetService: fleetSvc,
+		startTime:    time.Now(),
 	}
 }
 
@@ -137,6 +145,20 @@ func (s *Server) SetAuditLogger(al audit.AuditLogger) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.auditLog = al
+}
+
+// SetFleetService configures the fleet service instance for the server.
+func (s *Server) SetFleetService(fs fleet.FleetService) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.fleetService = fs
+}
+
+// FleetService returns the configured fleet service instance.
+func (s *Server) FleetService() fleet.FleetService {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.fleetService
 }
 
 // Start runs the HTTP server and background collection worker until ctx is cancelled.
@@ -182,6 +204,13 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("/api/v1/alerts", s.authMiddleware(http.HandlerFunc(s.handleAlerts)))
 	mux.Handle("/api/v1/anomalies", s.authMiddleware(http.HandlerFunc(s.handleAnomalies)))
 	mux.Handle("/api/v1/audit/events", s.authMiddleware(http.HandlerFunc(s.handleAuditEvents)))
+
+	// Fleet API routes
+	mux.Handle("/api/v1/node", s.authMiddleware(http.HandlerFunc(s.handleNodeIdentity)))
+	mux.Handle("/api/v1/heartbeat", s.authMiddleware(http.HandlerFunc(s.handleHeartbeat)))
+	mux.Handle("/api/v1/telemetry", s.authMiddleware(http.HandlerFunc(s.handleTelemetry)))
+	mux.Handle("/api/v1/fleet", s.authMiddleware(http.HandlerFunc(s.handleFleetRoute)))
+	mux.Handle("/api/v1/fleet/", s.authMiddleware(http.HandlerFunc(s.handleFleetRoute)))
 
 	// Diagnostic Profiling (pprof)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
