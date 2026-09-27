@@ -268,14 +268,14 @@ func (s *Server) handleInitialize(ctx context.Context, mcpCtx MCPContext, req *J
 	}
 }
 
-func (s *Server) handleInitialized(ctx context.Context, mcpCtx MCPContext, req *JSONRPCRequest) *JSONRPCResponse {
+func (s *Server) handleInitialized(_ context.Context, _ MCPContext, _ *JSONRPCRequest) *JSONRPCResponse {
 	s.mu.Lock()
 	s.initialized = true
 	s.mu.Unlock()
 	return nil // Notification, no response needed
 }
 
-func (s *Server) handleListTools(ctx context.Context, mcpCtx MCPContext, req *JSONRPCRequest) *JSONRPCResponse {
+func (s *Server) handleListTools(_ context.Context, _ MCPContext, req *JSONRPCRequest) *JSONRPCResponse {
 	tools := ToolDefinitions()
 	return &JSONRPCResponse{
 		JSONRPC: "2.0",
@@ -331,7 +331,7 @@ func (s *Server) handleCallTool(ctx context.Context, mcpCtx MCPContext, req *JSO
 	}
 }
 
-func (s *Server) handleListResources(ctx context.Context, mcpCtx MCPContext, req *JSONRPCRequest) *JSONRPCResponse {
+func (s *Server) handleListResources(ctx context.Context, _ MCPContext, req *JSONRPCRequest) *JSONRPCResponse {
 	resList, err := s.resources.ListResources(ctx)
 	if err != nil {
 		s.metrics.RecordError("resources/list", ErrCodeStrInternalError)
@@ -387,7 +387,7 @@ func (s *Server) handleReadResource(ctx context.Context, mcpCtx MCPContext, req 
 	}
 }
 
-func (s *Server) handleListPrompts(ctx context.Context, mcpCtx MCPContext, req *JSONRPCRequest) *JSONRPCResponse {
+func (s *Server) handleListPrompts(_ context.Context, _ MCPContext, req *JSONRPCRequest) *JSONRPCResponse {
 	prompts := s.prompts.ListPrompts()
 	return &JSONRPCResponse{
 		JSONRPC: "2.0",
