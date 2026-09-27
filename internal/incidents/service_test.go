@@ -51,41 +51,14 @@ func (m *mockIncidentStore) ListIncidents(ctx context.Context, filter IncidentFi
 	defer m.mu.RUnlock()
 	var list []Incident
 	for _, inc := range m.incidents {
-		if len(filter.Status) > 0 {
-			matched := false
-			for _, st := range filter.Status {
-				if inc.Status == st {
-					matched = true
-					break
-				}
-			}
-			if !matched {
-				continue
-			}
+		if len(filter.Status) > 0 && !slices.Contains(filter.Status, inc.Status) {
+			continue
 		}
-		if len(filter.Severity) > 0 {
-			matched := false
-			for _, sv := range filter.Severity {
-				if inc.Severity == sv {
-					matched = true
-					break
-				}
-			}
-			if !matched {
-				continue
-			}
+		if len(filter.Severity) > 0 && !slices.Contains(filter.Severity, inc.Severity) {
+			continue
 		}
-		if len(filter.Scope) > 0 {
-			matched := false
-			for _, sc := range filter.Scope {
-				if inc.Scope == sc {
-					matched = true
-					break
-				}
-			}
-			if !matched {
-				continue
-			}
+		if len(filter.Scope) > 0 && !slices.Contains(filter.Scope, inc.Scope) {
+			continue
 		}
 		list = append(list, inc)
 	}
