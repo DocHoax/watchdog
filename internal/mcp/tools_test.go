@@ -16,19 +16,24 @@ import (
 
 func TestToolDefinitions(t *testing.T) {
 	tools := ToolDefinitions()
-	if len(tools) != 8 {
-		t.Fatalf("expected 8 tool definitions, got %d", len(tools))
+	if len(tools) != 13 {
+		t.Fatalf("expected 13 tool definitions, got %d", len(tools))
 	}
 
 	expectedTools := map[string]bool{
-		"list_nodes":             false,
-		"get_node":               false,
-		"get_node_health":        false,
-		"get_node_snapshot":      false,
-		"get_fleet_health":       false,
-		"get_node_metrics":       false,
-		"get_recent_diagnostics": false,
-		"get_active_alerts":      false,
+		"list_nodes":                false,
+		"get_node":                  false,
+		"get_node_health":           false,
+		"get_node_snapshot":         false,
+		"get_fleet_health":          false,
+		"get_node_metrics":          false,
+		"get_recent_diagnostics":    false,
+		"get_active_alerts":         false,
+		"get_fleet_intelligence":    false,
+		"get_node_intelligence":     false,
+		"get_fleet_incidents":       false,
+		"get_intelligence_findings": false,
+		"get_node_trends":           false,
 	}
 
 	for _, tool := range tools {
