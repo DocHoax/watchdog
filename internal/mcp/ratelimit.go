@@ -95,7 +95,7 @@ func (rl *ClientRateLimiter) Cleanup(ttl time.Duration) int {
 	now := time.Now()
 	removed := 0
 	for id, b := range rl.buckets {
-		if now.Sub(b.lastRefill) > ttl {
+		if now.Sub(b.lastRefill) >= ttl {
 			delete(rl.buckets, id)
 			removed++
 		}
