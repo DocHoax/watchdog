@@ -199,6 +199,79 @@ func (p *PromptRegistry) GetPrompt(name string, args map[string]string) (*GetPro
 			},
 		}, nil
 
+	case "analyze_fleet_health":
+		return &GetPromptResult{
+			Description: "Assess fleet-wide health intelligence and prioritize degraded nodes",
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: PromptContent{
+						Type: "text",
+						Text: "Please perform an intelligence-driven fleet health analysis:\n" +
+							"1. Call `get_fleet_intelligence` to evaluate aggregate health score (0-100), trajectories, lowest scoring nodes, and fleet trends.\n" +
+							"2. Call `get_fleet_incidents` to review active clustered incidents across nodes.\n" +
+							"3. Call `get_intelligence_findings` to check for multi-node systemic patterns, resource exhaustion risks, and anomaly clusters.\n" +
+							"4. Synthesize an explainable health overview highlighting degraded nodes, primary factor deductions, and observational recommendations.",
+					},
+				},
+			},
+		}, nil
+
+	case "investigate_incident":
+		incidentID, ok := args["incident_id"]
+		if !ok || strings.TrimSpace(incidentID) == "" {
+			return nil, NewInvalidParamsError("missing required argument 'incident_id'")
+		}
+		incidentID = strings.TrimSpace(incidentID)
+		return &GetPromptResult{
+			Description: fmt.Sprintf("Investigate clustered fleet incident %s", incidentID),
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: PromptContent{
+						Type: "text",
+						Text: fmt.Sprintf(
+							"Please investigate incident %q:\n"+
+								"1. Call `get_fleet_incidents` to locate incident %q and review its affected nodes, primary symptoms, and chronological timeline.\n"+
+								"2. For each affected node, call `get_node_intelligence` to analyze factor deductions and active score trajectory.\n"+
+								"3. Call `get_node_trends` for the affected nodes to check metric rates of change and baseline deviations.\n"+
+								"4. Provide a non-causal chronological timeline analysis and observational findings.",
+							incidentID, incidentID,
+						),
+					},
+				},
+			},
+		}, nil
+
+	case "triage_node_degradation":
+		nodeID, ok := args["node_id"]
+		if !ok || strings.TrimSpace(nodeID) == "" {
+			return nil, NewInvalidParamsError("missing required argument 'node_id'")
+		}
+		nodeID = strings.TrimSpace(nodeID)
+		if err := ValidateNodeID(nodeID); err != nil {
+			return nil, NewInvalidNodeIDError(err.Error())
+		}
+		return &GetPromptResult{
+			Description: fmt.Sprintf("Triage degradation on node %s", nodeID),
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: PromptContent{
+						Type: "text",
+						Text: fmt.Sprintf(
+							"Please triage health degradation on node %q:\n"+
+								"1. Call `get_node_intelligence` with node_id=%q to inspect the 0-100 health score, score trajectory, and granular factor deductions.\n"+
+								"2. Call `get_node_trends` with node_id=%q to evaluate metric slope directions, rates of change, and baseline percentiles.\n"+
+								"3. Call `get_node_snapshot` with node_id=%q to inspect current process table and disk partition states.\n"+
+								"4. Explain the primary contributors to health score deduction and suggest non-invasive verification steps.",
+							nodeID, nodeID, nodeID, nodeID,
+						),
+					},
+				},
+			},
+		}, nil
+
 	default:
 		return nil, NewInvalidParamsError(fmt.Sprintf("unknown prompt '%s'", name))
 	}
