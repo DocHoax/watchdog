@@ -92,8 +92,9 @@ func TestEvaluateNodeHealthScore_SubsystemDeductions(t *testing.T) {
 				Snapshot: &model.SystemSnapshot{
 					Timestamp: time.Now(),
 					Memory: &model.MemoryInfo{
-						UsedPercent:     97.0, // severe: -20 pts
-						SwapUsedPercent: 88.0, // severe swap: -20 pts
+						UsedPercent:     97.0, // severe: -15 pts
+						SwapTotalBytes:  8 * 1024 * 1024 * 1024,
+						SwapUsedPercent: 88.0, // severe swap: -10 pts (capped at -25 pts total)
 					},
 				},
 			},
@@ -113,8 +114,8 @@ func TestEvaluateNodeHealthScore_SubsystemDeductions(t *testing.T) {
 						Partitions: []model.PartitionInfo{
 							{
 								Mountpoint:  "/data",
-								UsedPercent: 99.0, // severe: -20 pts
-								InodesPct:   96.0, // inode pressure: -10 pts
+								UsedPercent: 99.0, // severe: -15 pts
+								InodesPct:   96.0, // inode pressure: -10 pts (capped at -20 pts total)
 							},
 						},
 					},
@@ -122,7 +123,7 @@ func TestEvaluateNodeHealthScore_SubsystemDeductions(t *testing.T) {
 			},
 			expectedMax:   80.0,
 			expectedMin:   60.0,
-			expectedCheck: "storage",
+			expectedCheck: "disk",
 		},
 		{
 			name: "Active Alerts and Diagnostics Deductions",
@@ -163,7 +164,7 @@ func TestEvaluateNodeHealthScore_SubsystemDeductions(t *testing.T) {
 			},
 			expectedMax:   75.0,
 			expectedMin:   40.0,
-			expectedCheck: "alerts",
+			expectedCheck: "alert",
 		},
 		{
 			name: "Statistical Anomalies Deductions",
