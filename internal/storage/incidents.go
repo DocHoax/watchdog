@@ -204,8 +204,8 @@ func (s *SQLiteStorage) GetIncident(ctx context.Context, id string) (*incidents.
 			inc.Metadata = make(map[string]string)
 			inc.Tags = make(map[string]string)
 			for k, v := range meta {
-				if strings.HasPrefix(k, "tag:") {
-					inc.Tags[strings.TrimPrefix(k, "tag:")] = v
+				if tag, ok := strings.CutPrefix(k, "tag:"); ok {
+					inc.Tags[tag] = v
 				} else if k == "summary" {
 					inc.Summary = v
 				} else {
@@ -405,8 +405,8 @@ func (s *SQLiteStorage) ListIncidents(ctx context.Context, filter incidents.Inci
 				inc.Metadata = make(map[string]string)
 				inc.Tags = make(map[string]string)
 				for k, v := range meta {
-					if strings.HasPrefix(k, "tag:") {
-						inc.Tags[strings.TrimPrefix(k, "tag:")] = v
+					if tag, ok := strings.CutPrefix(k, "tag:"); ok {
+						inc.Tags[tag] = v
 					} else if k == "summary" {
 						inc.Summary = v
 					} else {
@@ -417,6 +417,9 @@ func (s *SQLiteStorage) ListIncidents(ctx context.Context, filter incidents.Inci
 		}
 
 		result = append(result, inc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating incidents: %w", err)
 	}
 
 	return result, totalCount, nil
@@ -588,6 +591,9 @@ func (s *SQLiteStorage) GetTimeline(ctx context.Context, incidentID string, filt
 		}
 
 		entries = append(entries, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating timeline: %w", err)
 	}
 
 	return entries, nil

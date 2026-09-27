@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/DocHoax/watchdog/pkg/model"
@@ -127,12 +128,12 @@ func FilterTimeline(entries []IncidentTimelineEntry, nodeID string, minSev model
 }
 
 func severityRank(sev model.Severity) int {
-	switch sev {
-	case model.SeverityCritical:
+	switch strings.ToUpper(string(sev)) {
+	case string(model.SeverityCritical):
 		return 3
-	case model.SeverityWarning:
+	case string(model.SeverityWarning):
 		return 2
-	case model.SeverityInfo:
+	case string(model.SeverityInfo):
 		return 1
 	default:
 		return 0
