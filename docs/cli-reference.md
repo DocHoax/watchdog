@@ -62,6 +62,14 @@ watchdog [command]
 │   ├── register                  # Register a node with fleet controller
 │   ├── heartbeat                 # Transmit manual heartbeat ping
 │   └── deregister                # Decommission and remove a node
+├── intelligence (intel, ai)      # Explainable health scoring, trends & incidents
+│   ├── fleet (summary, status)   # Aggregate fleet health summary & findings
+│   ├── node                      # Explainable node health score & deductions
+│   ├── incidents (incident, inc) # List & inspect clustered incidents
+│   ├── trends                    # Metric linear regression rate-of-change
+│   ├── baselines                 # Historical statistical distribution baselines
+│   ├── correlations              # Cross-signal temporal associations
+│   └── findings                  # Analytical findings with grounded evidence
 ├── mcp (ai)                      # Model Context Protocol (MCP) server & AI integration
 │   ├── serve (start, run)        # Start the MCP daemon (stdio/http/sse)
 │   ├── status (info)             # Display MCP configuration and security posture
@@ -410,7 +418,112 @@ watchdog fleet deregister worker-old-01 --force
 
 ---
 
-### 11. `watchdog mcp`
+### 11. `watchdog intelligence`
+
+Administrative and operator interface for the Watchdog Intelligence Layer (`internal/intelligence`). Evaluates fleet and node health scores with explainable factor deductions, analyzes historical metric trends and statistical baselines, inspects clustered incidents, and displays cross-node pattern findings. Strictly analytical and observational (zero remediation, zero state mutation).
+
+```bash
+watchdog intelligence [command] [flags]
+```
+
+#### Aliases
+`intel`, `ai`
+
+#### Persistent Flags
+| Flag | Shorthand | Type | Default | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| `--server` | | `string` | `""` | Centralized fleet server URL (e.g. `https://fleet.internal:8443`) |
+| `--token` | | `string` | `""` | Bearer token for authenticating with fleet server |
+| `--token-file` | | `string` | `""` | Path to file containing authentication token |
+| `--token-env` | | `string` | `""` | Environment variable name containing authentication token |
+| `--insecure-tls` | | `bool` | `false` | Skip TLS certificate verification (development only) |
+| `--timeout` | | `duration` | `10s` | HTTP request timeout duration |
+| `--format` | `-f` | `string` | `text` | Output format: `text`, `json`, `yaml` |
+| `--window` | `-w` | `string` | `1h` | Time window duration (e.g. `15m`, `1h`, `6h`, `24h`) |
+
+#### Subcommands
+
+##### `watchdog intelligence fleet`
+*Aliases*: `summary`, `status`
+
+Evaluates and displays aggregate fleet health intelligence, including average score, node health distribution, lowest scoring nodes, active fleet-wide incidents, and analytical degradation findings.
+
+```bash
+# Display fleet health summary
+watchdog intelligence fleet --server https://fleet.internal:8443
+
+# Output as structured JSON
+watchdog intelligence fleet --format json
+```
+
+##### `watchdog intelligence node <node-id>`
+Evaluates a specific node's normalized health score ($0.0 \le \text{Score} \le 100.0$) with itemized factor deductions, score trajectory (`improving`, `degrading`, `stable`, `volatile`, `unknown`), active incidents, and findings.
+
+```bash
+# Inspect node health breakdown
+watchdog intelligence node worker-prod-01
+
+# Output as structured YAML
+watchdog intelligence node worker-prod-01 --format yaml
+```
+
+##### `watchdog intelligence incidents [incident-id]`
+*Aliases*: `incident`, `inc`
+
+Lists all active multi-signal incidents across the fleet, or displays full chronological event timeline and symptom breakdown for a specific incident ID.
+
+```bash
+# List all active clustered incidents
+watchdog intelligence incidents
+
+# Inspect detailed incident timeline
+watchdog intelligence incidents inc-node-01-mem-swap
+```
+
+##### `watchdog intelligence trends <node-id>`
+Calculates ordinary least squares linear regression rate-of-change and directional trajectory (`increasing`, `decreasing`, `stable`) across key metrics for a node over a time window.
+
+```bash
+# View 1-hour metric trends
+watchdog intelligence trends worker-prod-01 --window 1h
+
+# View 24-hour metric trends in JSON
+watchdog intelligence trends worker-prod-01 --window 24h --format json
+```
+
+##### `watchdog intelligence baselines <node-id>`
+Calculates historical statistical baseline distributions (Min, Max, Mean, StdDev, $P_{50}, P_{90}, P_{95}, P_{99}$) for key node metrics over a time window.
+
+```bash
+# View 24-hour statistical baselines
+watchdog intelligence baselines worker-prod-01 --window 24h
+```
+
+##### `watchdog intelligence correlations`
+Evaluates temporal Pearson correlation coefficients ($r$) between telemetry signal pairs across the fleet to identify co-occurring metric dynamics.
+
+```bash
+# View signal correlations over the last 1 hour
+watchdog intelligence correlations --window 1h
+```
+
+##### `watchdog intelligence findings`
+Queries and displays analytical findings across the fleet, including resource exhaustion, fleet patterns, and stability risks with non-invasive suggestions.
+
+- `--category`: Filter findings by category (`resource_exhaustion`, `performance_degradation`, `fleet_pattern`, `stability_risk`, `anomaly_cluster`)
+- `--min-severity`: Minimum severity filter (`info`, `warning`, `critical`)
+
+```bash
+# List all intelligence findings
+watchdog intelligence findings
+
+# Filter by fleet pattern category and warning severity
+watchdog intelligence findings --category fleet_pattern --min-severity warning
+```
+
+---
+
+### 12. `watchdog mcp`
 
 Provides Model Context Protocol (MCP) server endpoints and discovery tools for integrating Watchdog with AI assistants (Claude Desktop, Claude Code, Cursor, IDE extensions, autonomous agents). Exposes read-only system telemetry, fleet diagnostics, alerts, and statistical anomalies.
 
@@ -461,7 +574,7 @@ watchdog mcp resources
 
 ---
 
-### 12. `watchdog export`
+### 13. `watchdog export`
 
 Exports real-time snapshot data or historical time-series metric series from the local SQLite storage engine.
 
@@ -480,7 +593,7 @@ watchdog export [flags]
 
 ---
 
-### 13. `watchdog completion`
+### 14. `watchdog completion`
 
 Generates autocompletion scripts for supported shells.
 
@@ -500,7 +613,7 @@ watchdog completion powershell | Out-String | Invoke-Expression
 
 ---
 
-### 14. `watchdog version`
+### 15. `watchdog version`
 
 Displays detailed version and build metadata.
 

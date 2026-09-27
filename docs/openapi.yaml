@@ -289,6 +289,201 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
+  /api/v1/intelligence/fleet:
+    get:
+      summary: Fleet Health & Intelligence Summary
+      description: Evaluates overall fleet health score, degraded nodes, active incidents, and fleet findings.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Fleet health evaluation summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetHealthSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/intelligence/nodes/{node_id}:
+    get:
+      summary: Node Health & Factor Breakdown
+      description: Returns explainable health score, subsystem factor deductions, score trajectory, and active findings for a node.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detailed node health evaluation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeHealthSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/intelligence/nodes/{node_id}/trends:
+    get:
+      summary: Node Metric Trends
+      description: Closed-form linear regression rate-of-change and directional trajectory for key metrics.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: window
+          schema:
+            type: string
+            default: "1h"
+      responses:
+        '200':
+          description: Array of metric trends.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HealthTrend'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/intelligence/nodes/{node_id}/baselines:
+    get:
+      summary: Node Historical Baselines
+      description: Statistical baseline benchmarks (Min, Max, Mean, StdDev, P50, P90, P95, P99).
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: window
+          schema:
+            type: string
+            default: "24h"
+      responses:
+        '200':
+          description: Array of historical metric baselines.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoricalBaseline'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/intelligence/incidents:
+    get:
+      summary: Active Fleet Incidents
+      description: Lists active multi-signal and multi-node incidents clustered from alerts and diagnostic checks.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of active incidents.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Incident'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/intelligence/incidents/{incident_id}:
+    get:
+      summary: Get Incident Details
+      description: Returns full incident timeline and symptom breakdown.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: incident_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Incident details and chronological timeline.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/intelligence/correlations:
+    get:
+      summary: Cross-Signal Temporal Correlations
+      description: Computes temporal Pearson correlation coefficients between co-occurring signal pairs.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: window
+          schema:
+            type: string
+            default: "1h"
+      responses:
+        '200':
+          description: Array of signal correlations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Correlation'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/intelligence/findings:
+    get:
+      summary: Intelligence Findings
+      description: Queries structured findings across resource exhaustion, stability risks, and fleet patterns.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: severity
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array of intelligence findings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IntelligenceFinding'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -592,3 +787,267 @@ components:
           type: object
           additionalProperties:
             type: string
+
+    FleetHealthSummary:
+      type: object
+      properties:
+        evaluated_at:
+          type: string
+          format: date-time
+        total_nodes:
+          type: integer
+        healthy_count:
+          type: integer
+        warning_count:
+          type: integer
+        critical_count:
+          type: integer
+        stale_count:
+          type: integer
+        offline_count:
+          type: integer
+        average_score:
+          type: number
+        lowest_scoring_nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeHealthSummary'
+        fleet_trends:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthTrend'
+        active_incidents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Incident'
+        fleet_findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntelligenceFinding'
+
+    NodeHealthSummary:
+      type: object
+      properties:
+        node_id:
+          type: string
+        hostname:
+          type: string
+        status:
+          type: string
+        health_score:
+          $ref: '#/components/schemas/HealthScore'
+        trends:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthTrend'
+        baselines:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoricalBaseline'
+        active_incidents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Incident'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntelligenceFinding'
+        evaluated_at:
+          type: string
+          format: date-time
+
+    HealthScore:
+      type: object
+      properties:
+        score:
+          type: number
+          example: 92.5
+        normalized_status:
+          type: string
+          enum: [healthy, warning, critical, stale, offline, unknown]
+        trajectory:
+          type: string
+          enum: [improving, degrading, stable, volatile, unknown]
+        breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/FactorContribution'
+        primary_concerns:
+          type: array
+          items:
+            type: string
+        evaluated_at:
+          type: string
+          format: date-time
+
+    FactorContribution:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        weight:
+          type: number
+        score:
+          type: number
+        deduction:
+          type: number
+        impact:
+          type: string
+          enum: [positive, negative, neutral]
+        explanation:
+          type: string
+
+    HealthTrend:
+      type: object
+      properties:
+        metric:
+          type: string
+        direction:
+          type: string
+          enum: [increasing, decreasing, stable, insufficient_data]
+        rate_of_change:
+          type: number
+        unit:
+          type: string
+        start_value:
+          type: number
+        end_value:
+          type: number
+        window:
+          type: integer
+          description: Window duration in nanoseconds
+        confidence:
+          type: number
+
+    HistoricalBaseline:
+      type: object
+      properties:
+        metric:
+          type: string
+        window:
+          type: integer
+        sample_count:
+          type: integer
+        min:
+          type: number
+        max:
+          type: number
+        mean:
+          type: number
+        std_dev:
+          type: number
+        p50:
+          type: number
+        p90:
+          type: number
+        p95:
+          type: number
+        p99:
+          type: number
+        computed_at:
+          type: string
+          format: date-time
+
+    Incident:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [open, mitigated, resolved]
+        severity:
+          type: string
+          enum: [critical, warning, info]
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+        affected_nodes:
+          type: array
+          items:
+            type: string
+        primary_symptoms:
+          type: array
+          items:
+            type: string
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentTimelineEvent'
+
+    IncidentTimelineEvent:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        node_id:
+          type: string
+        event_type:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [critical, warning, info]
+
+    Correlation:
+      type: object
+      properties:
+        primary_signal:
+          type: string
+        secondary_signal:
+          type: string
+        coefficient:
+          type: number
+        time_offset_seconds:
+          type: integer
+        co_occurrence_count:
+          type: integer
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        description:
+          type: string
+
+    IntelligenceFinding:
+      type: object
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+          enum: [resource_exhaustion, performance_degradation, fleet_pattern, stability_risk, anomaly_cluster]
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        title:
+          type: string
+        description:
+          type: string
+        affected_nodes:
+          type: array
+          items:
+            type: string
+        supporting_evidence:
+          type: array
+          items:
+            type: string
+        non_invasive_suggestions:
+          type: array
+          items:
+            type: string
+        detected_at:
+          type: string
+          format: date-time

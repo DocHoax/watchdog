@@ -356,3 +356,318 @@ Liveness probe returning `200 OK` when the process is operational.
 
 #### `GET /ready` / `GET /readyz`
 Readiness probe verifying collector availability and storage connectivity. Returns `200 OK` when ready, `503 Service Unavailable` otherwise.
+
+---
+
+## 4. Fleet Intelligence & Correlated Analysis (`/api/v1/intelligence/*`)
+
+The Watchdog Intelligence Layer provides explainable health scoring, regression trends, statistical baselines, cross-signal correlations, incident clustering, and fleet-wide pattern findings. All intelligence endpoints are strictly read-only and analytical (zero remediation).
+
+### 4.1 Fleet Health & Intelligence Summary
+#### `GET /api/v1/intelligence/fleet`
+Evaluates fleet-wide health scores, counts by status, lowest scoring nodes, active fleet incidents, and fleet-wide degradation findings.
+
+- **Headers**:
+  - `Authorization: Bearer <token>`
+- **Response**: `200 OK`
+```json
+{
+  "evaluated_at": "2026-09-27T12:00:00Z",
+  "total_nodes": 12,
+  "healthy_count": 10,
+  "warning_count": 1,
+  "critical_count": 1,
+  "stale_count": 0,
+  "offline_count": 0,
+  "average_score": 88.5,
+  "lowest_scoring_nodes": [
+    {
+      "node_id": "worker-02",
+      "hostname": "prod-worker-02",
+      "status": "critical",
+      "health_score": {
+        "score": 42.0,
+        "normalized_status": "critical",
+        "trajectory": "degrading",
+        "breakdown": [
+          {
+            "name": "CPU Usage",
+            "category": "cpu",
+            "weight": 25.0,
+            "score": 0.0,
+            "deduction": 25.0,
+            "impact": "negative",
+            "explanation": "CPU utilization is critically high (96.5%)"
+          }
+        ],
+        "primary_concerns": [
+          "CPU utilization is critically high (96.5%)"
+        ],
+        "evaluated_at": "2026-09-27T12:00:00Z"
+      }
+    }
+  ],
+  "fleet_trends": [],
+  "active_incidents": [],
+  "fleet_findings": []
+}
+```
+
+---
+
+### 4.2 Node Health & Factor Breakdown
+#### `GET /api/v1/intelligence/nodes/{id}`
+Returns a detailed explainable health score, factor deductions across subsystems, score trajectory, active incidents, and intelligence findings for a specific node.
+
+- **Headers**:
+  - `Authorization: Bearer <token>`
+- **Response**: `200 OK`
+```json
+{
+  "node_id": "worker-01",
+  "hostname": "prod-worker-01",
+  "status": "healthy",
+  "health_score": {
+    "score": 95.0,
+    "normalized_status": "healthy",
+    "trajectory": "stable",
+    "breakdown": [
+      {
+        "name": "CPU Subsystem",
+        "category": "cpu",
+        "weight": 25.0,
+        "score": 25.0,
+        "deduction": 0.0,
+        "impact": "positive",
+        "explanation": "CPU utilization is nominal (24.2%)"
+      },
+      {
+        "name": "Memory Subsystem",
+        "category": "memory",
+        "weight": 25.0,
+        "score": 20.0,
+        "deduction": 5.0,
+        "impact": "neutral",
+        "explanation": "Available memory buffer is low (420 MB free buffer)"
+      }
+    ],
+    "primary_concerns": [],
+    "evaluated_at": "2026-09-27T12:00:00Z"
+  },
+  "trends": [],
+  "baselines": [],
+  "active_incidents": [],
+  "findings": [],
+  "evaluated_at": "2026-09-27T12:00:00Z"
+}
+```
+
+---
+
+### 4.3 Node Metric Trends
+#### `GET /api/v1/intelligence/nodes/{id}/trends`
+Calculates linear regression rate-of-change and directional trajectory for key time-series metrics over a sliding time window.
+
+- **Headers**:
+  - `Authorization: Bearer <token>`
+- **Query Parameters**:
+  - `window` *(optional, default `1h`)*: Sliding evaluation window (e.g. `15m`, `1h`, `6h`, `24h`)
+- **Response**: `200 OK`
+```json
+[
+  {
+    "metric": "cpu_usage_pct",
+    "direction": "increasing",
+    "rate_of_change": 1.45,
+    "unit": "%/min",
+    "start_value": 45.2,
+    "end_value": 78.6,
+    "window": 3600000000000,
+    "confidence": 0.94
+  },
+  {
+    "metric": "memory_used_pct",
+    "direction": "stable",
+    "rate_of_change": 0.02,
+    "unit": "%/min",
+    "start_value": 62.1,
+    "end_value": 62.5,
+    "window": 3600000000000,
+    "confidence": 0.98
+  }
+]
+```
+
+---
+
+### 4.4 Node Historical Baselines
+#### `GET /api/v1/intelligence/nodes/{id}/baselines`
+Computes statistical benchmarks (min, max, mean, standard deviation, and percentiles P50/P90/P95/P99) for historical telemetry.
+
+- **Headers**:
+  - `Authorization: Bearer <token>`
+- **Query Parameters**:
+  - `window` *(optional, default `24h`)*: Baseline historical window (e.g. `1h`, `6h`, `24h`, `168h`)
+- **Response**: `200 OK`
+```json
+[
+  {
+    "metric": "cpu_usage_pct",
+    "window": 86400000000000,
+    "sample_count": 1440,
+    "min": 12.0,
+    "max": 88.5,
+    "mean": 34.2,
+    "std_dev": 8.4,
+    "p50": 32.1,
+    "p90": 48.6,
+    "p95": 58.2,
+    "p99": 76.4,
+    "computed_at": "2026-09-27T12:00:00Z"
+  }
+]
+```
+
+---
+
+### 4.5 Active Fleet Incidents
+#### `GET /api/v1/intelligence/incidents`
+Lists all currently open or mitigated incidents clustered from active alerts, failing diagnostics, and anomaly detections.
+
+- **Headers**:
+  - `Authorization: Bearer <token>`
+- **Response**: `200 OK`
+```json
+[
+  {
+    "id": "inc-a1b2c3d4",
+    "title": "High Memory Utilization and Swap Activity",
+    "status": "open",
+    "severity": "warning",
+    "start_time": "2026-09-27T11:45:00Z",
+    "end_time": null,
+    "affected_nodes": [
+      "worker-01"
+    ],
+    "primary_symptoms": [
+      "Memory usage above 85%",
+      "Active swap paging detected"
+    ],
+    "related_alerts": [],
+    "related_anomalies": [],
+    "findings": [],
+    "timeline": [
+      {
+        "timestamp": "2026-09-27T11:45:00Z",
+        "node_id": "worker-01",
+        "event_type": "alert_triggered",
+        "description": "Alert memory_high triggered: memory utilization at 88.2%",
+        "severity": "warning"
+      }
+    ]
+  }
+]
+```
+
+---
+
+### 4.6 Incident Detail & Timeline
+#### `GET /api/v1/intelligence/incidents/{id}`
+Retrieves full details and chronological timeline for a specific incident.
+
+- **Headers**:
+  - `Authorization: Bearer <token>`
+- **Response**: `200 OK`
+```json
+{
+  "id": "inc-a1b2c3d4",
+  "title": "High Memory Utilization and Swap Activity",
+  "status": "open",
+  "severity": "warning",
+  "start_time": "2026-09-27T11:45:00Z",
+  "end_time": null,
+  "affected_nodes": [
+    "worker-01"
+  ],
+  "primary_symptoms": [
+    "Memory usage above 85%"
+  ],
+  "related_alerts": [],
+  "related_anomalies": [],
+  "findings": [],
+  "timeline": [
+    {
+      "timestamp": "2026-09-27T11:45:00Z",
+      "node_id": "worker-01",
+      "event_type": "alert_triggered",
+      "description": "Alert memory_high triggered",
+      "severity": "warning"
+    }
+  ]
+}
+```
+
+---
+
+### 4.7 Cross-Signal Temporal Correlations
+#### `GET /api/v1/intelligence/correlations`
+Computes temporal Pearson correlation coefficients between co-occurring telemetry signal pairs.
+
+- **Headers**:
+  - `Authorization: Bearer <token>`
+- **Query Parameters**:
+  - `window` *(optional, default `1h`)*: Correlation observation window
+- **Response**: `200 OK`
+```json
+[
+  {
+    "primary_signal": "cpu_usage_pct",
+    "secondary_signal": "network_tx_bytes",
+    "coefficient": 0.89,
+    "time_offset_seconds": 0,
+    "co_occurrence_count": 45,
+    "confidence": "high",
+    "description": "CPU usage is strongly temporally associated with network transmit throughput"
+  }
+]
+```
+
+---
+
+### 4.8 Intelligence Findings
+#### `GET /api/v1/intelligence/findings`
+Queries structured intelligence findings including resource exhaustion, stability risks, and fleet-wide pattern alerts with non-invasive suggestions.
+
+- **Headers**:
+  - `Authorization: Bearer <token>`
+- **Query Parameters**:
+  - `category` *(optional)*: Filter by finding category (`resource_exhaustion`, `performance_degradation`, `fleet_pattern`, `stability_risk`, `anomaly_cluster`)
+  - `severity` *(optional)*: Filter by minimum severity (`info`, `warning`, `critical`)
+- **Response**: `200 OK`
+```json
+[
+  {
+    "id": "find-e5f6g7h8",
+    "category": "fleet_pattern",
+    "severity": "warning",
+    "confidence": "high",
+    "title": "Simultaneous CPU Spikes Across Fleet Nodes",
+    "description": "Identified concurrent CPU spikes (>85%) spanning 3 nodes within a 5-minute window",
+    "affected_nodes": [
+      "worker-01",
+      "worker-02",
+      "worker-03"
+    ],
+    "supporting_evidence": [
+      "worker-01 CPU at 92.4% at 11:50:00Z",
+      "worker-02 CPU at 89.1% at 11:51:30Z",
+      "worker-03 CPU at 94.0% at 11:52:00Z"
+    ],
+    "non_invasive_suggestions": [
+      "Inspect upstream traffic distribution across cluster members",
+      "Verify scheduled batch jobs or cron tasks occurring at top-of-hour"
+    ],
+    "detected_at": "2026-09-27T11:55:00Z"
+  }
+]
+```
