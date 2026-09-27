@@ -7,6 +7,8 @@ import (
 	"math"
 	"sort"
 	"time"
+
+	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // RecurrenceConfig defines parameters for recurring incident pattern detection.
@@ -213,4 +215,71 @@ func generateRecurrenceID(scope, targetID, eventType string) string {
 	raw := fmt.Sprintf("%s:%s:%s", scope, targetID, eventType)
 	hash := sha256.Sum256([]byte(raw))
 	return fmt.Sprintf("rec-%s-%s", scope, hex.EncodeToString(hash[:4]))
+}
+
+// generateIncidentID creates a deterministic identifier for an incident.
+func generateIncidentID(nodes []string, symptom string, t time.Time) string {
+	nodeStr := "global"
+	if len(nodes) > 0 {
+		nodeStr = nodes[0]
+	}
+	hashInput := fmt.Sprintf("%s:%d:%s", nodeStr, t.Unix(), symptom)
+	hasher := sha256.New()
+	hasher.Write([]byte(hashInput))
+	return fmt.Sprintf("inc-%s", hex.EncodeToString(hasher.Sum(nil))[:12])
+}
+
+// GenerateRecurrenceFindings transforms detected recurrence patterns into actionable intelligence findings.
+func GenerateRecurrenceFindings(patterns []RecurrencePattern) []IntelligenceFinding {
+	var findings []IntelligenceFinding
+	now := time.Now().UTC()
+
+	for _, p := range patterns {
+		var sev model.Severity
+		if p.Confidence == PredictionConfidenceHigh {
+			sev = model.SeverityCritical
+		} else if p.Confidence == PredictionConfidenceMedium {
+			sev = model.SeverityWarning
+		} else {
+			sev = model.SeverityInfo
+		}
+
+		var conf FindingConfidence
+		switch p.Confidence {
+		case PredictionConfidenceHigh:
+			conf = FindingConfidenceHigh
+		case PredictionConfidenceMedium:
+			conf = FindingConfidenceMedium
+		default:
+			conf = FindingConfidenceLow
+		}
+
+		findingID := fmt.Sprintf("find-rec-%s", p.ID)
+		title := fmt.Sprintf("Recurring operational pattern: %s on %s %s", p.EventType, p.Scope, p.TargetID)
+		desc := fmt.Sprintf("Observed %d occurrences of '%s' with average interval %v (regularity CV: %.2f)",
+			p.OccurrenceCount, p.EventType, p.AverageInterval.Round(time.Minute), p.CoefficientOfVariation)
+
+		nodes := []string{}
+		if p.Scope == RecurrenceScopeNode {
+			nodes = []string{p.TargetID}
+		}
+
+		findings = append(findings, IntelligenceFinding{
+			ID:                     findingID,
+			Category:               FindingCategoryRecurringIncident,
+			Severity:               sev,
+			Confidence:             conf,
+			Title:                  title,
+			Description:            desc,
+			AffectedNodes:          nodes,
+			SupportingEvidence:     []string{p.Summary},
+			NonInvasiveSuggestions: []string{
+				fmt.Sprintf("Investigate root cause of periodic %s events", p.EventType),
+				"Review scheduled jobs, cron tasks, or memory leaks occurring on a periodic cycle",
+			},
+			DetectedAt: now,
+		})
+	}
+
+	return findings
 }
