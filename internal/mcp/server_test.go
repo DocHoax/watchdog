@@ -51,7 +51,7 @@ func (m *mockAuditLogger) getEvents() []model.AuditEvent {
 	return cpy
 }
 
-func setupTestServer(t *testing.T, token string, reqPerMin int) (*Server, *mockAuditLogger, func()) {
+func setupTestServerWithBurst(t *testing.T, token string, reqPerMin int, burst int) (*Server, *mockAuditLogger, func()) {
 	t.Helper()
 	store, err := storage.NewSQLiteStorage(storage.Config{Path: ":memory:"})
 	if err != nil {
@@ -88,7 +88,7 @@ func setupTestServer(t *testing.T, token string, reqPerMin int) (*Server, *mockA
 		Port:                8444,
 		Token:               token,
 		RateLimitRate:       rateRate,
-		RateLimitBurst:      10,
+		RateLimitBurst:      burst,
 		MaxRequestBodyBytes: 1048576,
 		ReadTimeout:         5 * time.Second,
 		WriteTimeout:        5 * time.Second,
@@ -101,6 +101,10 @@ func setupTestServer(t *testing.T, token string, reqPerMin int) (*Server, *mockA
 	}
 
 	return srv, auditLog, cleanup
+}
+
+func setupTestServer(t *testing.T, token string, reqPerMin int) (*Server, *mockAuditLogger, func()) {
+	return setupTestServerWithBurst(t, token, reqPerMin, 10)
 }
 
 func TestServer_Stdio(t *testing.T) {
@@ -445,11 +449,11 @@ func TestServer_SSE(t *testing.T) {
 	}
 
 	// Extract session ID
-	idx := strings.Index(sseOutput, "sessionId=")
-	if idx == -1 {
+	_, after, found := strings.Cut(sseOutput, "sessionId=")
+	if !found {
 		t.Fatalf("could not find sessionId in SSE output: %s", sseOutput)
 	}
-	sessionID := strings.TrimSpace(sseOutput[idx+len("sessionId="):])
+	sessionID := strings.TrimSpace(after)
 	if end := strings.IndexAny(sessionID, "\r\n "); end != -1 {
 		sessionID = sessionID[:end]
 	}
@@ -478,7 +482,7 @@ func TestServer_SSE(t *testing.T) {
 
 func TestServer_RateLimiter(t *testing.T) {
 	// Create server with 2 requests per minute limit, burst 2
-	srv, _, cleanup := setupTestServer(t, "", 2)
+	srv, _, cleanup := setupTestServerWithBurst(t, "", 2, 2)
 	defer cleanup()
 
 	ctx := context.Background()
