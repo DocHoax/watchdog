@@ -21,6 +21,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/config"
 	"github.com/DocHoax/watchdog/internal/diagnostics"
 	"github.com/DocHoax/watchdog/internal/fleet"
+	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
@@ -55,6 +56,7 @@ func NewServer(
 	fleetSvc fleet.ReadOnlyFleetService,
 	auditLog audit.AuditLogger,
 	localID model.NodeIdentity,
+	intelSvc ...intelligence.IntelligenceService,
 ) *Server {
 	if auditLog == nil {
 		auditLog = audit.NewNopAuditLogger()
@@ -67,14 +69,24 @@ func NewServer(
 
 	return &Server{
 		cfg:           cfg,
-		tools:         NewToolRegistry(fleetSvc, store, col, diagEng, alertEng, localID),
-		resources:     NewResourceRegistry(fleetSvc, store, col, diagEng, alertEng, localID),
+		tools:         NewToolRegistry(fleetSvc, store, col, diagEng, alertEng, localID, intelSvc...),
+		resources:     NewResourceRegistry(fleetSvc, store, col, diagEng, alertEng, localID, intelSvc...),
 		prompts:       NewPromptRegistry(),
 		rateLimiter:   rateLimiter,
 		metrics:       NewMetrics(),
 		auditLog:      auditLog,
 		localIdentity: localID,
 		sseSessions:   make(map[string]chan []byte),
+	}
+}
+
+// SetIntelligenceService sets or overrides the intelligence service across tools and resources.
+func (s *Server) SetIntelligenceService(svc intelligence.IntelligenceService) {
+	if s.tools != nil {
+		s.tools.SetIntelligenceService(svc)
+	}
+	if s.resources != nil {
+		s.resources.SetIntelligenceService(svc)
 	}
 }
 
