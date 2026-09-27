@@ -183,6 +183,57 @@ func (s *SQLiteStorage) migrate(ctx context.Context) error {
 
 	CREATE INDEX IF NOT EXISTS idx_fleet_telemetry_node_time ON fleet_telemetry(node_id, timestamp DESC);
 	CREATE INDEX IF NOT EXISTS idx_fleet_telemetry_time ON fleet_telemetry(timestamp DESC);
+
+	CREATE TABLE IF NOT EXISTS incidents (
+		id TEXT PRIMARY KEY,
+		title TEXT NOT NULL,
+		status TEXT NOT NULL,
+		severity TEXT NOT NULL,
+		scope TEXT NOT NULL,
+		confidence TEXT NOT NULL,
+		start_time INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL,
+		resolved_at INTEGER,
+		primary_symptoms_json TEXT,
+		affected_nodes_json TEXT,
+		root_signals_json TEXT,
+		impact_json TEXT,
+		explanation_json TEXT,
+		findings_json TEXT,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status);
+	CREATE INDEX IF NOT EXISTS idx_incidents_severity ON incidents(severity);
+	CREATE INDEX IF NOT EXISTS idx_incidents_scope ON incidents(scope);
+	CREATE INDEX IF NOT EXISTS idx_incidents_start_time ON incidents(start_time DESC);
+	CREATE INDEX IF NOT EXISTS idx_incidents_updated_at ON incidents(updated_at DESC);
+
+	CREATE TABLE IF NOT EXISTS incident_timeline (
+		id TEXT PRIMARY KEY,
+		incident_id TEXT NOT NULL,
+		timestamp INTEGER NOT NULL,
+		event_type TEXT NOT NULL,
+		source TEXT NOT NULL,
+		node_id TEXT,
+		severity TEXT,
+		title TEXT NOT NULL,
+		description TEXT,
+		payload_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_incident_timeline_inc_time ON incident_timeline(incident_id, timestamp ASC);
+	CREATE INDEX IF NOT EXISTS idx_incident_timeline_node ON incident_timeline(node_id);
+	CREATE INDEX IF NOT EXISTS idx_incident_timeline_event_type ON incident_timeline(event_type);
+
+	CREATE TABLE IF NOT EXISTS incident_nodes (
+		incident_id TEXT NOT NULL,
+		node_id TEXT NOT NULL,
+		PRIMARY KEY (incident_id, node_id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_incident_nodes_node ON incident_nodes(node_id);
+	CREATE INDEX IF NOT EXISTS idx_incident_nodes_inc ON incident_nodes(incident_id);
 	`
 
 	_, err := s.db.ExecContext(ctx, schema)
