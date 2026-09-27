@@ -33,7 +33,7 @@ func TestSignalCorrelator_CorrelateSignals(t *testing.T) {
 
 	diag := &model.DiagnosticReport{
 		GeneratedAt: now,
-		Results: []model.CheckResult{
+		Results: []model.DiagnosticResult{
 			{
 				Name:        "CheckDiskSpace",
 				Category:    "storage",
