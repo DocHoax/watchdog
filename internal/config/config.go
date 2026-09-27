@@ -23,6 +23,7 @@ type Config struct {
 	Prometheus      PrometheusConfig `yaml:"prometheus"`
 	Agent           AgentConfig      `yaml:"agent"`
 	Fleet           FleetConfig      `yaml:"fleet"`
+	MCP             MCPConfig        `yaml:"mcp"`
 	Docker          DockerConfig     `yaml:"docker"`
 	Kubernetes      KubernetesConfig `yaml:"kubernetes"`
 }
@@ -139,6 +140,28 @@ type FleetConfig struct {
 	RateLimitBurst    int               `yaml:"rate_limit_burst" json:"rate_limit_burst"`             // Server-side rate limit burst
 	StaleThreshold    time.Duration     `yaml:"stale_threshold" json:"stale_threshold"`               // Mark node stale if no heartbeat after duration
 	OfflineThreshold  time.Duration     `yaml:"offline_threshold" json:"offline_threshold"`           // Mark node offline if no heartbeat after duration
+}
+
+// MCPConfig configures the Model Context Protocol (MCP) server for AI client integrations.
+type MCPConfig struct {
+	Enabled             bool          `yaml:"enabled" json:"enabled"`
+	Transport           string        `yaml:"transport" json:"transport"` // "stdio", "http", or "sse"
+	Port                int           `yaml:"port" json:"port"`
+	BindAddress         string        `yaml:"bind_address" json:"bind_address"`
+	Token               string        `yaml:"token,omitempty" json:"token,omitempty"`
+	TokenFile           string        `yaml:"token_file,omitempty" json:"token_file,omitempty"`
+	TokenEnv            string        `yaml:"token_env,omitempty" json:"token_env,omitempty"`
+	TLSCert             string        `yaml:"tls_cert,omitempty" json:"tls_cert,omitempty"`
+	TLSCertFile         string        `yaml:"tls_cert_file,omitempty" json:"tls_cert_file,omitempty"`
+	TLSCertEnv          string        `yaml:"tls_cert_env,omitempty" json:"tls_cert_env,omitempty"`
+	TLSKey              string        `yaml:"tls_key,omitempty" json:"tls_key,omitempty"`
+	TLSKeyFile          string        `yaml:"tls_key_file,omitempty" json:"tls_key_file,omitempty"`
+	TLSKeyEnv           string        `yaml:"tls_key_env,omitempty" json:"tls_key_env,omitempty"`
+	RateLimitRate       float64       `yaml:"rate_limit_rate" json:"rate_limit_rate"`
+	RateLimitBurst      int           `yaml:"rate_limit_burst" json:"rate_limit_burst"`
+	MaxRequestBodyBytes int64         `yaml:"max_request_body_bytes" json:"max_request_body_bytes"`
+	ReadTimeout         time.Duration `yaml:"read_timeout" json:"read_timeout"`
+	WriteTimeout        time.Duration `yaml:"write_timeout" json:"write_timeout"`
 }
 
 // DockerConfig configures Docker container monitoring.
