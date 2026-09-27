@@ -171,6 +171,77 @@ func (c *Client) GetFindings(ctx context.Context, category FindingCategory, minS
 	return resp, nil
 }
 
+// GetNodePredictions retrieves deterministic threshold predictions for a specific node.
+func (c *Client) GetNodePredictions(ctx context.Context, nodeID string, horizon time.Duration) ([]Prediction, error) {
+	if nodeID == "" {
+		return nil, fmt.Errorf("node ID is required")
+	}
+	url := fmt.Sprintf("%s/api/v1/intelligence/nodes/%s/predictions", c.endpoint, nodeID)
+	if horizon > 0 {
+		url = fmt.Sprintf("%s?horizon=%s", url, horizon.String())
+	}
+	var resp []Prediction
+	if err := c.doJSON(ctx, http.MethodGet, url, nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetNodeCapacityForecast retrieves multi-resource capacity forecasts for a specific node.
+func (c *Client) GetNodeCapacityForecast(ctx context.Context, nodeID string, horizon time.Duration) (*NodeCapacityReport, error) {
+	if nodeID == "" {
+		return nil, fmt.Errorf("node ID is required")
+	}
+	url := fmt.Sprintf("%s/api/v1/intelligence/nodes/%s/capacity", c.endpoint, nodeID)
+	if horizon > 0 {
+		url = fmt.Sprintf("%s?horizon=%s", url, horizon.String())
+	}
+	var resp NodeCapacityReport
+	if err := c.doJSON(ctx, http.MethodGet, url, nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GetFleetPredictions retrieves fleet-wide capacity forecasting and aggregated threshold crossings.
+func (c *Client) GetFleetPredictions(ctx context.Context, horizon time.Duration) (*FleetCapacitySummary, error) {
+	url := fmt.Sprintf("%s/api/v1/intelligence/fleet/predictions", c.endpoint)
+	if horizon > 0 {
+		url = fmt.Sprintf("%s?horizon=%s", url, horizon.String())
+	}
+	var resp FleetCapacitySummary
+	if err := c.doJSON(ctx, http.MethodGet, url, nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GetRecurringIncidents retrieves recurring incident patterns detected over a lookback window.
+func (c *Client) GetRecurringIncidents(ctx context.Context, since time.Duration) ([]RecurrencePattern, error) {
+	url := fmt.Sprintf("%s/api/v1/intelligence/recurrence", c.endpoint)
+	if since > 0 {
+		url = fmt.Sprintf("%s?since=%s", url, since.String())
+	}
+	var resp []RecurrencePattern
+	if err := c.doJSON(ctx, http.MethodGet, url, nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetPrediction retrieves a single prediction by ID.
+func (c *Client) GetPrediction(ctx context.Context, predictionID string) (*Prediction, error) {
+	if predictionID == "" {
+		return nil, fmt.Errorf("prediction ID is required")
+	}
+	url := fmt.Sprintf("%s/api/v1/intelligence/predictions/%s", c.endpoint, predictionID)
+	var resp Prediction
+	if err := c.doJSON(ctx, http.MethodGet, url, nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 func (c *Client) doJSON(ctx context.Context, method, url string, payload any, result any) error {
 	var bodyReader io.Reader
 	if payload != nil {

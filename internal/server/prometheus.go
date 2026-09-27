@@ -20,9 +20,11 @@ type PrometheusExporter struct {
 	activeAlerts []model.AlertEvent
 	anomalies    *model.AnomalyReport
 
-	intelSummary     *intelligence.FleetHealthSummary
-	nodeHealthScores map[string]float64
-	evalDuration     time.Duration
+	intelSummary      *intelligence.FleetHealthSummary
+	nodeHealthScores  map[string]float64
+	evalDuration      time.Duration
+	fleetCapacity     *intelligence.FleetCapacitySummary
+	recurringPatterns []intelligence.RecurrencePattern
 }
 
 // NewPrometheusExporter creates a new exporter instance.
@@ -54,6 +56,17 @@ func (e *PrometheusExporter) UpdateIntelligence(
 	defer e.mu.Unlock()
 	e.intelSummary = summary
 	e.evalDuration = evalDuration
+}
+
+// UpdatePredictive updates the exporter with fleet capacity summary and recurrence patterns.
+func (e *PrometheusExporter) UpdatePredictive(
+	capSummary *intelligence.FleetCapacitySummary,
+	patterns []intelligence.RecurrencePattern,
+) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.fleetCapacity = capSummary
+	e.recurringPatterns = patterns
 }
 
 // Handler returns an HTTP handler for serving Prometheus metrics.
@@ -355,6 +368,66 @@ func (e *PrometheusExporter) RenderMetrics() string {
 		for _, n := range e.intelSummary.LowestScoringNodes {
 			sb.WriteString(fmt.Sprintf("watchdog_intelligence_node_health_score{node_id=\"%s\",hostname=\"%s\"} %.2f\n",
 				n.NodeID, n.Hostname, n.HealthScore.Score))
+		}
+	}
+
+	// Predictive & Capacity Metrics
+	if e.fleetCapacity != nil {
+		sb.WriteString("# HELP watchdog_intelligence_predictions_total Number of active metric predictions\n")
+		sb.WriteString("# TYPE watchdog_intelligence_predictions_total gauge\n")
+		predCounts := make(map[string]map[string]int)
+		for _, p := range e.fleetCapacity.FleetPredictions {
+			m := p.Metric
+			c := string(p.Confidence)
+			if predCounts[m] == nil {
+				predCounts[m] = make(map[string]int)
+			}
+			predCounts[m][c]++
+		}
+		for m, confs := range predCounts {
+			for c, count := range confs {
+				sb.WriteString(fmt.Sprintf("watchdog_intelligence_predictions_total{metric=\"%s\",confidence=\"%s\"} %d\n", m, c, count))
+			}
+		}
+
+		sb.WriteString("# HELP watchdog_intelligence_capacity_risk Nodes at capacity risk by resource and severity\n")
+		sb.WriteString("# TYPE watchdog_intelligence_capacity_risk gauge\n")
+		sb.WriteString(fmt.Sprintf("watchdog_intelligence_capacity_risk{resource=\"cpu\",severity=\"pressure\"} %.2f\n", e.fleetCapacity.CPUPressurePercent))
+		sb.WriteString(fmt.Sprintf("watchdog_intelligence_capacity_risk{resource=\"memory\",severity=\"pressure\"} %.2f\n", e.fleetCapacity.MemoryPressurePercent))
+		sb.WriteString(fmt.Sprintf("watchdog_intelligence_capacity_risk{resource=\"disk\",severity=\"pressure\"} %.2f\n", e.fleetCapacity.DiskPressurePercent))
+		sb.WriteString(fmt.Sprintf("watchdog_intelligence_capacity_risk{resource=\"all\",severity=\"warning\"} %d\n", e.fleetCapacity.NodesApproachingWarning))
+		sb.WriteString(fmt.Sprintf("watchdog_intelligence_capacity_risk{resource=\"all\",severity=\"critical\"} %d\n", e.fleetCapacity.NodesApproachingCritical))
+
+		minTimes := make(map[string]map[string]float64)
+		for _, p := range e.fleetCapacity.FleetPredictions {
+			if p.EstimatedTimeToThreshold != nil && *p.EstimatedTimeToThreshold > 0 {
+				sec := p.EstimatedTimeToThreshold.Seconds()
+				m := p.Metric
+				tType := fmt.Sprintf("%.0f", p.TargetThreshold)
+				if minTimes[m] == nil {
+					minTimes[m] = make(map[string]float64)
+				}
+				if current, exists := minTimes[m][tType]; !exists || sec < current {
+					minTimes[m][tType] = sec
+				}
+			}
+		}
+		if len(minTimes) > 0 {
+			sb.WriteString("# HELP watchdog_intelligence_threshold_time_seconds Estimated time to threshold crossing in seconds\n")
+			sb.WriteString("# TYPE watchdog_intelligence_threshold_time_seconds gauge\n")
+			for m, tMap := range minTimes {
+				for tType, sec := range tMap {
+					sb.WriteString(fmt.Sprintf("watchdog_intelligence_threshold_time_seconds{metric=\"%s\",threshold=\"%s\"} %.2f\n", m, tType, sec))
+				}
+			}
+		}
+	}
+
+	if len(e.recurringPatterns) > 0 {
+		sb.WriteString("# HELP watchdog_intelligence_recurring_incidents_total Total recurring incident occurrences by event type\n")
+		sb.WriteString("# TYPE watchdog_intelligence_recurring_incidents_total gauge\n")
+		for _, pat := range e.recurringPatterns {
+			sb.WriteString(fmt.Sprintf("watchdog_intelligence_recurring_incidents_total{event_type=\"%s\",scope=\"%s\"} %d\n", pat.EventType, pat.Scope, pat.OccurrenceCount))
 		}
 	}
 

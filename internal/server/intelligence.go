@@ -28,9 +28,13 @@ func (s *Server) handleIntelligenceRoute(w http.ResponseWriter, r *http.Request)
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/intelligence")
 	path = strings.TrimPrefix(path, "/")
 
-	// 1. /api/v1/intelligence or /api/v1/intelligence/fleet
+	// 1. /api/v1/intelligence, /api/v1/intelligence/fleet, /api/v1/intelligence/fleet/predictions
 	if path == "" || path == "fleet" {
 		s.handleIntelligenceFleet(w, r, intelSvc)
+		return
+	}
+	if path == "fleet/predictions" {
+		s.handleIntelligenceFleetPredictions(w, r, intelSvc)
 		return
 	}
 
@@ -58,7 +62,22 @@ func (s *Server) handleIntelligenceRoute(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 5. /api/v1/intelligence/nodes/{id}, /api/v1/intelligence/nodes/{id}/trends, /api/v1/intelligence/nodes/{id}/baselines
+	// 5. /api/v1/intelligence/recurrence
+	if path == "recurrence" {
+		s.handleIntelligenceRecurrence(w, r, intelSvc)
+		return
+	}
+
+	// 6. /api/v1/intelligence/predictions/{id}
+	if strings.HasPrefix(path, "predictions/") {
+		predID := strings.TrimPrefix(path, "predictions/")
+		if predID != "" {
+			s.handleIntelligencePredictionByID(w, r, intelSvc, predID)
+			return
+		}
+	}
+
+	// 7. /api/v1/intelligence/nodes/{id}, /api/v1/intelligence/nodes/{id}/trends, /api/v1/intelligence/nodes/{id}/baselines, predictions, capacity
 	if strings.HasPrefix(path, "nodes/") {
 		nodeParts := strings.Split(strings.TrimPrefix(path, "nodes/"), "/")
 		nodeID := nodeParts[0]
@@ -79,6 +98,12 @@ func (s *Server) handleIntelligenceRoute(w http.ResponseWriter, r *http.Request)
 				return
 			case "baselines":
 				s.handleIntelligenceNodeBaselines(w, r, intelSvc, nodeID)
+				return
+			case "predictions":
+				s.handleIntelligenceNodePredictions(w, r, intelSvc, nodeID)
+				return
+			case "capacity":
+				s.handleIntelligenceNodeCapacity(w, r, intelSvc, nodeID)
 				return
 			}
 		}
@@ -179,6 +204,67 @@ func (s *Server) handleIntelligenceFindings(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	s.writeJSON(w, http.StatusOK, findings)
+}
+
+func (s *Server) handleIntelligenceFleetPredictions(w http.ResponseWriter, r *http.Request, intelSvc intelligence.IntelligenceService) {
+	horizon := parseWindowDuration(r.URL.Query().Get("horizon"), 24*time.Hour)
+	summary, err := intelSvc.GetFleetPredictions(r.Context(), horizon)
+	if err != nil {
+		s.writeAPIError(w, r, http.StatusInternalServerError, "INTELLIGENCE_FLEET_PREDICTIONS_FAILED", fmt.Sprintf("Failed to get fleet predictions: %v", err))
+		return
+	}
+	s.writeJSON(w, http.StatusOK, summary)
+}
+
+func (s *Server) handleIntelligenceNodePredictions(w http.ResponseWriter, r *http.Request, intelSvc intelligence.IntelligenceService, nodeID string) {
+	horizon := parseWindowDuration(r.URL.Query().Get("horizon"), 24*time.Hour)
+	predictions, err := intelSvc.GetNodePredictions(r.Context(), nodeID, horizon)
+	if err != nil {
+		if errors.Is(err, intelligence.ErrNodeNotFound) {
+			s.writeAPIError(w, r, http.StatusNotFound, "NODE_NOT_FOUND", fmt.Sprintf("Node '%s' not found", nodeID))
+			return
+		}
+		s.writeAPIError(w, r, http.StatusInternalServerError, "INTELLIGENCE_NODE_PREDICTIONS_FAILED", fmt.Sprintf("Failed to get node predictions: %v", err))
+		return
+	}
+	s.writeJSON(w, http.StatusOK, predictions)
+}
+
+func (s *Server) handleIntelligenceNodeCapacity(w http.ResponseWriter, r *http.Request, intelSvc intelligence.IntelligenceService, nodeID string) {
+	horizon := parseWindowDuration(r.URL.Query().Get("horizon"), 24*time.Hour)
+	report, err := intelSvc.GetNodeCapacityForecast(r.Context(), nodeID, horizon)
+	if err != nil {
+		if errors.Is(err, intelligence.ErrNodeNotFound) {
+			s.writeAPIError(w, r, http.StatusNotFound, "NODE_NOT_FOUND", fmt.Sprintf("Node '%s' not found", nodeID))
+			return
+		}
+		s.writeAPIError(w, r, http.StatusInternalServerError, "INTELLIGENCE_NODE_CAPACITY_FAILED", fmt.Sprintf("Failed to get node capacity forecast: %v", err))
+		return
+	}
+	s.writeJSON(w, http.StatusOK, report)
+}
+
+func (s *Server) handleIntelligenceRecurrence(w http.ResponseWriter, r *http.Request, intelSvc intelligence.IntelligenceService) {
+	since := parseWindowDuration(r.URL.Query().Get("since"), 24*time.Hour)
+	patterns, err := intelSvc.GetRecurringIncidents(r.Context(), since)
+	if err != nil {
+		s.writeAPIError(w, r, http.StatusInternalServerError, "INTELLIGENCE_RECURRENCE_FAILED", fmt.Sprintf("Failed to get recurrence patterns: %v", err))
+		return
+	}
+	s.writeJSON(w, http.StatusOK, patterns)
+}
+
+func (s *Server) handleIntelligencePredictionByID(w http.ResponseWriter, r *http.Request, intelSvc intelligence.IntelligenceService, predictionID string) {
+	pred, err := intelSvc.GetPrediction(r.Context(), predictionID)
+	if err != nil {
+		if errors.Is(err, intelligence.ErrPredictionNotFound) {
+			s.writeAPIError(w, r, http.StatusNotFound, "PREDICTION_NOT_FOUND", fmt.Sprintf("Prediction '%s' not found", predictionID))
+			return
+		}
+		s.writeAPIError(w, r, http.StatusInternalServerError, "INTELLIGENCE_PREDICTION_FAILED", fmt.Sprintf("Failed to get prediction: %v", err))
+		return
+	}
+	s.writeJSON(w, http.StatusOK, pred)
 }
 
 func parseWindowDuration(raw string, defaultVal time.Duration) time.Duration {
