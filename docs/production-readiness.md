@@ -196,12 +196,34 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 
 | Security Control | Implementation | Verification Tool / Command | Status |
 | :--- | :--- | :--- | :--- |
-| **Structural Read-Only Guarantee** | Interfaces limited to `ReadOnlyFleetService` & `ReadOnlyStorage` | Compile-time interface assertion in `internal/mcp` | :white_check_mark: Verified |
-| **Static Tool Allowlist** | `AllowedReadOperations` allowlist; all others return `-32601` | `go test -v ./internal/mcp -run TestSecurity_StrictReadOnlyAllowlist` | :white_check_mark: Verified |
+| **Structural Read-Only Guarantee** | Interfaces limited to `ReadOnlyFleetService`, `ReadOnlyStorage` & `IntelligenceService` | Compile-time interface assertion in `internal/mcp` | :white_check_mark: Verified |
+| **Static Tool Allowlist** | `AllowedReadOperations` allowlist (13 tools); all others return `-32601` | `go test -v ./internal/mcp -run TestSecurity_StrictReadOnlyAllowlist` | :white_check_mark: Verified |
 | **Path Traversal Defense** | `ValidateNodeID` regex `^[a-zA-Z0-9_\-\.]{1,128}$` | `go test -v ./internal/mcp -run TestSecurity_PathTraversalRejection` | :white_check_mark: Verified |
 | **Integer Overflow Defense** | `ParseFlexibleDuration` bounds days `<= 100,000` | `go test -v ./internal/mcp -run TestSecurity_ParseFlexibleDuration_Overflow` | :white_check_mark: Verified |
 | **Auth Error Differentiation** | 401 Unauthorized for missing tokens, 403 Forbidden for invalid | `go test -v ./internal/mcp -run TestSecurity_AuthAndTransportHardening` | :white_check_mark: Verified |
 | **Native Go Fuzzing Suite** | Fuzz tests covering JSON-RPC, arguments, durations, and request IDs | `go test -v ./internal/mcp -run Fuzz` | :white_check_mark: Verified |
 | **Comprehensive Security Audit** | Formally documented threat model, proofs, and matrices in `docs/security-audit.md` | `docs/security-audit.md` | :white_check_mark: Verified |
+
+---
+
+## 10. Phase 2A Fleet Intelligence & Correlated Health Analysis Checklist
+
+| Capability & Invariant | Implementation | Verification Tool / Command | Status |
+| :--- | :--- | :--- | :--- |
+| **Strictly Observational & Zero Mutation** | Zero command execution, zero shell calls, zero config or service modifications | Architectural review & unit tests in `internal/intelligence` | :white_check_mark: Verified |
+| **Explainable Health Scoring (0–100)** | Base 100.0 score with itemized factor deductions across 5 subsystems | `go test -v ./internal/intelligence -run TestEvaluateNodeHealth` | :white_check_mark: Verified |
+| **Authoritative Status Capping** | Critical $\le 49.0$, Warning $\le 79.0$, Offline/Stale $= 0.0$ | `go test -v ./internal/intelligence -run TestEvaluateNodeHealth_StatusCapping` | :white_check_mark: Verified |
+| **Score Trajectory Classification** | Historical score comparisons over 15m/1h (`improving`, `degrading`, `stable`, `volatile`, `unknown`) | `go test -v ./internal/intelligence -run TestCalculateTrajectory` | :white_check_mark: Verified |
+| **Linear Slope Trend Detection** | Closed-form OLS linear regression rate-of-change per minute ($m$) | `go test -v ./internal/intelligence -run TestCalculateMetricTrend` | :white_check_mark: Verified |
+| **Statistical Baseline Percentiles** | Streaming statistical benchmarks ($P_{50}, P_{90}, P_{95}, P_{99}$, mean, stddev) | `go test -v ./internal/intelligence -run TestCalculateBaselines` | :white_check_mark: Verified |
+| **Temporal Pearson Correlation** | Normalized Pearson coefficient ($r$) over sliding time-series buckets | `go test -v ./internal/intelligence -run TestCalculateCorrelations` | :white_check_mark: Verified |
+| **Incident Clustering & Timelines** | Groups co-occurring alerts, failures, and anomalies into unified incidents | `go test -v ./internal/intelligence -run TestClusterIncidents` | :white_check_mark: Verified |
+| **Fleet Pattern Detection** | Multi-node resource pressure ($\ge 3$ nodes) and common diagnostic failures | `go test -v ./internal/intelligence -run TestAnalyzeFleetPatterns` | :white_check_mark: Verified |
+| **Performance & Resource Bounds** | 100-node fleet evaluation in $< 500\text{ms}$ with $< 50\text{MB}$ peak heap | `go test -v -bench=BenchmarkEvaluateFleetHealth ./internal/intelligence` | :white_check_mark: Verified |
+| **Authenticated REST Endpoints** | Authenticated routes under `/api/v1/intelligence/*` with constant-time token check | `go test -v ./internal/server -run TestIntelligenceEndpoints` | :white_check_mark: Verified |
+| **Prometheus Intelligence Gauges** | Fleet/node health scores, active incidents, and findings exported at `/metrics` | `go test -v ./internal/server -run TestPrometheusIntelligenceMetrics` | :white_check_mark: Verified |
+| **CLI Command Suite** | `watchdog intelligence` (`fleet`, `node`, `incidents`, `trends`, `baselines`, `correlations`, `findings`) | `go test -v ./cmd -run TestIntelligence` | :white_check_mark: Verified |
+| **Read-Only MCP Intelligence** | 13 tools, 8 resources, 7 prompt templates | `go test -v ./internal/mcp` | :white_check_mark: Verified |
+
 
 
