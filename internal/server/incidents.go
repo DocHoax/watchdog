@@ -170,7 +170,7 @@ func (s *Server) handleListIncidents(w http.ResponseWriter, r *http.Request, svc
 			for _, sv := range strings.Split(raw, ",") {
 				sv = strings.TrimSpace(sv)
 				if sv != "" {
-					filter.Severity = append(filter.Severity, model.Severity(sv))
+					filter.Severity = append(filter.Severity, model.Severity(strings.ToUpper(sv)))
 				}
 			}
 		}
@@ -341,7 +341,7 @@ func (s *Server) handleGetIncidentTimeline(w http.ResponseWriter, r *http.Reques
 
 	filter.NodeID = strings.TrimSpace(q.Get("node_id"))
 	if sev := strings.TrimSpace(q.Get("min_severity")); sev != "" {
-		filter.MinSeverity = model.Severity(sev)
+		filter.MinSeverity = model.Severity(strings.ToUpper(sev))
 	}
 
 	if startStr := strings.TrimSpace(q.Get("start_time")); startStr != "" {
