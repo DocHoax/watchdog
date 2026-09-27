@@ -480,6 +480,12 @@ func (s *Server) collectAndEvaluate(ctx context.Context) {
 
 	// Update Prometheus exporter
 	s.exporter.Update(snap, diag, activeAlerts, anom)
+
+	if s.incService != nil {
+		if summary, err := s.incService.GetSummary(ctx); err == nil && summary != nil {
+			s.exporter.UpdateIncidents(summary, summary.RecentIncidents)
+		}
+	}
 }
 
 // authMiddleware enforces bearer token authentication if configured and logs audit events.

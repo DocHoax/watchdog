@@ -446,5 +446,42 @@ func (e *PrometheusExporter) RenderMetrics() string {
 		}
 	}
 
+	// Incident Operations Metrics
+	if e.incidentSummary != nil {
+		sb.WriteString("# HELP watchdog_incidents_total Total number of incidents by status\n")
+		sb.WriteString("# TYPE watchdog_incidents_total gauge\n")
+		sb.WriteString(fmt.Sprintf("watchdog_incidents_total{status=\"detected\"} %d\n", e.incidentSummary.DetectedCount))
+		sb.WriteString(fmt.Sprintf("watchdog_incidents_total{status=\"acknowledged\"} %d\n", e.incidentSummary.AcknowledgedCount))
+		sb.WriteString(fmt.Sprintf("watchdog_incidents_total{status=\"investigating\"} %d\n", e.incidentSummary.InvestigatingCount))
+		sb.WriteString(fmt.Sprintf("watchdog_incidents_total{status=\"resolved\"} %d\n", e.incidentSummary.ResolvedCount))
+		sb.WriteString(fmt.Sprintf("watchdog_incidents_total{status=\"suppressed\"} %d\n", e.incidentSummary.SuppressedCount))
+		sb.WriteString(fmt.Sprintf("watchdog_incidents_total{status=\"reopened\"} %d\n", e.incidentSummary.ReopenedCount))
+
+		sb.WriteString("# HELP watchdog_incidents_by_severity_total Total number of incidents by severity\n")
+		sb.WriteString("# TYPE watchdog_incidents_by_severity_total gauge\n")
+		sb.WriteString(fmt.Sprintf("watchdog_incidents_by_severity_total{severity=\"critical\"} %d\n", e.incidentSummary.CriticalCount))
+		sb.WriteString(fmt.Sprintf("watchdog_incidents_by_severity_total{severity=\"warning\"} %d\n", e.incidentSummary.WarningCount))
+		sb.WriteString(fmt.Sprintf("watchdog_incidents_by_severity_total{severity=\"info\"} %d\n", e.incidentSummary.InfoCount))
+
+		if len(e.incidentSummary.ScopeDistribution) > 0 {
+			sb.WriteString("# HELP watchdog_incidents_by_scope_total Total number of incidents by scope\n")
+			sb.WriteString("# TYPE watchdog_incidents_by_scope_total gauge\n")
+			for scope, count := range e.incidentSummary.ScopeDistribution {
+				sb.WriteString(fmt.Sprintf("watchdog_incidents_by_scope_total{scope=\"%s\"} %d\n", scope, count))
+			}
+		}
+
+		if e.incidentSummary.AverageResolutionTime > 0 {
+			sb.WriteString("# HELP watchdog_incidents_average_resolution_seconds Average time to resolve incidents in seconds\n")
+			sb.WriteString("# TYPE watchdog_incidents_average_resolution_seconds gauge\n")
+			sb.WriteString(fmt.Sprintf("watchdog_incidents_average_resolution_seconds %.2f\n", e.incidentSummary.AverageResolutionTime.Seconds()))
+		}
+
+		for _, node := range e.incidentSummary.TopAffectedNodes {
+			sb.WriteString(fmt.Sprintf("watchdog_incidents_node_affected_total{node_id=\"%s\",hostname=\"%s\"} %d\n",
+				node.NodeID, node.Hostname, node.IncidentCount))
+		}
+	}
+
 	return sb.String()
 }
