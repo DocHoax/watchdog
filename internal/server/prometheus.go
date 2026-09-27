@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DocHoax/watchdog/internal/incidents"
 	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
@@ -25,6 +26,9 @@ type PrometheusExporter struct {
 	evalDuration      time.Duration
 	fleetCapacity     *intelligence.FleetCapacitySummary
 	recurringPatterns []intelligence.RecurrencePattern
+
+	incidentSummary *incidents.IncidentSummary
+	incidentList    []incidents.Incident
 }
 
 // NewPrometheusExporter creates a new exporter instance.
