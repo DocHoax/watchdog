@@ -62,6 +62,12 @@ watchdog [command]
 │   ├── register                  # Register a node with fleet controller
 │   ├── heartbeat                 # Transmit manual heartbeat ping
 │   └── deregister                # Decommission and remove a node
+├── mcp (ai)                      # Model Context Protocol (MCP) server & AI integration
+│   ├── serve (start, run)        # Start the MCP daemon (stdio/http/sse)
+│   ├── status (info)             # Display MCP configuration and security posture
+│   ├── tools (list-tools)        # List registered MCP tools and JSON schemas
+│   ├── resources (list-resources)# List registered MCP resource URIs
+│   └── prompts (list-prompts)    # List available MCP prompt templates
 ├── export                        # Export snapshots or metrics to JSON/CSV
 ├── completion                    # Generate shell completion scripts
 └── version                       # Print version and build metadata
@@ -404,7 +410,58 @@ watchdog fleet deregister worker-old-01 --force
 
 ---
 
-### 11. `watchdog export`
+### 11. `watchdog mcp`
+
+Provides Model Context Protocol (MCP) server endpoints and discovery tools for integrating Watchdog with AI assistants (Claude Desktop, Claude Code, Cursor, IDE extensions, autonomous agents). Exposes read-only system telemetry, fleet diagnostics, alerts, and statistical anomalies.
+
+```bash
+watchdog mcp [command] [flags]
+```
+
+#### Aliases
+`ai`
+
+#### Subcommands
+- `watchdog mcp serve`: Starts the MCP server daemon (`--transport stdio|http|sse`).
+  - `--transport`: Protocol transport (`stdio` [default], `http`, `sse`)
+  - `--port`, `-p`: HTTP/SSE listener port (default `8444`)
+  - `--host`, `-H`: Bind IP address (default `127.0.0.1`)
+  - `--token`, `-t`: Bearer authentication token
+  - `--token-file`: Path to file containing authentication token
+  - `--token-env`: Environment variable name holding authentication token
+  - `--tls-cert`: Path to TLS certificate file
+  - `--tls-key`: Path to TLS private key file
+  - `--rate-limit`: Maximum requests per minute (default `120.0`)
+  - `--burst`: Burst capacity for rate limiter (default `20`)
+  - `--max-body-size`: Max HTTP request body size in bytes (default `1048576` / 1MB)
+  - `--read-timeout`: HTTP read timeout in seconds (default `10`)
+  - `--write-timeout`: HTTP write timeout in seconds (default `10`)
+- `watchdog mcp status`: Displays current MCP configuration, capabilities, and security posture (`--json`).
+- `watchdog mcp tools`: Lists registered MCP tool definitions and JSON parameter schemas (`--json`).
+- `watchdog mcp resources`: Lists registered MCP resource URIs and templates (`--json`).
+- `watchdog mcp prompts`: Lists registered MCP prompt templates and workflow recipes (`--json`).
+
+#### Examples
+```bash
+# Start MCP server in stdio mode for local Claude Desktop
+watchdog mcp serve --transport stdio
+
+# Start authenticated HTTP/SSE server on port 8444
+watchdog mcp serve --transport http --port 8444 --token secret-token-12345
+
+# View MCP capabilities and status
+watchdog mcp status
+
+# List tool schemas as JSON
+watchdog mcp tools --json
+
+# List readable MCP resources
+watchdog mcp resources
+```
+
+---
+
+### 12. `watchdog export`
 
 Exports real-time snapshot data or historical time-series metric series from the local SQLite storage engine.
 
@@ -423,7 +480,7 @@ watchdog export [flags]
 
 ---
 
-### 12. `watchdog completion`
+### 13. `watchdog completion`
 
 Generates autocompletion scripts for supported shells.
 
@@ -443,7 +500,7 @@ watchdog completion powershell | Out-String | Invoke-Expression
 
 ---
 
-### 13. `watchdog version`
+### 14. `watchdog version`
 
 Displays detailed version and build metadata.
 
