@@ -150,12 +150,12 @@ const (
 	FindingCategoryAnomalyCluster         FindingCategory = "anomaly_cluster"
 
 	// Phase 2B Predictive Finding Categories
-	FindingCategoryCapacityRisk           FindingCategory = "capacity_risk"
-	FindingCategoryPredictedDegradation   FindingCategory = "predicted_degradation"
-	FindingCategoryThresholdForecast      FindingCategory = "threshold_forecast"
-	FindingCategoryRecurringIncident      FindingCategory = "recurring_incident"
-	FindingCategoryFleetCapacityPressure  FindingCategory = "fleet_capacity_pressure"
-	FindingCategoryAcceleratingResource   FindingCategory = "accelerating_resource_usage"
+	FindingCategoryCapacityRisk          FindingCategory = "capacity_risk"
+	FindingCategoryPredictedDegradation  FindingCategory = "predicted_degradation"
+	FindingCategoryThresholdForecast     FindingCategory = "threshold_forecast"
+	FindingCategoryRecurringIncident     FindingCategory = "recurring_incident"
+	FindingCategoryFleetCapacityPressure FindingCategory = "fleet_capacity_pressure"
+	FindingCategoryAcceleratingResource  FindingCategory = "accelerating_resource_usage"
 )
 
 // PredictionConfidence rates confidence in a predictive threshold or capacity forecast.
@@ -181,24 +181,24 @@ const (
 
 // Prediction represents a deterministic linear threshold projection for a metric on a node.
 type Prediction struct {
-	ID                     string                `json:"id"`
-	NodeID                 string                `json:"node_id"`
-	Metric                 string                `json:"metric"`
-	CurrentValue           float64               `json:"current_value"`
-	TargetThreshold        float64               `json:"target_threshold"`
-	Direction              PredictionDirection   `json:"direction"`
-	SlopePerMinute         float64               `json:"slope_per_minute"`
-	RSquared               float64               `json:"r_squared"`
-	Variance               float64               `json:"variance"`
-	Confidence             PredictionConfidence  `json:"confidence"`
-	EstimatedTimeToThreshold *time.Duration      `json:"estimated_time_to_threshold,omitempty"`
-	PredictedCrossingTime  *time.Time            `json:"predicted_crossing_time,omitempty"`
-	Horizon                time.Duration         `json:"horizon"`
-	ObservationWindow      time.Duration         `json:"observation_window"`
-	SampleCount            int                   `json:"sample_count"`
-	Method                 string                `json:"method"`
-	Evidence               []string              `json:"evidence"`
-	GeneratedAt            time.Time             `json:"generated_at"`
+	ID                       string               `json:"id"`
+	NodeID                   string               `json:"node_id"`
+	Metric                   string               `json:"metric"`
+	CurrentValue             float64              `json:"current_value"`
+	TargetThreshold          float64              `json:"target_threshold"`
+	Direction                PredictionDirection  `json:"direction"`
+	SlopePerMinute           float64              `json:"slope_per_minute"`
+	RSquared                 float64              `json:"r_squared"`
+	Variance                 float64              `json:"variance"`
+	Confidence               PredictionConfidence `json:"confidence"`
+	EstimatedTimeToThreshold *time.Duration       `json:"estimated_time_to_threshold,omitempty"`
+	PredictedCrossingTime    *time.Time           `json:"predicted_crossing_time,omitempty"`
+	Horizon                  time.Duration        `json:"horizon"`
+	ObservationWindow        time.Duration        `json:"observation_window"`
+	SampleCount              int                  `json:"sample_count"`
+	Method                   string               `json:"method"`
+	Evidence                 []string             `json:"evidence"`
+	GeneratedAt              time.Time            `json:"generated_at"`
 }
 
 // CapacityResource identifies the hardware subsystem being evaluated for capacity exhaustion.
@@ -213,19 +213,19 @@ const (
 
 // CapacityForecast represents a capacity projection for a single resource subsystem.
 type CapacityForecast struct {
-	Resource                        CapacityResource     `json:"resource"`
-	Unit                            string               `json:"unit"`
-	CurrentUtilization              float64              `json:"current_utilization"`
-	BaselineUtilization             float64              `json:"baseline_utilization"`
-	TrendSlopePerMinute             float64              `json:"trend_slope_per_minute"`
-	WarningThreshold                float64              `json:"warning_threshold"`
-	CriticalThreshold               float64              `json:"critical_threshold"`
-	TimeToWarning                   *time.Duration       `json:"time_to_warning,omitempty"`
-	TimeToCritical                  *time.Duration       `json:"time_to_critical,omitempty"`
-	Confidence                      PredictionConfidence `json:"confidence"`
+	Resource                         CapacityResource     `json:"resource"`
+	Unit                             string               `json:"unit"`
+	CurrentUtilization               float64              `json:"current_utilization"`
+	BaselineUtilization              float64              `json:"baseline_utilization"`
+	TrendSlopePerMinute              float64              `json:"trend_slope_per_minute"`
+	WarningThreshold                 float64              `json:"warning_threshold"`
+	CriticalThreshold                float64              `json:"critical_threshold"`
+	TimeToWarning                    *time.Duration       `json:"time_to_warning,omitempty"`
+	TimeToCritical                   *time.Duration       `json:"time_to_critical,omitempty"`
+	Confidence                       PredictionConfidence `json:"confidence"`
 	ProjectedUtilizationAfterHorizon float64              `json:"projected_utilization_after_horizon"`
-	Horizon                         time.Duration        `json:"horizon"`
-	Evidence                        []string             `json:"evidence"`
+	Horizon                          time.Duration        `json:"horizon"`
+	Evidence                         []string             `json:"evidence"`
 }
 
 // NodeCapacityReport aggregates multi-resource capacity forecasts for a single node.

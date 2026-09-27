@@ -12,12 +12,12 @@ import (
 
 // ForecastConfig defines parameters for deterministic threshold forecasting.
 type ForecastConfig struct {
-	MinSamples                 int           // Minimum samples required (default: 10)
-	MaxHorizon                 time.Duration // Maximum extrapolation horizon (default: 7*24h)
-	SlopeEpsilon               float64       // Minimum slope per minute to classify as approaching/receding (default: 1e-6)
-	HighConfidenceRSquared     float64       // Minimum R² for high confidence (default: 0.70)
-	MediumConfidenceRSquared   float64       // Minimum R² for medium confidence (default: 0.40)
-	HighConfidenceSampleCount  int           // Minimum sample count for high confidence (default: 20)
+	MinSamples                int           // Minimum samples required (default: 10)
+	MaxHorizon                time.Duration // Maximum extrapolation horizon (default: 7*24h)
+	SlopeEpsilon              float64       // Minimum slope per minute to classify as approaching/receding (default: 1e-6)
+	HighConfidenceRSquared    float64       // Minimum R² for high confidence (default: 0.70)
+	MediumConfidenceRSquared  float64       // Minimum R² for medium confidence (default: 0.40)
+	HighConfidenceSampleCount int           // Minimum sample count for high confidence (default: 20)
 }
 
 // DefaultForecastConfig returns standard production defaults for linear threshold forecasting.

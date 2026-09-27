@@ -265,14 +265,14 @@ func GenerateRecurrenceFindings(patterns []RecurrencePattern) []IntelligenceFind
 		}
 
 		findings = append(findings, IntelligenceFinding{
-			ID:                     findingID,
-			Category:               FindingCategoryRecurringIncident,
-			Severity:               sev,
-			Confidence:             conf,
-			Title:                  title,
-			Description:            desc,
-			AffectedNodes:          nodes,
-			SupportingEvidence:     []string{p.Summary},
+			ID:                 findingID,
+			Category:           FindingCategoryRecurringIncident,
+			Severity:           sev,
+			Confidence:         conf,
+			Title:              title,
+			Description:        desc,
+			AffectedNodes:      nodes,
+			SupportingEvidence: []string{p.Summary},
 			NonInvasiveSuggestions: []string{
 				fmt.Sprintf("Investigate root cause of periodic %s events", p.EventType),
 				"Review scheduled jobs, cron tasks, or memory leaks occurring on a periodic cycle",

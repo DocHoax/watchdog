@@ -269,12 +269,12 @@ func AggregateFleetCapacity(reports []NodeCapacityReport, horizon time.Duration)
 			critNodeIDs = append(critNodeIDs, nodeID)
 		}
 		summary.Findings = append(summary.Findings, IntelligenceFinding{
-			ID:          fmt.Sprintf("find-cap-crit-%d", now.Unix()),
-			Category:    FindingCategoryCapacityRisk,
-			Severity:    model.SeverityCritical,
-			Confidence:  FindingConfidenceHigh,
-			Title:       fmt.Sprintf("%d node(s) projected to reach critical capacity within %v", summary.NodesApproachingCritical, horizon),
-			Description: fmt.Sprintf("Forecasting models project critical resource exhaustion on %d host(s).", summary.NodesApproachingCritical),
+			ID:            fmt.Sprintf("find-cap-crit-%d", now.Unix()),
+			Category:      FindingCategoryCapacityRisk,
+			Severity:      model.SeverityCritical,
+			Confidence:    FindingConfidenceHigh,
+			Title:         fmt.Sprintf("%d node(s) projected to reach critical capacity within %v", summary.NodesApproachingCritical, horizon),
+			Description:   fmt.Sprintf("Forecasting models project critical resource exhaustion on %d host(s).", summary.NodesApproachingCritical),
 			AffectedNodes: critNodeIDs,
 			SupportingEvidence: []string{
 				fmt.Sprintf("Critical threshold crossings projected within forecast horizon (%v)", horizon),
