@@ -16,24 +16,28 @@ import (
 
 func TestToolDefinitions(t *testing.T) {
 	tools := ToolDefinitions()
-	if len(tools) != 13 {
-		t.Fatalf("expected 13 tool definitions, got %d", len(tools))
+	if len(tools) != 17 {
+		t.Fatalf("expected 17 tool definitions, got %d", len(tools))
 	}
 
 	expectedTools := map[string]bool{
-		"list_nodes":                false,
-		"get_node":                  false,
-		"get_node_health":           false,
-		"get_node_snapshot":         false,
-		"get_fleet_health":          false,
-		"get_node_metrics":          false,
-		"get_recent_diagnostics":    false,
-		"get_active_alerts":         false,
-		"get_fleet_intelligence":    false,
-		"get_node_intelligence":     false,
-		"get_fleet_incidents":       false,
-		"get_intelligence_findings": false,
-		"get_node_trends":           false,
+		"list_nodes":                 false,
+		"get_node":                   false,
+		"get_node_health":            false,
+		"get_node_snapshot":          false,
+		"get_fleet_health":           false,
+		"get_node_metrics":           false,
+		"get_recent_diagnostics":     false,
+		"get_active_alerts":          false,
+		"get_fleet_intelligence":     false,
+		"get_node_intelligence":      false,
+		"get_fleet_incidents":        false,
+		"get_intelligence_findings":  false,
+		"get_node_trends":            false,
+		"get_node_predictions":       false,
+		"get_node_capacity_forecast": false,
+		"get_fleet_predictions":      false,
+		"get_recurring_incidents":    false,
 	}
 
 	for _, tool := range tools {
@@ -345,6 +349,56 @@ func TestToolRegistry_FleetMode(t *testing.T) {
 		}
 		if !strings.Contains(res.Content[0].Text, "node-prod-01") {
 			t.Errorf("expected trends to contain node-prod-01, got: %s", res.Content[0].Text)
+		}
+	})
+
+	t.Run("get_node_predictions", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_node_predictions", map[string]any{
+			"node_id": "node-prod-01",
+			"horizon": "6h",
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("get_node_capacity_forecast", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_node_capacity_forecast", map[string]any{
+			"node_id": "node-prod-01",
+			"horizon": "24h",
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("get_fleet_predictions", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_fleet_predictions", map[string]any{
+			"horizon": "24h",
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("get_recurring_incidents", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_recurring_incidents", map[string]any{
+			"since": "24h",
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
 		}
 	})
 

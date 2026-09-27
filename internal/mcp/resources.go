@@ -266,8 +266,7 @@ func (r *ResourceRegistry) readIntelligenceResource(ctx context.Context, origURI
 		return resourceResult(origURI, patterns)
 	}
 
-	if strings.HasPrefix(path, "nodes/") {
-		nodePath := strings.TrimPrefix(path, "nodes/")
+	if nodePath, ok := strings.CutPrefix(path, "nodes/"); ok {
 		parts := strings.Split(nodePath, "/")
 		nodeID := parts[0]
 		if err := ValidateNodeID(nodeID); err != nil {
