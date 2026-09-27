@@ -348,6 +348,10 @@ func TestConfig_Save_SafeSerialization(t *testing.T) {
 	cfg.Agent.TokenFile = "/etc/watchdog/token"
 	cfg.Agent.TLSKey = "resolved-in-memory-key"
 	cfg.Agent.TLSKeyFile = "/etc/watchdog/key.pem"
+	cfg.MCP.Token = "resolved-in-memory-mcp-token"
+	cfg.MCP.TokenFile = "/etc/watchdog/mcp_token"
+	cfg.MCP.TLSKey = "resolved-in-memory-mcp-key"
+	cfg.MCP.TLSKeyFile = "/etc/watchdog/mcp_key.pem"
 
 	if err := cfg.Save(savePath); err != nil {
 		t.Fatalf("Failed to save config: %v", err)
@@ -367,8 +371,17 @@ func TestConfig_Save_SafeSerialization(t *testing.T) {
 	if stringContains(savedStr, "resolved-in-memory-key") {
 		t.Errorf("Plaintext TLS key was leaked into saved config file!")
 	}
+	if stringContains(savedStr, "resolved-in-memory-mcp-token") {
+		t.Errorf("Plaintext MCP token was leaked into saved config file!")
+	}
+	if stringContains(savedStr, "resolved-in-memory-mcp-key") {
+		t.Errorf("Plaintext MCP TLS key was leaked into saved config file!")
+	}
 	if !stringContains(savedStr, "token_file: /etc/watchdog/token") {
 		t.Errorf("token_file reference should be preserved in saved config file")
+	}
+	if !stringContains(savedStr, "token_file: /etc/watchdog/mcp_token") {
+		t.Errorf("MCP token_file reference should be preserved in saved config file")
 	}
 }
 
@@ -467,6 +480,183 @@ func TestFleetConfig_ResolveToken_Precedence(t *testing.T) {
 	}
 	if resolved != "plain-fleet-token" {
 		t.Errorf("Expected plain token, got: %s", resolved)
+	}
+}
+
+func TestMCPConfig_ValidationAndRedaction(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.MCP.Enabled = true
+	cfg.MCP.Transport = "stdio"
+	cfg.MCP.Port = 8443
+	cfg.MCP.BindAddress = "127.0.0.1"
+	cfg.MCP.Token = "mcp-secret-token"
+	cfg.MCP.TLSCert = "cert-data"
+	cfg.MCP.TLSKey = "key-data"
+	cfg.MCP.RateLimitRate = 10.0
+	cfg.MCP.RateLimitBurst = 20
+	cfg.MCP.MaxRequestBodyBytes = 1048576
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Expected valid MCP config, got: %v", err)
+	}
+
+	redacted := cfg.Redacted()
+	if redacted.MCP.Token != "[REDACTED]" {
+		t.Errorf("Expected redacted MCP token, got: %s", redacted.MCP.Token)
+	}
+	if redacted.MCP.TLSKey != "[REDACTED]" {
+		t.Errorf("Expected redacted MCP TLSKey, got: %s", redacted.MCP.TLSKey)
+	}
+
+	// Test invalid transport
+	invalidCfg := *cfg
+	invalidCfg.MCP.Transport = "invalid"
+	if err := invalidCfg.Validate(); err == nil {
+		t.Errorf("Expected error for invalid MCP transport")
+	}
+
+	// Test invalid port for http transport
+	invalidCfg = *cfg
+	invalidCfg.MCP.Transport = "http"
+	invalidCfg.MCP.Port = 70000
+	if err := invalidCfg.Validate(); err == nil {
+		t.Errorf("Expected error for port > 65535")
+	}
+
+	// Test invalid rate limits
+	invalidCfg = *cfg
+	invalidCfg.MCP.RateLimitRate = -1
+	if err := invalidCfg.Validate(); err == nil {
+		t.Errorf("Expected error for rate_limit_rate <= 0")
+	}
+
+	invalidCfg = *cfg
+	invalidCfg.MCP.RateLimitBurst = 0
+	if err := invalidCfg.Validate(); err == nil {
+		t.Errorf("Expected error for rate_limit_burst < 1")
+	}
+}
+
+func TestMCPConfig_ResolveToken_Precedence(t *testing.T) {
+	tempDir := t.TempDir()
+	tokenFile := filepath.Join(tempDir, "mcp.token")
+	if err := os.WriteFile(tokenFile, []byte("file-mcp-token\n"), 0600); err != nil {
+		t.Fatalf("Failed to write token file: %v", err)
+	}
+
+	t.Setenv("CUSTOM_MCP_TOKEN_ENV", "custom-env-mcp-token")
+	t.Setenv("WATCHDOG_MCP_TOKEN", "default-mcp-token")
+
+	mcp := MCPConfig{
+		Token:     "plain-mcp-token",
+		TokenEnv:  "CUSTOM_MCP_TOKEN_ENV",
+		TokenFile: tokenFile,
+	}
+
+	// 1. File precedence
+	resolved, err := mcp.ResolveToken()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if resolved != "file-mcp-token" {
+		t.Errorf("Expected file token, got: %s", resolved)
+	}
+
+	// 2. Custom env precedence
+	mcp.TokenFile = ""
+	resolved, err = mcp.ResolveToken()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if resolved != "custom-env-mcp-token" {
+		t.Errorf("Expected custom env token, got: %s", resolved)
+	}
+
+	// 3. Default env precedence
+	t.Setenv("CUSTOM_MCP_TOKEN_ENV", "")
+	resolved, err = mcp.ResolveToken()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if resolved != "default-mcp-token" {
+		t.Errorf("Expected default env token, got: %s", resolved)
+	}
+
+	// 4. Plain token
+	t.Setenv("WATCHDOG_MCP_TOKEN", "")
+	t.Setenv("WATCHDOG_AUTH_TOKEN", "")
+	t.Setenv("WATCHDOG_TOKEN", "")
+	resolved, err = mcp.ResolveToken()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if resolved != "plain-mcp-token" {
+		t.Errorf("Expected plain token, got: %s", resolved)
+	}
+}
+
+func TestMCPConfig_ResolveTLS_Precedence(t *testing.T) {
+	tempDir := t.TempDir()
+	certFile := filepath.Join(tempDir, "mcp.crt")
+	keyFile := filepath.Join(tempDir, "mcp.key")
+	if err := os.WriteFile(certFile, []byte("cert-file-content\n"), 0600); err != nil {
+		t.Fatalf("Failed to write cert file: %v", err)
+	}
+	if err := os.WriteFile(keyFile, []byte("key-file-content\n"), 0600); err != nil {
+		t.Fatalf("Failed to write key file: %v", err)
+	}
+
+	t.Setenv("CUSTOM_MCP_CERT_ENV", "custom-cert-env-val")
+	t.Setenv("CUSTOM_MCP_KEY_ENV", "custom-key-env-val")
+	t.Setenv("WATCHDOG_MCP_TLS_CERT", "default-cert-env-val")
+	t.Setenv("WATCHDOG_MCP_TLS_KEY", "default-key-env-val")
+
+	mcp := MCPConfig{
+		TLSCert:     "plain-cert",
+		TLSCertFile: certFile,
+		TLSCertEnv:  "CUSTOM_MCP_CERT_ENV",
+		TLSKey:      "plain-key",
+		TLSKeyFile:  keyFile,
+		TLSKeyEnv:   "CUSTOM_MCP_KEY_ENV",
+	}
+
+	// 1. File precedence
+	cert, err := mcp.ResolveTLSCert()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	key, err := mcp.ResolveTLSKey()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if cert != certFile {
+		t.Errorf("Expected cert file %s, got: %s", certFile, cert)
+	}
+	if key != keyFile {
+		t.Errorf("Expected key file %s, got: %s", keyFile, key)
+	}
+
+	// Test ResolveSecrets method
+	if err := mcp.ResolveSecrets(); err != nil {
+		t.Fatalf("Failed to resolve secrets: %v", err)
+	}
+	if mcp.TLSCert != certFile || mcp.TLSKey != keyFile {
+		t.Errorf("ResolveSecrets did not set cert/key properly: cert=%s, key=%s", mcp.TLSCert, mcp.TLSKey)
+	}
+
+	// 2. Custom env precedence
+	mcp.TLSCertFile = ""
+	mcp.TLSKeyFile = ""
+	cert, err = mcp.ResolveTLSCert()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	key, err = mcp.ResolveTLSKey()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if cert != "custom-cert-env-val" || key != "custom-key-env-val" {
+		t.Errorf("Expected custom env cert/key, got: cert=%s, key=%s", cert, key)
 	}
 }
 
