@@ -269,6 +269,85 @@ func TestToolRegistry_FleetMode(t *testing.T) {
 		}
 	})
 
+	t.Run("get_fleet_intelligence", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_fleet_intelligence", map[string]any{})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+		if !strings.Contains(res.Content[0].Text, "total_nodes") && !strings.Contains(res.Content[0].Text, "TotalNodes") {
+			t.Errorf("expected fleet intelligence summary, got: %s", res.Content[0].Text)
+		}
+	})
+
+	t.Run("get_node_intelligence valid", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_node_intelligence", map[string]any{
+			"node_id": "node-prod-01",
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+		if !strings.Contains(res.Content[0].Text, "node-prod-01") {
+			t.Errorf("expected node intelligence to contain node-prod-01, got: %s", res.Content[0].Text)
+		}
+	})
+
+	t.Run("get_node_intelligence not found", func(t *testing.T) {
+		_, jerr := registry.Execute(ctx, mcpCtx, "get_node_intelligence", map[string]any{
+			"node_id": "nonexistent-node",
+		})
+		if jerr == nil {
+			t.Fatalf("expected error for nonexistent node")
+		}
+		if jerr.Code != CodeNodeNotFound {
+			t.Errorf("expected CodeNodeNotFound, got: %d", jerr.Code)
+		}
+	})
+
+	t.Run("get_fleet_incidents", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_fleet_incidents", map[string]any{})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("get_intelligence_findings", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_intelligence_findings", map[string]any{
+			"category":     "fleet_pattern",
+			"min_severity": "warning",
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("get_node_trends", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_node_trends", map[string]any{
+			"node_id": "node-prod-01",
+			"window":  "1h",
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+		if !strings.Contains(res.Content[0].Text, "node-prod-01") {
+			t.Errorf("expected trends to contain node-prod-01, got: %s", res.Content[0].Text)
+		}
+	})
+
 	t.Run("unknown tool name", func(t *testing.T) {
 		_, jerr := registry.Execute(ctx, mcpCtx, "execute_shell_command", map[string]any{})
 		if jerr == nil {
