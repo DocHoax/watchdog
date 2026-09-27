@@ -228,7 +228,7 @@ func TestToolRegistry_FleetMode(t *testing.T) {
 	t.Run("get_node_metrics invalid metric", func(t *testing.T) {
 		_, jerr := registry.Execute(ctx, mcpCtx, "get_node_metrics", map[string]any{
 			"node_id": "node-prod-01",
-			"metric":  "invalid_metric_name",
+			"metric":  "bad/metric/name!",
 		})
 		if jerr == nil {
 			t.Fatalf("expected error for invalid metric name")
