@@ -73,6 +73,17 @@ func (e *PrometheusExporter) UpdatePredictive(
 	e.recurringPatterns = patterns
 }
 
+// UpdateIncidents updates the exporter with incident summary and incident list.
+func (e *PrometheusExporter) UpdateIncidents(
+	summary *incidents.IncidentSummary,
+	incList []incidents.Incident,
+) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.incidentSummary = summary
+	e.incidentList = incList
+}
+
 // Handler returns an HTTP handler for serving Prometheus metrics.
 func (e *PrometheusExporter) Handler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
