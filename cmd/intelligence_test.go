@@ -197,6 +197,139 @@ func setupIntelligenceMockServer(t *testing.T) *httptest.Server {
 				},
 			})
 
+		case r.URL.Path == "/api/v1/intelligence/fleet/predictions" && r.Method == http.MethodGet:
+			dur := 45 * time.Minute
+			_ = json.NewEncoder(w).Encode(intelligence.FleetCapacitySummary{
+				EvaluatedAt:              now,
+				TotalNodes:               2,
+				CPUPressurePercent:       50.0,
+				MemoryPressurePercent:    0.0,
+				DiskPressurePercent:      0.0,
+				NodesApproachingWarning:  1,
+				NodesApproachingCritical: 0,
+				FleetPredictions: []intelligence.Prediction{
+					{
+						ID:                       "pred-01",
+						NodeID:                   "node-01",
+						Metric:                   "cpu.usage_percent",
+						CurrentValue:             75.0,
+						TargetThreshold:          80.0,
+						Direction:                intelligence.PredictionDirectionApproaching,
+						SlopePerMinute:           0.11,
+						RSquared:                 0.95,
+						Confidence:               intelligence.PredictionConfidenceHigh,
+						EstimatedTimeToThreshold: &dur,
+						Horizon:                  24 * time.Hour,
+						GeneratedAt:              now,
+					},
+				},
+				TopCapacityRisks: []intelligence.NodeCapacityReport{
+					{
+						NodeID:   "node-01",
+						Hostname: "srv-01",
+						Status:   model.NodeStatusHealthy,
+						Forecasts: []intelligence.CapacityForecast{
+							{
+								Resource:                         intelligence.CapacityResourceCPU,
+								Unit:                             "%",
+								CurrentUtilization:               75.0,
+								TrendSlopePerMinute:              0.11,
+								TimeToWarning:                    &dur,
+								Confidence:                       intelligence.PredictionConfidenceHigh,
+								ProjectedUtilizationAfterHorizon: 95.0,
+							},
+						},
+					},
+				},
+			})
+
+		case r.URL.Path == "/api/v1/intelligence/nodes/node-01/predictions" && r.Method == http.MethodGet:
+			dur := 45 * time.Minute
+			_ = json.NewEncoder(w).Encode([]intelligence.Prediction{
+				{
+					ID:                       "pred-01",
+					NodeID:                   "node-01",
+					Metric:                   "cpu.usage_percent",
+					CurrentValue:             75.0,
+					TargetThreshold:          80.0,
+					Direction:                intelligence.PredictionDirectionApproaching,
+					SlopePerMinute:           0.11,
+					RSquared:                 0.95,
+					Confidence:               intelligence.PredictionConfidenceHigh,
+					EstimatedTimeToThreshold: &dur,
+					Horizon:                  24 * time.Hour,
+					GeneratedAt:              now,
+				},
+			})
+
+		case r.URL.Path == "/api/v1/intelligence/nodes/node-01/capacity" && r.Method == http.MethodGet:
+			dur := 45 * time.Minute
+			_ = json.NewEncoder(w).Encode(intelligence.NodeCapacityReport{
+				NodeID:      "node-01",
+				Hostname:    "srv-01",
+				Status:      model.NodeStatusHealthy,
+				EvaluatedAt: now,
+				Forecasts: []intelligence.CapacityForecast{
+					{
+						Resource:                         intelligence.CapacityResourceCPU,
+						Unit:                             "%",
+						CurrentUtilization:               75.0,
+						BaselineUtilization:              45.0,
+						TrendSlopePerMinute:              0.11,
+						WarningThreshold:                 80.0,
+						CriticalThreshold:                95.0,
+						TimeToWarning:                    &dur,
+						Confidence:                       intelligence.PredictionConfidenceHigh,
+						ProjectedUtilizationAfterHorizon: 95.0,
+						Horizon:                          24 * time.Hour,
+						Evidence:                         []string{"Growth rate +0.11%/min"},
+					},
+				},
+			})
+
+		case r.URL.Path == "/api/v1/intelligence/recurrence" && r.Method == http.MethodGet:
+			_ = json.NewEncoder(w).Encode([]intelligence.RecurrencePattern{
+				{
+					ID:                     "rec-01",
+					Scope:                  intelligence.RecurrenceScopeNode,
+					TargetID:               "node-01",
+					EventType:              "cpu_spike",
+					OccurrenceCount:        5,
+					FirstOccurrence:        now.Add(-48 * time.Hour),
+					MostRecentOccurrence:   now.Add(-2 * time.Hour),
+					AverageInterval:        11 * time.Hour,
+					MedianInterval:         10 * time.Hour,
+					CoefficientOfVariation: 0.15,
+					Confidence:             intelligence.PredictionConfidenceHigh,
+					RelatedIncidentIDs:     []string{"inc-01"},
+					Summary:                "Periodic CPU spikes on node-01 every ~11h",
+				},
+			})
+
+		case r.URL.Path == "/api/v1/intelligence/predictions/pred-01" && r.Method == http.MethodGet:
+			dur := 45 * time.Minute
+			crossTime := now.Add(dur)
+			_ = json.NewEncoder(w).Encode(intelligence.Prediction{
+				ID:                       "pred-01",
+				NodeID:                   "node-01",
+				Metric:                   "cpu.usage_percent",
+				CurrentValue:             75.0,
+				TargetThreshold:          80.0,
+				Direction:                intelligence.PredictionDirectionApproaching,
+				SlopePerMinute:           0.11,
+				RSquared:                 0.95,
+				Variance:                 1.2,
+				Confidence:               intelligence.PredictionConfidenceHigh,
+				EstimatedTimeToThreshold: &dur,
+				PredictedCrossingTime:    &crossTime,
+				Horizon:                  24 * time.Hour,
+				ObservationWindow:        1 * time.Hour,
+				SampleCount:              30,
+				Method:                   "linear_regression_extrapolation",
+				Evidence:                 []string{"Observed +0.11%/min over 30 samples", "R² = 0.950"},
+				GeneratedAt:              now,
+			})
+
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			_ = json.NewEncoder(w).Encode(map[string]any{
@@ -550,5 +683,206 @@ func TestCmd_Intelligence_MissingServerURL(t *testing.T) {
 	}
 	if GetExitCode(err) != ExitConfigError {
 		t.Errorf("Expected ExitConfigError, got %d", GetExitCode(err))
+	}
+}
+
+func TestCmd_Intelligence_Predictions(t *testing.T) {
+	ts := setupIntelligenceMockServer(t)
+	defer ts.Close()
+
+	intelServerURL = ts.URL
+	intelToken = "test-token"
+	intelTimeout = 5 * time.Second
+	intelHorizon = "24h"
+	globalCfg = config.DefaultConfig()
+
+	// 1. Fleet predictions (human readable)
+	intelFormat = "text"
+	outFleet, err := captureStdout(func() error {
+		return runIntelligencePredictions(intelligencePredictionsCmd, nil)
+	})
+	if err != nil {
+		t.Fatalf("runIntelligencePredictions fleet returned error: %v", err)
+	}
+	if !strings.Contains(outFleet, "Fleet Threshold Predictions & Capacity Summary") || !strings.Contains(outFleet, "cpu.usage_percent") {
+		t.Errorf("Unexpected fleet predictions output: %s", outFleet)
+	}
+
+	// 2. Fleet predictions (JSON)
+	intelFormat = "json"
+	outFleetJSON, err := captureStdout(func() error {
+		return runIntelligencePredictions(intelligencePredictionsCmd, nil)
+	})
+	if err != nil {
+		t.Fatalf("runIntelligencePredictions fleet JSON returned error: %v", err)
+	}
+	var fleetSum intelligence.FleetCapacitySummary
+	if err := json.Unmarshal([]byte(outFleetJSON), &fleetSum); err != nil {
+		t.Fatalf("Failed to parse JSON fleet predictions: %v", err)
+	}
+	if fleetSum.TotalNodes != 2 || len(fleetSum.FleetPredictions) != 1 {
+		t.Errorf("Unexpected parsed fleet predictions: %+v", fleetSum)
+	}
+
+	// 3. Node predictions (human readable)
+	intelFormat = "text"
+	outNode, err := captureStdout(func() error {
+		return runIntelligencePredictions(intelligencePredictionsCmd, []string{"node-01"})
+	})
+	if err != nil {
+		t.Fatalf("runIntelligencePredictions node returned error: %v", err)
+	}
+	if !strings.Contains(outNode, "Metric Threshold Predictions for Node \"node-01\"") || !strings.Contains(outNode, "cpu.usage_percent") {
+		t.Errorf("Unexpected node predictions output: %s", outNode)
+	}
+
+	// 4. Node predictions (JSON)
+	intelFormat = "json"
+	outNodeJSON, err := captureStdout(func() error {
+		return runIntelligencePredictions(intelligencePredictionsCmd, []string{"node-01"})
+	})
+	if err != nil {
+		t.Fatalf("runIntelligencePredictions node JSON returned error: %v", err)
+	}
+	var nodePreds []intelligence.Prediction
+	if err := json.Unmarshal([]byte(outNodeJSON), &nodePreds); err != nil {
+		t.Fatalf("Failed to parse JSON node predictions: %v", err)
+	}
+	if len(nodePreds) != 1 || nodePreds[0].ID != "pred-01" {
+		t.Errorf("Unexpected parsed node predictions: %+v", nodePreds)
+	}
+
+	// 5. Prediction by ID (human readable)
+	intelFormat = "text"
+	outID, err := captureStdout(func() error {
+		return runIntelligencePredictions(intelligencePredictionsCmd, []string{"pred-01"})
+	})
+	if err != nil {
+		t.Fatalf("runIntelligencePredictions by ID returned error: %v", err)
+	}
+	if !strings.Contains(outID, "Prediction Detail: pred-01 (Node: node-01)") || !strings.Contains(outID, "R² (Goodness of Fit)") {
+		t.Errorf("Unexpected prediction by ID output: %s", outID)
+	}
+
+	// 6. Prediction by ID (JSON)
+	intelFormat = "json"
+	outIDJSON, err := captureStdout(func() error {
+		return runIntelligencePredictions(intelligencePredictionsCmd, []string{"pred-01"})
+	})
+	if err != nil {
+		t.Fatalf("runIntelligencePredictions by ID JSON returned error: %v", err)
+	}
+	var singlePred intelligence.Prediction
+	if err := json.Unmarshal([]byte(outIDJSON), &singlePred); err != nil {
+		t.Fatalf("Failed to parse JSON single prediction: %v", err)
+	}
+	if singlePred.ID != "pred-01" || singlePred.RSquared != 0.95 {
+		t.Errorf("Unexpected parsed single prediction: %+v", singlePred)
+	}
+}
+
+func TestCmd_Intelligence_Capacity(t *testing.T) {
+	ts := setupIntelligenceMockServer(t)
+	defer ts.Close()
+
+	intelServerURL = ts.URL
+	intelToken = "test-token"
+	intelTimeout = 5 * time.Second
+	intelHorizon = "24h"
+	globalCfg = config.DefaultConfig()
+
+	// 1. Fleet capacity (human readable)
+	intelFormat = "text"
+	outFleet, err := captureStdout(func() error {
+		return runIntelligenceCapacity(intelligenceCapacityCmd, nil)
+	})
+	if err != nil {
+		t.Fatalf("runIntelligenceCapacity fleet returned error: %v", err)
+	}
+	if !strings.Contains(outFleet, "Fleet Capacity Intelligence & Pressure Forecast") || !strings.Contains(outFleet, "CPU Pressure:") {
+		t.Errorf("Unexpected fleet capacity output: %s", outFleet)
+	}
+
+	// 2. Fleet capacity (JSON)
+	intelFormat = "json"
+	outFleetJSON, err := captureStdout(func() error {
+		return runIntelligenceCapacity(intelligenceCapacityCmd, nil)
+	})
+	if err != nil {
+		t.Fatalf("runIntelligenceCapacity fleet JSON returned error: %v", err)
+	}
+	var fleetCap intelligence.FleetCapacitySummary
+	if err := json.Unmarshal([]byte(outFleetJSON), &fleetCap); err != nil {
+		t.Fatalf("Failed to parse JSON fleet capacity: %v", err)
+	}
+	if fleetCap.CPUPressurePercent != 50.0 || len(fleetCap.TopCapacityRisks) != 1 {
+		t.Errorf("Unexpected parsed fleet capacity: %+v", fleetCap)
+	}
+
+	// 3. Node capacity (human readable)
+	intelFormat = "text"
+	outNode, err := captureStdout(func() error {
+		return runIntelligenceCapacity(intelligenceCapacityCmd, []string{"node-01"})
+	})
+	if err != nil {
+		t.Fatalf("runIntelligenceCapacity node returned error: %v", err)
+	}
+	if !strings.Contains(outNode, "Capacity Exhaustion Forecast for Node \"node-01\"") || !strings.Contains(outNode, "CPU") {
+		t.Errorf("Unexpected node capacity output: %s", outNode)
+	}
+
+	// 4. Node capacity (JSON)
+	intelFormat = "json"
+	outNodeJSON, err := captureStdout(func() error {
+		return runIntelligenceCapacity(intelligenceCapacityCmd, []string{"node-01"})
+	})
+	if err != nil {
+		t.Fatalf("runIntelligenceCapacity node JSON returned error: %v", err)
+	}
+	var nodeCap intelligence.NodeCapacityReport
+	if err := json.Unmarshal([]byte(outNodeJSON), &nodeCap); err != nil {
+		t.Fatalf("Failed to parse JSON node capacity: %v", err)
+	}
+	if nodeCap.NodeID != "node-01" || len(nodeCap.Forecasts) != 1 {
+		t.Errorf("Unexpected parsed node capacity: %+v", nodeCap)
+	}
+}
+
+func TestCmd_Intelligence_Recurrence(t *testing.T) {
+	ts := setupIntelligenceMockServer(t)
+	defer ts.Close()
+
+	intelServerURL = ts.URL
+	intelToken = "test-token"
+	intelTimeout = 5 * time.Second
+	intelSince = "24h"
+	globalCfg = config.DefaultConfig()
+
+	// 1. Recurrence patterns (human readable)
+	intelFormat = "text"
+	out, err := captureStdout(func() error {
+		return runIntelligenceRecurrence(intelligenceRecurrenceCmd, nil)
+	})
+	if err != nil {
+		t.Fatalf("runIntelligenceRecurrence returned error: %v", err)
+	}
+	if !strings.Contains(out, "Recurring Incident Patterns (1)") || !strings.Contains(out, "cpu_spike") {
+		t.Errorf("Unexpected recurrence output: %s", out)
+	}
+
+	// 2. Recurrence patterns (JSON)
+	intelFormat = "json"
+	outJSON, err := captureStdout(func() error {
+		return runIntelligenceRecurrence(intelligenceRecurrenceCmd, nil)
+	})
+	if err != nil {
+		t.Fatalf("runIntelligenceRecurrence JSON returned error: %v", err)
+	}
+	var patterns []intelligence.RecurrencePattern
+	if err := json.Unmarshal([]byte(outJSON), &patterns); err != nil {
+		t.Fatalf("Failed to parse JSON recurrence patterns: %v", err)
+	}
+	if len(patterns) != 1 || patterns[0].ID != "rec-01" || patterns[0].OccurrenceCount != 5 {
+		t.Errorf("Unexpected parsed recurrence patterns: %+v", patterns)
 	}
 }
