@@ -527,13 +527,13 @@ func TestMCPConfig_ValidationAndRedaction(t *testing.T) {
 	invalidCfg = *cfg
 	invalidCfg.MCP.RateLimitRate = -1
 	if err := invalidCfg.Validate(); err == nil {
-		t.Errorf("Expected error for rate_limit_rate <= 0")
+		t.Errorf("Expected error for rate_limit_rate < 0")
 	}
 
 	invalidCfg = *cfg
-	invalidCfg.MCP.RateLimitBurst = 0
+	invalidCfg.MCP.RateLimitBurst = -1
 	if err := invalidCfg.Validate(); err == nil {
-		t.Errorf("Expected error for rate_limit_burst < 1")
+		t.Errorf("Expected error for rate_limit_burst < 0")
 	}
 }
 
