@@ -278,6 +278,26 @@ func DefaultConfig() *Config {
 			StaleThreshold:    2 * time.Minute,
 			OfflineThreshold:  10 * time.Minute,
 		},
+		MCP: MCPConfig{
+			Enabled:             false,
+			Transport:           "stdio",
+			Port:                8443,
+			BindAddress:         "127.0.0.1",
+			Token:               "",
+			TokenFile:           "",
+			TokenEnv:            "",
+			TLSCert:             "",
+			TLSCertFile:         "",
+			TLSCertEnv:          "",
+			TLSKey:              "",
+			TLSKeyFile:          "",
+			TLSKeyEnv:           "",
+			RateLimitRate:       10.0,
+			RateLimitBurst:      20,
+			MaxRequestBodyBytes: 1048576, // 1MB
+			ReadTimeout:         10 * time.Second,
+			WriteTimeout:        10 * time.Second,
+		},
 		Docker: DockerConfig{
 			Enabled: true,
 			Host:    "",
@@ -391,6 +411,18 @@ func (c *Config) Save(path string) error {
 		saveFleet.Token = ""
 	}
 	saveCopy.Fleet = saveFleet
+
+	saveMCP := c.MCP
+	if saveMCP.TokenFile != "" || saveMCP.TokenEnv != "" {
+		saveMCP.Token = ""
+	}
+	if saveMCP.TLSKeyFile != "" || saveMCP.TLSKeyEnv != "" {
+		saveMCP.TLSKey = ""
+	}
+	if saveMCP.TLSCertFile != "" || saveMCP.TLSCertEnv != "" {
+		saveMCP.TLSCert = ""
+	}
+	saveCopy.MCP = saveMCP
 
 	data, err := yaml.Marshal(&saveCopy)
 	if err != nil {
@@ -645,12 +677,173 @@ func (f *FleetConfig) CloneRedacted() *FleetConfig {
 	return f.Redacted()
 }
 
+// ResolveToken resolves the MCP authentication token following the precedence hierarchy:
+// 1. Secret file path (TokenFile)
+// 2. Explicit environment variable name (TokenEnv)
+// 3. Default environment variables (WATCHDOG_MCP_TOKEN, WATCHDOG_AUTH_TOKEN, WATCHDOG_TOKEN)
+// 4. Plain config value (Token)
+func (m *MCPConfig) ResolveToken() (string, error) {
+	if m.TokenFile != "" {
+		resolvedPath := m.TokenFile
+		if strings.HasPrefix(resolvedPath, "~") {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", fmt.Errorf("failed to expand home dir for token_file %q: %w", m.TokenFile, err)
+			}
+			resolvedPath = filepath.Join(home, resolvedPath[1:])
+		}
+		data, err := os.ReadFile(resolvedPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read token_file %q: %w", m.TokenFile, err)
+		}
+		token := strings.TrimSpace(string(data))
+		if token == "" {
+			return "", fmt.Errorf("token_file %q is empty", m.TokenFile)
+		}
+		return token, nil
+	}
+
+	if m.TokenEnv != "" {
+		if val := os.Getenv(m.TokenEnv); strings.TrimSpace(val) != "" {
+			return strings.TrimSpace(val), nil
+		}
+	}
+
+	if val := os.Getenv("WATCHDOG_MCP_TOKEN"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+	if val := os.Getenv("WATCHDOG_AUTH_TOKEN"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+	if val := os.Getenv("WATCHDOG_TOKEN"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+
+	if strings.TrimSpace(m.Token) != "" {
+		return strings.TrimSpace(m.Token), nil
+	}
+
+	return "", nil
+}
+
+// ResolveTLSKey resolves the TLS private key file path according to precedence:
+// 1. Secret file path (TLSKeyFile)
+// 2. Explicit environment variable name (TLSKeyEnv)
+// 3. Default environment variables (WATCHDOG_MCP_TLS_KEY, WATCHDOG_TLS_KEY)
+// 4. Plain config value (TLSKey)
+func (m *MCPConfig) ResolveTLSKey() (string, error) {
+	if m.TLSKeyFile != "" {
+		if _, err := os.Stat(m.TLSKeyFile); err != nil {
+			return "", fmt.Errorf("failed to access tls_key_file %q: %w", m.TLSKeyFile, err)
+		}
+		if err := CheckSecretFilePermissions(m.TLSKeyFile); err != nil {
+			fmt.Fprintf(os.Stderr, "⚠️  Warning: %v\n", err)
+		}
+		return m.TLSKeyFile, nil
+	}
+
+	if m.TLSKeyEnv != "" {
+		if val := os.Getenv(m.TLSKeyEnv); strings.TrimSpace(val) != "" {
+			return strings.TrimSpace(val), nil
+		}
+	}
+
+	if val := os.Getenv("WATCHDOG_MCP_TLS_KEY"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+	if val := os.Getenv("WATCHDOG_TLS_KEY"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+
+	if strings.TrimSpace(m.TLSKey) != "" {
+		return strings.TrimSpace(m.TLSKey), nil
+	}
+
+	return "", nil
+}
+
+// ResolveTLSCert resolves the TLS certificate file path according to precedence:
+// 1. Secret file path (TLSCertFile)
+// 2. Explicit environment variable name (TLSCertEnv)
+// 3. Default environment variables (WATCHDOG_MCP_TLS_CERT, WATCHDOG_TLS_CERT)
+// 4. Plain config value (TLSCert)
+func (m *MCPConfig) ResolveTLSCert() (string, error) {
+	if m.TLSCertFile != "" {
+		if _, err := os.Stat(m.TLSCertFile); err != nil {
+			return "", fmt.Errorf("failed to access tls_cert_file %q: %w", m.TLSCertFile, err)
+		}
+		return m.TLSCertFile, nil
+	}
+
+	if m.TLSCertEnv != "" {
+		if val := os.Getenv(m.TLSCertEnv); strings.TrimSpace(val) != "" {
+			return strings.TrimSpace(val), nil
+		}
+	}
+
+	if val := os.Getenv("WATCHDOG_MCP_TLS_CERT"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+	if val := os.Getenv("WATCHDOG_TLS_CERT"); strings.TrimSpace(val) != "" {
+		return strings.TrimSpace(val), nil
+	}
+
+	if strings.TrimSpace(m.TLSCert) != "" {
+		return strings.TrimSpace(m.TLSCert), nil
+	}
+
+	return "", nil
+}
+
+// ResolveSecrets resolves all sensitive configuration fields in MCPConfig.
+func (m *MCPConfig) ResolveSecrets() error {
+	token, err := m.ResolveToken()
+	if err != nil {
+		return fmt.Errorf("failed to resolve mcp token: %w", err)
+	}
+	m.Token = token
+
+	key, err := m.ResolveTLSKey()
+	if err != nil {
+		return fmt.Errorf("failed to resolve mcp tls_key: %w", err)
+	}
+	m.TLSKey = key
+
+	cert, err := m.ResolveTLSCert()
+	if err != nil {
+		return fmt.Errorf("failed to resolve mcp tls_cert: %w", err)
+	}
+	m.TLSCert = cert
+
+	return nil
+}
+
+// Redacted returns a deep copy of MCPConfig with sensitive credentials masked as "[REDACTED]".
+func (m *MCPConfig) Redacted() *MCPConfig {
+	clone := *m
+	if clone.Token != "" {
+		clone.Token = "[REDACTED]"
+	}
+	if clone.TLSKey != "" {
+		clone.TLSKey = "[REDACTED]"
+	}
+	return &clone
+}
+
+// CloneRedacted returns a deep copy of MCPConfig with sensitive credentials masked as "[REDACTED]".
+func (m *MCPConfig) CloneRedacted() *MCPConfig {
+	return m.Redacted()
+}
+
 // ResolveSecrets resolves all sensitive configuration fields in the root Config.
 func (c *Config) ResolveSecrets() error {
 	if err := c.Agent.ResolveSecrets(); err != nil {
 		return err
 	}
-	return c.Fleet.ResolveSecrets()
+	if err := c.Fleet.ResolveSecrets(); err != nil {
+		return err
+	}
+	return c.MCP.ResolveSecrets()
 }
 
 // Redacted returns a deep copy of Config with sensitive credentials masked as "[REDACTED]".
@@ -658,6 +851,7 @@ func (c *Config) Redacted() *Config {
 	clone := *c
 	clone.Agent = *c.Agent.Redacted()
 	clone.Fleet = *c.Fleet.Redacted()
+	clone.MCP = *c.MCP.Redacted()
 	return &clone
 }
 
