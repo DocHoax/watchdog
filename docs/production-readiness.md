@@ -34,6 +34,7 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 | **Anomaly** | `internal/anomaly/` | EWMA and Z-score time-series analysis | `sync.RWMutex` protecting statistical histories |
 | **Audit** | `internal/audit/` | Structured security audit logging & sanitization | Thread-safe, non-blocking fallback |
 | **Fleet** | `internal/fleet/` | Multi-node registry, health aggregation & heartbeats | `sync.RWMutex` protecting cluster state |
+| **Intelligence** | `internal/intelligence/` | Health scoring, trends, baselines, correlations & incidents | Thread-safe, TTL cache, strictly analytical |
 | **MCP** | `internal/mcp/` | Model Context Protocol server (stdio/http/sse) | Read-only interfaces, token-bucket rate limiter |
 | **Storage** | `internal/storage/` | SQLite persistence, queries, pruning & audit | `sync.Mutex` on SQLite connection, WAL mode |
 | **Reporting** | `internal/reporting/` | Multi-format report generation | Pure functions & immutable data |
@@ -154,7 +155,7 @@ Watchdog is structured as a modular, decoupled Go application divided into:
 
 ## 6. Current Test Coverage Baseline
 
-- All unit, integration, and fuzz tests across all 15 Go packages pass (`cmd`, `internal/alerts`, `internal/anomaly`, `internal/audit`, `internal/collector`, `internal/config`, `internal/diagnostics`, `internal/fleet`, `internal/logger`, `internal/mcp`, `internal/reporting`, `internal/server`, `internal/storage`, `internal/tui`, `pkg/model`, `pkg/util`).
+- All unit, integration, and fuzz tests across all 16 Go packages pass (`cmd`, `internal/alerts`, `internal/anomaly`, `internal/audit`, `internal/collector`, `internal/config`, `internal/diagnostics`, `internal/fleet`, `internal/intelligence`, `internal/logger`, `internal/mcp`, `internal/reporting`, `internal/server`, `internal/storage`, `internal/tui`, `pkg/model`, `pkg/util`).
 - Security validation tests comprehensively cover: `IsLoopback()` for all address types, `ValidateServerSecurity()` for all bind address × token × TLS combinations, HTTP-level auth enforcement via httptest (401 vs 403), concurrent request safety, method restriction, path traversal rejection, Request ID propagation, audit sanitization, token masking, flood limiting, SQLite audit queries and pruning, and graceful shutdown.
 - Fuzz testing suites (`testing.F`) cover: JSON-RPC parsing (`FuzzJSONRPCParse`), node ID traversal validation (`FuzzValidateNodeID`), metric name normalization (`FuzzValidateMetricName`), flexible duration parsing (`FuzzParseFlexibleDuration`), tool dispatch allowlists (`FuzzToolExecution`), timestamp/duration parsing (`FuzzParseTimeOrDuration`), and Request ID header sanitization (`FuzzServerRequestIDValidation`).
 - Supply chain security tests cover: version metadata formatting (`cmd/version_test.go`), deterministic build reproducibility verification (`cmd/reproducibility_test.go`), GoReleaser v2 configuration validation (`goreleaser check`), and module checksum verification (`go mod verify`).
