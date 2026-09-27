@@ -8,23 +8,31 @@ import (
 	"time"
 
 	"github.com/DocHoax/watchdog/internal/alerts"
+	"github.com/DocHoax/watchdog/internal/anomaly"
 	"github.com/DocHoax/watchdog/internal/collector"
 	"github.com/DocHoax/watchdog/internal/diagnostics"
 	"github.com/DocHoax/watchdog/internal/fleet"
+	"github.com/DocHoax/watchdog/internal/intelligence"
+	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
 // AllowedReadOperations defines the strict, static allowlist of permissible MCP read operations.
 var AllowedReadOperations = map[string]bool{
-	"list_nodes":             true,
-	"get_node":               true,
-	"get_node_health":        true,
-	"get_node_snapshot":      true,
-	"get_fleet_health":       true,
-	"get_node_metrics":       true,
-	"get_recent_diagnostics": true,
-	"get_active_alerts":      true,
+	"list_nodes":                true,
+	"get_node":                  true,
+	"get_node_health":           true,
+	"get_node_snapshot":         true,
+	"get_fleet_health":          true,
+	"get_node_metrics":          true,
+	"get_recent_diagnostics":    true,
+	"get_active_alerts":         true,
+	"get_fleet_intelligence":    true,
+	"get_node_intelligence":     true,
+	"get_fleet_incidents":       true,
+	"get_intelligence_findings": true,
+	"get_node_trends":           true,
 }
 
 // ToolRegistry manages and executes read-only MCP tools against domain services.
@@ -35,6 +43,7 @@ type ToolRegistry struct {
 	diagnostics   *diagnostics.Engine
 	alerts        *alerts.Engine
 	localIdentity model.NodeIdentity
+	intelSvc      intelligence.IntelligenceService
 }
 
 // NewToolRegistry creates a new ToolRegistry with injected domain dependencies.
@@ -45,10 +54,15 @@ func NewToolRegistry(
 	diag *diagnostics.Engine,
 	alt *alerts.Engine,
 	localID model.NodeIdentity,
+	intelSvc ...intelligence.IntelligenceService,
 ) *ToolRegistry {
 	if localID.NodeID == "" {
 		localID.NodeID = "local-node"
 		localID.Hostname = "localhost"
+	}
+	var is intelligence.IntelligenceService
+	if len(intelSvc) > 0 {
+		is = intelSvc[0]
 	}
 	return &ToolRegistry{
 		fleetService:  fleetService,
@@ -57,10 +71,23 @@ func NewToolRegistry(
 		diagnostics:   diag,
 		alerts:        alt,
 		localIdentity: localID,
+		intelSvc:      is,
 	}
 }
 
-// ToolDefinitions returns the full list of 8 supported read-only MCP tools with JSON schemas.
+// SetIntelligenceService sets or overrides the intelligence service instance.
+func (r *ToolRegistry) SetIntelligenceService(svc intelligence.IntelligenceService) {
+	r.intelSvc = svc
+}
+
+func (r *ToolRegistry) getIntelligenceService() intelligence.IntelligenceService {
+	if r.intelSvc != nil {
+		return r.intelSvc
+	}
+	return intelligence.NewService(r.storage, r.fleetService, anomaly.NewDetector(nil), logger.GetDefault(), nil)
+}
+
+// ToolDefinitions returns the full list of 13 supported read-only MCP tools with JSON schemas.
 func ToolDefinitions() []Tool {
 	minLimit := 1.0
 	maxLimit100 := 100.0
@@ -251,6 +278,79 @@ func ToolDefinitions() []Tool {
 				},
 			},
 		},
+		{
+			Name:        "get_fleet_intelligence",
+			Description: "Retrieve comprehensive fleet health intelligence including 0-100 average scores, lowest-scoring nodes, fleet-wide metric trends, active clustered incidents, and correlated findings.",
+			InputSchema: InputSchema{
+				Type:       "object",
+				Properties: map[string]Property{},
+			},
+		},
+		{
+			Name:        "get_node_intelligence",
+			Description: "Retrieve deep explainable health intelligence for a specific node, including 0-100 score, factor deduction breakdown, trajectory, active incidents, trends, and findings.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"node_id": {
+						Type:        "string",
+						Description: "Unique identifier of the fleet node",
+					},
+				},
+				Required: []string{"node_id"},
+			},
+		},
+		{
+			Name:        "get_fleet_incidents",
+			Description: "Retrieve active clustered incidents across the fleet with root symptoms, affected nodes, and chronological timeline events, or a single incident by ID.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"incident_id": {
+						Type:        "string",
+						Description: "Optional unique ID of a specific incident to retrieve",
+					},
+				},
+			},
+		},
+		{
+			Name:        "get_intelligence_findings",
+			Description: "Retrieve structured fleet and node intelligence findings filtered by category and minimum severity.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"category": {
+						Type:        "string",
+						Description: "Filter findings by category",
+						Enum:        []string{"resource_exhaustion", "performance_degradation", "fleet_pattern", "stability_risk", "anomaly_cluster"},
+					},
+					"min_severity": {
+						Type:        "string",
+						Description: "Filter findings by minimum severity level ('INFO', 'WARNING', 'CRITICAL')",
+						Enum:        []string{"INFO", "WARNING", "CRITICAL"},
+					},
+				},
+			},
+		},
+		{
+			Name:        "get_node_trends",
+			Description: "Retrieve historical metric rate-of-change trends and statistical baselines (mean, stddev, percentiles) for a specific node.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"node_id": {
+						Type:        "string",
+						Description: "Unique identifier of the fleet node",
+					},
+					"window": {
+						Type:        "string",
+						Description: "Time window for trend evaluation (e.g. '15m', '1h', '6h', '24h', default: '1h')",
+						Default:     "1h",
+					},
+				},
+				Required: []string{"node_id"},
+			},
+		},
 	}
 }
 
@@ -291,6 +391,16 @@ func (r *ToolRegistry) Execute(ctx context.Context, mcpCtx MCPContext, name stri
 		return r.handleGetRecentDiagnostics(ctx, args)
 	case "get_active_alerts":
 		return r.handleGetActiveAlerts(ctx, args)
+	case "get_fleet_intelligence":
+		return r.handleGetFleetIntelligence(ctx, args)
+	case "get_node_intelligence":
+		return r.handleGetNodeIntelligence(ctx, args)
+	case "get_fleet_incidents":
+		return r.handleGetFleetIncidents(ctx, args)
+	case "get_intelligence_findings":
+		return r.handleGetIntelligenceFindings(ctx, args)
+	case "get_node_trends":
+		return r.handleGetNodeTrends(ctx, args)
 	default:
 		return nil, NewMethodNotFoundError(fmt.Sprintf("tool '%s'", name))
 	}
@@ -627,6 +737,106 @@ func (r *ToolRegistry) handleGetActiveAlerts(ctx context.Context, args map[strin
 	}
 
 	return jsonResult(active)
+}
+
+func (r *ToolRegistry) handleGetFleetIntelligence(ctx context.Context, _ map[string]any) (*CallToolResult, *JSONRPCError) {
+	svc := r.getIntelligenceService()
+	summary, err := svc.EvaluateFleetHealth(ctx)
+	if err != nil {
+		return nil, NewInternalError(fmt.Sprintf("failed to evaluate fleet intelligence: %v", err))
+	}
+	return jsonResult(summary)
+}
+
+func (r *ToolRegistry) handleGetNodeIntelligence(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	nodeID := getStringArg(args, "node_id")
+	if err := ValidateNodeID(nodeID); err != nil {
+		return nil, NewInvalidNodeIDError(err.Error())
+	}
+	svc := r.getIntelligenceService()
+	summary, err := svc.EvaluateNodeHealth(ctx, nodeID)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, NewNodeNotFoundError(nodeID)
+		}
+		return nil, NewInternalError(fmt.Sprintf("failed to evaluate node intelligence for '%s': %v", nodeID, err))
+	}
+	return jsonResult(summary)
+}
+
+func (r *ToolRegistry) handleGetFleetIncidents(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	svc := r.getIntelligenceService()
+	incidentID := getStringArg(args, "incident_id")
+	if incidentID != "" {
+		inc, err := svc.GetIncident(ctx, incidentID)
+		if err != nil {
+			return nil, NewInternalError(fmt.Sprintf("failed to retrieve incident '%s': %v", incidentID, err))
+		}
+		if inc == nil {
+			return nil, NewInvalidParamsError(fmt.Sprintf("incident '%s' not found", incidentID))
+		}
+		return jsonResult(inc)
+	}
+
+	incidents, err := svc.GetActiveIncidents(ctx)
+	if err != nil {
+		return nil, NewInternalError(fmt.Sprintf("failed to retrieve active incidents: %v", err))
+	}
+	return jsonResult(incidents)
+}
+
+func (r *ToolRegistry) handleGetIntelligenceFindings(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	svc := r.getIntelligenceService()
+	catStr := getStringArg(args, "category")
+	category := intelligence.FindingCategory(catStr)
+
+	sevStr := getStringArg(args, "min_severity")
+	var minSev model.Severity
+	if sevStr != "" {
+		s, err := ValidateSeverity(sevStr)
+		if err != nil {
+			return nil, NewInvalidParamsError(err.Error())
+		}
+		minSev = model.Severity(s)
+	}
+
+	findings, err := svc.GetFindings(ctx, category, minSev)
+	if err != nil {
+		return nil, NewInternalError(fmt.Sprintf("failed to retrieve intelligence findings: %v", err))
+	}
+	return jsonResult(findings)
+}
+
+func (r *ToolRegistry) handleGetNodeTrends(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	nodeID := getStringArg(args, "node_id")
+	if err := ValidateNodeID(nodeID); err != nil {
+		return nil, NewInvalidNodeIDError(err.Error())
+	}
+
+	windowStr := getStringArg(args, "window")
+	window, err := ParseFlexibleDuration(windowStr, time.Hour)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	svc := r.getIntelligenceService()
+	trends, err := svc.GetNodeTrends(ctx, nodeID, window)
+	if err != nil {
+		return nil, NewInternalError(fmt.Sprintf("failed to evaluate trends for node '%s': %v", nodeID, err))
+	}
+
+	baselines, err := svc.GetNodeBaselines(ctx, nodeID, window)
+	if err != nil {
+		return nil, NewInternalError(fmt.Sprintf("failed to evaluate baselines for node '%s': %v", nodeID, err))
+	}
+
+	result := map[string]any{
+		"node_id":   nodeID,
+		"window":    window.String(),
+		"trends":    trends,
+		"baselines": baselines,
+	}
+	return jsonResult(result)
 }
 
 func jsonResult(v any) (*CallToolResult, *JSONRPCError) {

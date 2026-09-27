@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/DocHoax/watchdog/internal/alerts"
+	"github.com/DocHoax/watchdog/internal/anomaly"
 	"github.com/DocHoax/watchdog/internal/collector"
 	"github.com/DocHoax/watchdog/internal/diagnostics"
 	"github.com/DocHoax/watchdog/internal/fleet"
+	"github.com/DocHoax/watchdog/internal/intelligence"
+	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
@@ -23,6 +26,7 @@ type ResourceRegistry struct {
 	diagnostics   *diagnostics.Engine
 	alerts        *alerts.Engine
 	localIdentity model.NodeIdentity
+	intelSvc      intelligence.IntelligenceService
 }
 
 // NewResourceRegistry creates a new ResourceRegistry.
@@ -33,10 +37,15 @@ func NewResourceRegistry(
 	diag *diagnostics.Engine,
 	alt *alerts.Engine,
 	localID model.NodeIdentity,
+	intelSvc ...intelligence.IntelligenceService,
 ) *ResourceRegistry {
 	if localID.NodeID == "" {
 		localID.NodeID = "local-node"
 		localID.Hostname = "localhost"
+	}
+	var is intelligence.IntelligenceService
+	if len(intelSvc) > 0 {
+		is = intelSvc[0]
 	}
 	return &ResourceRegistry{
 		fleetService:  fleetService,
@@ -45,7 +54,20 @@ func NewResourceRegistry(
 		diagnostics:   diag,
 		alerts:        alt,
 		localIdentity: localID,
+		intelSvc:      is,
 	}
+}
+
+// SetIntelligenceService sets or overrides the intelligence service instance.
+func (r *ResourceRegistry) SetIntelligenceService(svc intelligence.IntelligenceService) {
+	r.intelSvc = svc
+}
+
+func (r *ResourceRegistry) getIntelligenceService() intelligence.IntelligenceService {
+	if r.intelSvc != nil {
+		return r.intelSvc
+	}
+	return intelligence.NewService(r.storage, r.fleetService, anomaly.NewDetector(nil), logger.GetDefault(), nil)
 }
 
 // ListResources returns the static list and dynamic template resources available to the client.
@@ -81,6 +103,24 @@ func (r *ResourceRegistry) ListResources(ctx context.Context) ([]Resource, error
 			Description: "Active firing alerts for the local host",
 			MIMEType:    "application/json",
 		},
+		{
+			URI:         "intelligence://fleet/summary",
+			Name:        "Fleet Health Intelligence Summary",
+			Description: "Aggregated 0-100 fleet health score, trends, incidents, and findings",
+			MIMEType:    "application/json",
+		},
+		{
+			URI:         "intelligence://incidents/active",
+			Name:        "Active Fleet Incidents",
+			Description: "Active clustered incidents with root symptoms and timelines across the fleet",
+			MIMEType:    "application/json",
+		},
+		{
+			URI:         fmt.Sprintf("intelligence://nodes/%s/summary", r.localIdentity.NodeID),
+			Name:        "Local Node Intelligence Summary",
+			Description: "Explainable health score breakdown and trend assessment for the local host",
+			MIMEType:    "application/json",
+		},
 	}
 
 	// If fleetService is available, add discovered nodes
@@ -97,6 +137,12 @@ func (r *ResourceRegistry) ListResources(ctx context.Context) ([]Resource, error
 					Description: fmt.Sprintf("Identity and configuration for %s", n.Identity.Hostname),
 					MIMEType:    "application/json",
 				})
+				resources = append(resources, Resource{
+					URI:         fmt.Sprintf("intelligence://nodes/%s/summary", n.Identity.NodeID),
+					Name:        fmt.Sprintf("Intelligence Summary for %s", n.Identity.Hostname),
+					Description: fmt.Sprintf("Explainable health score and trends for %s", n.Identity.Hostname),
+					MIMEType:    "application/json",
+				})
 			}
 		}
 	}
@@ -107,6 +153,10 @@ func (r *ResourceRegistry) ListResources(ctx context.Context) ([]Resource, error
 // ReadResource reads and resolves a resource by URI.
 func (r *ResourceRegistry) ReadResource(ctx context.Context, mcpCtx MCPContext, uri string) (*ReadResourceResult, *JSONRPCError) {
 	trimmed := strings.TrimSpace(uri)
+	if strings.HasPrefix(trimmed, "intelligence://") {
+		return r.readIntelligenceResource(ctx, uri, trimmed)
+	}
+
 	if !strings.HasPrefix(trimmed, "watchdog://fleet") {
 		return nil, NewResourceNotFoundError(uri)
 	}
@@ -141,6 +191,47 @@ func (r *ResourceRegistry) ReadResource(ctx context.Context, mcpCtx MCPContext, 
 	default:
 		return nil, NewResourceNotFoundError(uri)
 	}
+}
+
+func (r *ResourceRegistry) readIntelligenceResource(ctx context.Context, origURI string, trimmedURI string) (*ReadResourceResult, *JSONRPCError) {
+	svc := r.getIntelligenceService()
+	path := strings.TrimPrefix(trimmedURI, "intelligence://")
+	path = strings.TrimPrefix(path, "/")
+
+	if path == "fleet/summary" || path == "fleet" {
+		summary, err := svc.EvaluateFleetHealth(ctx)
+		if err != nil {
+			return nil, NewInternalError(fmt.Sprintf("failed to evaluate fleet intelligence: %v", err))
+		}
+		return resourceResult(origURI, summary)
+	}
+
+	if path == "incidents/active" || path == "incidents" {
+		incidents, err := svc.GetActiveIncidents(ctx)
+		if err != nil {
+			return nil, NewInternalError(fmt.Sprintf("failed to retrieve active incidents: %v", err))
+		}
+		return resourceResult(origURI, incidents)
+	}
+
+	if strings.HasPrefix(path, "nodes/") {
+		nodePath := strings.TrimPrefix(path, "nodes/")
+		parts := strings.Split(nodePath, "/")
+		nodeID := parts[0]
+		if err := ValidateNodeID(nodeID); err != nil {
+			return nil, NewInvalidNodeIDError(err.Error())
+		}
+		summary, err := svc.EvaluateNodeHealth(ctx, nodeID)
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "not found") {
+				return nil, NewNodeNotFoundError(nodeID)
+			}
+			return nil, NewInternalError(fmt.Sprintf("failed to evaluate node health for '%s': %v", nodeID, err))
+		}
+		return resourceResult(origURI, summary)
+	}
+
+	return nil, NewResourceNotFoundError(origURI)
 }
 
 func (r *ResourceRegistry) readFleetOverview(ctx context.Context, uri string) (*ReadResourceResult, *JSONRPCError) {
