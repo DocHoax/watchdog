@@ -6,7 +6,9 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -17,6 +19,10 @@ type PrometheusExporter struct {
 	lastDiag     *model.DiagnosticReport
 	activeAlerts []model.AlertEvent
 	anomalies    *model.AnomalyReport
+
+	intelSummary     *intelligence.FleetHealthSummary
+	nodeHealthScores map[string]float64
+	evalDuration     time.Duration
 }
 
 // NewPrometheusExporter creates a new exporter instance.
@@ -37,6 +43,17 @@ func (e *PrometheusExporter) Update(
 	e.lastDiag = diag
 	e.activeAlerts = alerts
 	e.anomalies = anomalies
+}
+
+// UpdateIntelligence updates the exporter with fleet health summary and evaluation duration.
+func (e *PrometheusExporter) UpdateIntelligence(
+	summary *intelligence.FleetHealthSummary,
+	evalDuration time.Duration,
+) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.intelSummary = summary
+	e.evalDuration = evalDuration
 }
 
 // Handler returns an HTTP handler for serving Prometheus metrics.
@@ -284,6 +301,60 @@ func (e *PrometheusExporter) RenderMetrics() string {
 				flag = 1
 			}
 			sb.WriteString(fmt.Sprintf("watchdog_anomaly_detected{metric=\"%s\"} %d\n", s.MetricName, flag))
+		}
+	}
+
+	// Intelligence Metrics
+	if e.intelSummary != nil {
+		sb.WriteString("# HELP watchdog_intelligence_fleet_health_score Aggregated fleet health score (0-100)\n")
+		sb.WriteString("# TYPE watchdog_intelligence_fleet_health_score gauge\n")
+		sb.WriteString(fmt.Sprintf("watchdog_intelligence_fleet_health_score %.2f\n", e.intelSummary.AverageScore))
+
+		sb.WriteString("# HELP watchdog_intelligence_active_incidents_total Current active incidents across fleet\n")
+		sb.WriteString("# TYPE watchdog_intelligence_active_incidents_total gauge\n")
+		incCritCount := 0
+		incWarnCount := 0
+		incInfoCount := 0
+		for _, inc := range e.intelSummary.ActiveIncidents {
+			switch inc.Severity {
+			case model.SeverityCritical:
+				incCritCount++
+			case model.SeverityWarning:
+				incWarnCount++
+			default:
+				incInfoCount++
+			}
+		}
+		sb.WriteString(fmt.Sprintf("watchdog_intelligence_active_incidents_total{severity=\"critical\"} %d\n", incCritCount))
+		sb.WriteString(fmt.Sprintf("watchdog_intelligence_active_incidents_total{severity=\"warning\"} %d\n", incWarnCount))
+		sb.WriteString(fmt.Sprintf("watchdog_intelligence_active_incidents_total{severity=\"info\"} %d\n", incInfoCount))
+
+		sb.WriteString("# HELP watchdog_intelligence_findings_total Current intelligence findings count\n")
+		sb.WriteString("# TYPE watchdog_intelligence_findings_total gauge\n")
+		findingsCount := make(map[string]map[string]int) // category -> severity -> count
+		for _, f := range e.intelSummary.FleetFindings {
+			cat := string(f.Category)
+			sev := string(f.Severity)
+			if findingsCount[cat] == nil {
+				findingsCount[cat] = make(map[string]int)
+			}
+			findingsCount[cat][sev]++
+		}
+		for cat, sevs := range findingsCount {
+			for sev, count := range sevs {
+				sb.WriteString(fmt.Sprintf("watchdog_intelligence_findings_total{category=\"%s\",severity=\"%s\"} %d\n", cat, sev, count))
+			}
+		}
+
+		if e.evalDuration > 0 {
+			sb.WriteString("# HELP watchdog_intelligence_eval_duration_seconds Duration of the last intelligence evaluation\n")
+			sb.WriteString("# TYPE watchdog_intelligence_eval_duration_seconds gauge\n")
+			sb.WriteString(fmt.Sprintf("watchdog_intelligence_eval_duration_seconds %.6f\n", e.evalDuration.Seconds()))
+		}
+
+		for _, n := range e.intelSummary.LowestScoringNodes {
+			sb.WriteString(fmt.Sprintf("watchdog_intelligence_node_health_score{node_id=\"%s\",hostname=\"%s\"} %.2f\n",
+				n.NodeID, n.Hostname, n.HealthScore.Score))
 		}
 	}
 

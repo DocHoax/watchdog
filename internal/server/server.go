@@ -19,6 +19,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/config"
 	"github.com/DocHoax/watchdog/internal/diagnostics"
 	"github.com/DocHoax/watchdog/internal/fleet"
+	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
@@ -94,6 +95,7 @@ type Server struct {
 	exporter     *PrometheusExporter
 	auditLog     audit.AuditLogger
 	fleetService fleet.FleetService
+	intelService intelligence.IntelligenceService
 
 	httpServer *http.Server
 	startTime  time.Time
@@ -126,6 +128,11 @@ func NewServer(
 		fleetSvc = fleet.NewFleetService(store, cfg.Fleet)
 	}
 
+	var intelSvc intelligence.IntelligenceService
+	if store != nil {
+		intelSvc = intelligence.NewService(store, fleetSvc, anomDet, logger.GetDefaultLogger(), nil)
+	}
+
 	return &Server{
 		cfg:          cfg,
 		collector:    col,
@@ -136,6 +143,7 @@ func NewServer(
 		exporter:     NewPrometheusExporter(),
 		auditLog:     auditLog,
 		fleetService: fleetSvc,
+		intelService: intelSvc,
 		startTime:    time.Now(),
 	}
 }
@@ -159,6 +167,20 @@ func (s *Server) FleetService() fleet.FleetService {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.fleetService
+}
+
+// SetIntelligenceService configures the intelligence service instance for the server.
+func (s *Server) SetIntelligenceService(is intelligence.IntelligenceService) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.intelService = is
+}
+
+// IntelligenceService returns the configured intelligence service instance.
+func (s *Server) IntelligenceService() intelligence.IntelligenceService {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.intelService
 }
 
 // Start runs the HTTP server and background collection worker until ctx is cancelled.
@@ -211,6 +233,10 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("/api/v1/telemetry", s.authMiddleware(http.HandlerFunc(s.handleTelemetry)))
 	mux.Handle("/api/v1/fleet", s.authMiddleware(http.HandlerFunc(s.handleFleetRoute)))
 	mux.Handle("/api/v1/fleet/", s.authMiddleware(http.HandlerFunc(s.handleFleetRoute)))
+
+	// Intelligence API routes
+	mux.Handle("/api/v1/intelligence", s.authMiddleware(http.HandlerFunc(s.handleIntelligenceRoute)))
+	mux.Handle("/api/v1/intelligence/", s.authMiddleware(http.HandlerFunc(s.handleIntelligenceRoute)))
 
 	// Diagnostic Profiling (pprof)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
