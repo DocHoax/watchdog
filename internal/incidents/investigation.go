@@ -5,8 +5,6 @@ import (
 	"math"
 	"sort"
 	"time"
-
-	"github.com/DocHoax/watchdog/internal/intelligence"
 )
 
 // PeriodicityClassification characterizes the timing pattern of recurring incidents.
@@ -41,11 +39,11 @@ type IncidentInvestigationReport struct {
 	Incident           Incident                           `json:"incident"`
 	Recurrence         *RecurrenceAnalysis                `json:"recurrence,omitempty"`
 	SimilarIncidents   []SimilarIncidentResult            `json:"similar_incidents,omitempty"`
-	TimelineHighlights []IncidentTimelineEntry            `json:"timeline_highlights,omitempty"`
-	Impact             ImpactAnalysis                     `json:"impact"`
-	Findings           []intelligence.IntelligenceFinding `json:"findings"`
-	Summary            string                             `json:"summary"`
-	GeneratedAt        time.Time                          `json:"generated_at"`
+	TimelineHighlights []IncidentTimelineEntry `json:"timeline_highlights,omitempty"`
+	Impact             ImpactAnalysis          `json:"impact"`
+	Findings           []IntelligenceFinding   `json:"findings"`
+	Summary            string                  `json:"summary"`
+	GeneratedAt        time.Time               `json:"generated_at"`
 }
 
 // AnalyzeRecurrence calculates inter-arrival time statistics across similar historical incidents.

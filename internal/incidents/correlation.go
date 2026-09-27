@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -48,7 +47,7 @@ func (sc *SignalCorrelator) CorrelateSignals(
 	alerts []model.AlertEvent,
 	diag *model.DiagnosticReport,
 	anom *model.AnomalyReport,
-	preds []intelligence.Prediction,
+	preds []Prediction,
 ) []IncidentSignal {
 	var signals []IncidentSignal
 
@@ -134,7 +133,7 @@ func (sc *SignalCorrelator) CorrelateSignals(
 
 	// 4. Process predictions / capacity risks
 	for _, p := range preds {
-		if p.Direction == intelligence.PredictionDirectionApproaching || p.Direction == intelligence.PredictionDirectionAlreadyExceeded {
+		if p.Direction == PredictionDirectionApproaching || p.Direction == PredictionDirectionAlreadyExceeded {
 			sev := model.SeverityWarning
 			if p.EstimatedTimeToThreshold != nil && *p.EstimatedTimeToThreshold < 1*time.Hour {
 				sev = model.SeverityCritical

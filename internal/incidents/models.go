@@ -1,10 +1,15 @@
 package incidents
 
 import (
+	"errors"
 	"time"
 
-	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/pkg/model"
+)
+
+var (
+	// ErrIncidentNotFound indicates that the requested incident ID does not exist.
+	ErrIncidentNotFound = errors.New("incident not found")
 )
 
 // IncidentStatus represents the formal lifecycle state of an incident.
@@ -86,6 +91,15 @@ type IncidentTimelineEntry struct {
 	Payload     map[string]any    `json:"payload,omitempty"`
 }
 
+// TimelineFilter specifies criteria for filtering incident timeline entries.
+type TimelineFilter struct {
+	NodeID      string         `json:"node_id,omitempty"`
+	MinSeverity model.Severity `json:"min_severity,omitempty"`
+	StartTime   time.Time      `json:"start_time,omitempty"`
+	EndTime     time.Time      `json:"end_time,omitempty"`
+	Limit       int            `json:"limit,omitempty"`
+}
+
 // ImpactScope details the blast radius, impacted subsystems, and fleet coverage.
 type ImpactScope struct {
 	Subsystems           []string            `json:"subsystems"`
@@ -129,31 +143,114 @@ type SeverityExplanation struct {
 	Reasoning          []string                     `json:"reasoning"`
 }
 
+// FindingCategory identifies the operational domain of an advisory finding.
+type FindingCategory string
+
+const (
+	FindingCategoryResourceExhaustion     FindingCategory = "resource_exhaustion"
+	FindingCategoryPerformanceDegradation FindingCategory = "performance_degradation"
+	FindingCategoryFleetPattern           FindingCategory = "fleet_pattern"
+	FindingCategoryStabilityRisk          FindingCategory = "stability_risk"
+	FindingCategoryAnomalyCluster         FindingCategory = "anomaly_cluster"
+	FindingCategoryCapacityRisk           FindingCategory = "capacity_risk"
+	FindingCategoryPredictedDegradation   FindingCategory = "predicted_degradation"
+	FindingCategoryThresholdForecast      FindingCategory = "threshold_forecast"
+	FindingCategoryRecurringIncident      FindingCategory = "recurring_incident"
+	FindingCategoryFleetCapacityPressure  FindingCategory = "fleet_capacity_pressure"
+	FindingCategoryAcceleratingResource   FindingCategory = "accelerating_resource_usage"
+)
+
+// FindingConfidence rates confidence in an advisory finding.
+type FindingConfidence string
+
+const (
+	FindingConfidenceHigh   FindingConfidence = "high"
+	FindingConfidenceMedium FindingConfidence = "medium"
+	FindingConfidenceLow    FindingConfidence = "low"
+)
+
+// IntelligenceFinding provides an explainable non-invasive advisory finding.
+type IntelligenceFinding struct {
+	ID                     string            `json:"id"`
+	Category               FindingCategory   `json:"category"`
+	Severity               model.Severity    `json:"severity"`
+	Confidence             FindingConfidence `json:"confidence"`
+	Title                  string            `json:"title"`
+	Description            string            `json:"description"`
+	AffectedNodes          []string          `json:"affected_nodes,omitempty"`
+	SupportingEvidence     []string          `json:"supporting_evidence,omitempty"`
+	NonInvasiveSuggestions []string          `json:"non_invasive_suggestions,omitempty"`
+	DetectedAt             time.Time         `json:"detected_at"`
+}
+
+// PredictionConfidence rates confidence in a predictive threshold projection.
+type PredictionConfidence string
+
+const (
+	PredictionConfidenceHigh             PredictionConfidence = "high"
+	PredictionConfidenceMedium           PredictionConfidence = "medium"
+	PredictionConfidenceLow              PredictionConfidence = "low"
+	PredictionConfidenceInsufficientData PredictionConfidence = "insufficient_data"
+)
+
+// PredictionDirection indicates the directional movement of a metric relative to a threshold.
+type PredictionDirection string
+
+const (
+	PredictionDirectionApproaching     PredictionDirection = "approaching"
+	PredictionDirectionReceding        PredictionDirection = "receding"
+	PredictionDirectionStable          PredictionDirection = "stable"
+	PredictionDirectionAlreadyExceeded PredictionDirection = "already_exceeded"
+	PredictionDirectionUnknown         PredictionDirection = "unknown"
+)
+
+// Prediction represents a deterministic linear threshold projection for a metric on a node.
+type Prediction struct {
+	ID                       string               `json:"id"`
+	NodeID                   string               `json:"node_id"`
+	Metric                   string               `json:"metric"`
+	CurrentValue             float64              `json:"current_value"`
+	TargetThreshold          float64              `json:"target_threshold"`
+	Direction                PredictionDirection  `json:"direction"`
+	SlopePerMinute           float64              `json:"slope_per_minute"`
+	RSquared                 float64              `json:"r_squared"`
+	Variance                 float64              `json:"variance"`
+	Confidence               PredictionConfidence `json:"confidence"`
+	EstimatedTimeToThreshold *time.Duration       `json:"estimated_time_to_threshold,omitempty"`
+	PredictedCrossingTime    *time.Time           `json:"predicted_crossing_time,omitempty"`
+	Horizon                  time.Duration        `json:"horizon"`
+	ObservationWindow        time.Duration        `json:"observation_window"`
+	SampleCount              int                  `json:"sample_count"`
+	Method                   string               `json:"method"`
+	Evidence                 []string             `json:"evidence"`
+	GeneratedAt              time.Time            `json:"generated_at"`
+}
+
 // Incident is the comprehensive domain entity representing a correlated operational incident.
 type Incident struct {
-	ID                  string                            `json:"id"`
-	Title               string                            `json:"title"`
-	Summary             string                            `json:"summary"`
-	Status              IncidentStatus                    `json:"status"`
-	Severity            model.Severity                    `json:"severity"`
-	Scope               IncidentScope                     `json:"scope"`
-	Confidence          string                            `json:"confidence"`
-	StartTime           time.Time                         `json:"start_time"`
-	EndTime             *time.Time                        `json:"end_time,omitempty"`
-	AcknowledgedAt      *time.Time                        `json:"acknowledged_at,omitempty"`
-	ResolvedAt          *time.Time                        `json:"resolved_at,omitempty"`
-	AffectedNodes       []string                          `json:"affected_nodes"`
-	PrimarySymptoms     []string                          `json:"primary_symptoms"`
-	RootSignals         []IncidentSignal                  `json:"root_signals"`
-	SeverityScore       float64                           `json:"severity_score"`
-	SeverityExplanation SeverityExplanation               `json:"severity_explanation"`
-	Impact              ImpactScope                       `json:"impact"`
-	Timeline            []IncidentTimelineEntry           `json:"timeline,omitempty"`
-	Findings            []intelligence.IntelligenceFinding `json:"findings,omitempty"`
-	Tags                map[string]string                 `json:"tags,omitempty"`
-	Metadata            map[string]string                 `json:"metadata,omitempty"`
-	CreatedAt           time.Time                         `json:"created_at"`
-	UpdatedAt           time.Time                         `json:"updated_at"`
+	ID                  string                  `json:"id"`
+	Title               string                  `json:"title"`
+	Summary             string                  `json:"summary"`
+	Status              IncidentStatus          `json:"status"`
+	Severity            model.Severity          `json:"severity"`
+	Scope               IncidentScope           `json:"scope"`
+	Confidence          string                  `json:"confidence"`
+	StartTime           time.Time               `json:"start_time"`
+	EndTime             *time.Time              `json:"end_time,omitempty"`
+	AcknowledgedAt      *time.Time              `json:"acknowledged_at,omitempty"`
+	ResolvedAt          *time.Time              `json:"resolved_at,omitempty"`
+	AffectedNodes       []string                `json:"affected_nodes"`
+	PrimarySymptoms     []string                `json:"primary_symptoms"`
+	RootSignals         []IncidentSignal        `json:"root_signals"`
+	SeverityScore       float64                 `json:"severity_score"`
+	SeverityExplanation SeverityExplanation     `json:"severity_explanation"`
+	Impact              ImpactScope             `json:"impact"`
+	Timeline            []IncidentTimelineEntry `json:"timeline,omitempty"`
+	Findings            []IntelligenceFinding   `json:"findings,omitempty"`
+	Tags                map[string]string       `json:"tags,omitempty"`
+	Metadata            map[string]string       `json:"metadata,omitempty"`
+	CreatedAt           time.Time               `json:"created_at"`
+	UpdatedAt           time.Time               `json:"updated_at"`
 }
 
 // IncidentEvent records a lifecycle or administrative event associated with an incident.
@@ -239,8 +336,8 @@ type CreateIncidentRequest struct {
 
 // UpdateStatusRequest defines the payload for transitioning an incident status.
 type UpdateStatusRequest struct {
-	Status  IncidentStatus    `json:"status"`
-	Message string            `json:"message,omitempty"`
-	Actor   string            `json:"actor,omitempty"`
+	Status   IncidentStatus    `json:"status"`
+	Message  string            `json:"message,omitempty"`
+	Actor    string            `json:"actor,omitempty"`
 	Metadata map[string]string `json:"metadata,omitempty"`
 }

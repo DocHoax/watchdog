@@ -6,23 +6,21 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/DocHoax/watchdog/internal/intelligence"
 )
 
 // GenerateIncidentFindings analyzes an incident and generates non-invasive advisory findings.
-func GenerateIncidentFindings(inc *Incident) []intelligence.IntelligenceFinding {
+func GenerateIncidentFindings(inc *Incident) []IntelligenceFinding {
 	if inc == nil {
 		return nil
 	}
 
-	var findings []intelligence.IntelligenceFinding
+	var findings []IntelligenceFinding
 	now := time.Now().UTC()
 
 	// 1. Fleet Pattern Finding
 	if inc.Scope == IncidentScopeFleet || inc.Scope == IncidentScopeMultiNode {
 		findingID := generateFindingID(inc.ID, "fleet_pattern")
-		category := intelligence.FindingCategoryFleetPattern
+		category := FindingCategoryFleetPattern
 		title := fmt.Sprintf("Multi-node correlated degradation across %d node(s)", len(inc.AffectedNodes))
 		desc := fmt.Sprintf("Incident %s exhibits correlated operational signals across multiple nodes with %s scope and %.1f%% fleet impact.", inc.ID, inc.Scope, inc.Impact.FleetPercentage)
 
@@ -40,14 +38,14 @@ func GenerateIncidentFindings(inc *Incident) []intelligence.IntelligenceFinding 
 			"Review centralized dependency logs (e.g., DNS, authentication, or shared storage volumes).",
 		}
 
-		conf := intelligence.FindingConfidenceHigh
+		conf := FindingConfidenceHigh
 		if inc.Confidence == "medium" {
-			conf = intelligence.FindingConfidenceMedium
+			conf = FindingConfidenceMedium
 		} else if inc.Confidence == "low" {
-			conf = intelligence.FindingConfidenceLow
+			conf = FindingConfidenceLow
 		}
 
-		findings = append(findings, intelligence.IntelligenceFinding{
+		findings = append(findings, IntelligenceFinding{
 			ID:                     findingID,
 			Category:               category,
 			Severity:               inc.Severity,
@@ -64,13 +62,13 @@ func GenerateIncidentFindings(inc *Incident) []intelligence.IntelligenceFinding 
 	// 2. Resource-Specific Subsystem Findings
 	for _, subsystem := range inc.Impact.Subsystems {
 		findingID := generateFindingID(inc.ID, "subsystem_"+subsystem)
-		var cat intelligence.FindingCategory
+		var cat FindingCategory
 		var title string
 		var suggestions []string
 
 		switch subsystem {
 		case "cpu":
-			cat = intelligence.FindingCategoryPerformanceDegradation
+			cat = FindingCategoryPerformanceDegradation
 			title = fmt.Sprintf("High CPU utilization and scheduler pressure detected (%s)", inc.ID)
 			suggestions = []string{
 				"Inspect top CPU-consuming user-space threads and process execution hierarchies.",
@@ -78,7 +76,7 @@ func GenerateIncidentFindings(inc *Incident) []intelligence.IntelligenceFinding 
 				"Evaluate whether bursty periodic background jobs or cron scripts are running concurrently.",
 			}
 		case "memory", "swap":
-			cat = intelligence.FindingCategoryResourceExhaustion
+			cat = FindingCategoryResourceExhaustion
 			title = fmt.Sprintf("Memory pressure and buffer/cache exhaustion detected (%s)", inc.ID)
 			suggestions = []string{
 				"Inspect resident memory set sizes (RSS) of top processes.",
@@ -86,7 +84,7 @@ func GenerateIncidentFindings(inc *Incident) []intelligence.IntelligenceFinding 
 				"Verify memory limits and paging rates across container cgroups.",
 			}
 		case "disk":
-			cat = intelligence.FindingCategoryResourceExhaustion
+			cat = FindingCategoryResourceExhaustion
 			title = fmt.Sprintf("Storage capacity or disk I/O saturation detected (%s)", inc.ID)
 			suggestions = []string{
 				"Verify storage volume free space and inode utilization levels.",
@@ -94,7 +92,7 @@ func GenerateIncidentFindings(inc *Incident) []intelligence.IntelligenceFinding 
 				"Review application logging directories for uncontrolled log growth or rotated log retention.",
 			}
 		case "network":
-			cat = intelligence.FindingCategoryPerformanceDegradation
+			cat = FindingCategoryPerformanceDegradation
 			title = fmt.Sprintf("Network interface degradation or packet drop anomaly detected (%s)", inc.ID)
 			suggestions = []string{
 				"Inspect interface error counters, packet drops, and carrier transitions via ethtool/ip.",
@@ -102,7 +100,7 @@ func GenerateIncidentFindings(inc *Incident) []intelligence.IntelligenceFinding 
 				"Validate upstream gateway and switch port duplex/flow-control configurations.",
 			}
 		default:
-			cat = intelligence.FindingCategoryStabilityRisk
+			cat = FindingCategoryStabilityRisk
 			title = fmt.Sprintf("Operational degradation in %s subsystem (%s)", subsystem, inc.ID)
 			suggestions = []string{
 				"Review subsystem diagnostic health checks and telemetry baselines.",
@@ -117,12 +115,12 @@ func GenerateIncidentFindings(inc *Incident) []intelligence.IntelligenceFinding 
 			}
 		}
 
-		conf := intelligence.FindingConfidenceHigh
+		conf := FindingConfidenceHigh
 		if len(evidence) < 2 {
-			conf = intelligence.FindingConfidenceMedium
+			conf = FindingConfidenceMedium
 		}
 
-		findings = append(findings, intelligence.IntelligenceFinding{
+		findings = append(findings, IntelligenceFinding{
 			ID:                     findingID,
 			Category:               cat,
 			Severity:               inc.Severity,
@@ -148,11 +146,11 @@ func GenerateIncidentFindings(inc *Incident) []intelligence.IntelligenceFinding 
 
 	if hasPrediction {
 		findingID := generateFindingID(inc.ID, "capacity_risk")
-		findings = append(findings, intelligence.IntelligenceFinding{
+		findings = append(findings, IntelligenceFinding{
 			ID:                     findingID,
-			Category:               intelligence.FindingCategoryCapacityRisk,
+			Category:               FindingCategoryCapacityRisk,
 			Severity:               inc.Severity,
-			Confidence:             intelligence.FindingConfidenceHigh,
+			Confidence:             FindingConfidenceHigh,
 			Title:                  fmt.Sprintf("Resource capacity threshold exhaustion projected (%s)", inc.ID),
 			Description:            fmt.Sprintf("Linear threshold projection indicates resources involved in incident %s will exceed capacity limits.", inc.ID),
 			AffectedNodes:          inc.AffectedNodes,

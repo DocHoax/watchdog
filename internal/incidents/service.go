@@ -2,28 +2,13 @@ package incidents
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
-
-var (
-	ErrIncidentNotFound = errors.New("incident not found")
-)
-
-// TimelineFilter defines query parameters for fetching an incident timeline.
-type TimelineFilter struct {
-	NodeID      string         `json:"node_id"`
-	MinSeverity model.Severity `json:"min_severity"`
-	StartTime   time.Time      `json:"start_time"`
-	EndTime     time.Time      `json:"end_time"`
-	Limit       int            `json:"limit"`
-}
 
 // IncidentStore defines persistence operations for incident management.
 type IncidentStore interface {
@@ -42,7 +27,7 @@ type Service interface {
 	GetIncident(ctx context.Context, id string) (*Incident, error)
 	GetTimeline(ctx context.Context, id string, filter TimelineFilter) ([]IncidentTimelineEntry, error)
 	GetImpact(ctx context.Context, id string) (*ImpactAnalysis, error)
-	GetFindings(ctx context.Context, id string) ([]intelligence.IntelligenceFinding, error)
+	GetFindings(ctx context.Context, id string) ([]IntelligenceFinding, error)
 	GetSimilar(ctx context.Context, id string, minSimilarity float64, limit int) ([]SimilarIncidentResult, error)
 	GetSummary(ctx context.Context) (*IncidentSummary, error)
 	Investigate(ctx context.Context, id string) (*IncidentInvestigationReport, error)
@@ -123,7 +108,7 @@ func (s *DefaultService) GetImpact(ctx context.Context, id string) (*ImpactAnaly
 }
 
 // GetFindings returns non-invasive advisory findings for an incident.
-func (s *DefaultService) GetFindings(ctx context.Context, id string) ([]intelligence.IntelligenceFinding, error) {
+func (s *DefaultService) GetFindings(ctx context.Context, id string) ([]IntelligenceFinding, error) {
 	inc, err := s.GetIncident(ctx, id)
 	if err != nil {
 		return nil, err

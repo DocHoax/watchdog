@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/DocHoax/watchdog/internal/incidents"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -72,6 +73,12 @@ type ReadOnlyStorage interface {
 	ListFleetNodes(ctx context.Context, filter model.FleetFilter) ([]model.FleetNode, int, error)
 	GetNodeTelemetrySubmissions(ctx context.Context, nodeID string, since time.Time, limit int) ([]model.TelemetrySubmission, error)
 	GetDatabaseSize() (int64, error)
+
+	// Incidents (Read-Only)
+	GetIncident(ctx context.Context, id string) (*incidents.Incident, error)
+	ListIncidents(ctx context.Context, filter incidents.IncidentFilter) ([]incidents.Incident, int, error)
+	GetTimeline(ctx context.Context, incidentID string, filter incidents.TimelineFilter) ([]incidents.IncidentTimelineEntry, error)
+	GetIncidentHistory(ctx context.Context, lookback time.Duration) ([]incidents.Incident, error)
 }
 
 // Storage defines the contract for storing and querying system metrics, alerts, diagnostics, and audit events.
@@ -108,4 +115,9 @@ type Storage interface {
 	DeleteFleetNode(ctx context.Context, nodeID string) error
 	SaveTelemetrySubmission(ctx context.Context, sub *model.TelemetrySubmission) error
 	PruneFleetTelemetry(ctx context.Context, retention time.Duration) (int64, error)
+
+	// Incidents
+	SaveIncident(ctx context.Context, inc *incidents.Incident) error
+	UpdateIncidentStatus(ctx context.Context, id string, status incidents.IncidentStatus, reason string, resolvedAt *time.Time) error
+	SaveTimelineEntries(ctx context.Context, entries []incidents.IncidentTimelineEntry) error
 }

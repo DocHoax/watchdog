@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -35,7 +34,7 @@ type NodeSignalsBundle struct {
 	Alerts      []model.AlertEvent
 	Diagnostics *model.DiagnosticReport
 	Anomalies   *model.AnomalyReport
-	Predictions []intelligence.Prediction
+	Predictions []Prediction
 }
 
 // ClusterFleetSignals aggregates multi-node signals into node, multi-node, and fleet incidents.
