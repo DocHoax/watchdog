@@ -48,11 +48,11 @@ type Server struct {
 // NewServer creates a new MCP Server instance.
 func NewServer(
 	cfg config.MCPConfig,
-	store storage.Storage,
+	store storage.ReadOnlyStorage,
 	col *collector.Manager,
 	diagEng *diagnostics.Engine,
 	alertEng *alerts.Engine,
-	fleetSvc fleet.FleetService,
+	fleetSvc fleet.ReadOnlyFleetService,
 	auditLog audit.AuditLogger,
 	localID model.NodeIdentity,
 ) *Server {
