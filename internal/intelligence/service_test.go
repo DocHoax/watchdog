@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DocHoax/watchdog/internal/incidents"
 	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
@@ -92,6 +93,18 @@ func (m *mockStorage) GetNodeTelemetrySubmissions(_ context.Context, nodeID stri
 }
 func (m *mockStorage) GetDatabaseSize() (int64, error) {
 	return 1024, nil
+}
+func (m *mockStorage) GetIncident(_ context.Context, _ string) (*incidents.Incident, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListIncidents(_ context.Context, _ incidents.IncidentFilter) ([]incidents.Incident, int, error) {
+	return nil, 0, nil
+}
+func (m *mockStorage) GetTimeline(_ context.Context, _ string, _ incidents.TimelineFilter) ([]incidents.IncidentTimelineEntry, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetIncidentHistory(_ context.Context, _ time.Duration) ([]incidents.Incident, error) {
+	return nil, nil
 }
 
 func TestIntelligenceService_EvaluateNodeHealth(t *testing.T) {
