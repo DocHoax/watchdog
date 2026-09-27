@@ -15,10 +15,22 @@ import (
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
+// AllowedReadOperations defines the strict, static allowlist of permissible MCP read operations.
+var AllowedReadOperations = map[string]bool{
+	"list_nodes":             true,
+	"get_node":               true,
+	"get_node_health":        true,
+	"get_node_snapshot":      true,
+	"get_fleet_health":       true,
+	"get_node_metrics":       true,
+	"get_recent_diagnostics": true,
+	"get_active_alerts":      true,
+}
+
 // ToolRegistry manages and executes read-only MCP tools against domain services.
 type ToolRegistry struct {
-	fleetService  fleet.FleetService
-	storage       storage.Storage
+	fleetService  fleet.ReadOnlyFleetService
+	storage       storage.ReadOnlyStorage
 	collector     *collector.Manager
 	diagnostics   *diagnostics.Engine
 	alerts        *alerts.Engine
@@ -27,8 +39,8 @@ type ToolRegistry struct {
 
 // NewToolRegistry creates a new ToolRegistry with injected domain dependencies.
 func NewToolRegistry(
-	fleetService fleet.FleetService,
-	store storage.Storage,
+	fleetService fleet.ReadOnlyFleetService,
+	store storage.ReadOnlyStorage,
 	coll *collector.Manager,
 	diag *diagnostics.Engine,
 	alt *alerts.Engine,
@@ -254,6 +266,10 @@ func GetTool(name string) (Tool, bool) {
 
 // Execute handles the invocation of an MCP tool.
 func (r *ToolRegistry) Execute(ctx context.Context, mcpCtx MCPContext, name string, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	if !AllowedReadOperations[name] {
+		return nil, NewMethodNotFoundError(fmt.Sprintf("tool '%s' is not an allowed read-only operation", name))
+	}
+
 	if args == nil {
 		args = make(map[string]any)
 	}

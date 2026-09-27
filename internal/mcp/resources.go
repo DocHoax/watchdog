@@ -17,8 +17,8 @@ import (
 
 // ResourceRegistry manages readable MCP resources.
 type ResourceRegistry struct {
-	fleetService  fleet.FleetService
-	storage       storage.Storage
+	fleetService  fleet.ReadOnlyFleetService
+	storage       storage.ReadOnlyStorage
 	collector     *collector.Manager
 	diagnostics   *diagnostics.Engine
 	alerts        *alerts.Engine
@@ -27,8 +27,8 @@ type ResourceRegistry struct {
 
 // NewResourceRegistry creates a new ResourceRegistry.
 func NewResourceRegistry(
-	fleetService fleet.FleetService,
-	store storage.Storage,
+	fleetService fleet.ReadOnlyFleetService,
+	store storage.ReadOnlyStorage,
 	coll *collector.Manager,
 	diag *diagnostics.Engine,
 	alt *alerts.Engine,
