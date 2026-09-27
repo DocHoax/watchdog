@@ -10,8 +10,8 @@ func TestPromptRegistry(t *testing.T) {
 
 	t.Run("ListPrompts", func(t *testing.T) {
 		prompts := registry.ListPrompts()
-		if len(prompts) != 4 {
-			t.Fatalf("expected 4 prompts, got %d", len(prompts))
+		if len(prompts) != 7 {
+			t.Fatalf("expected 7 prompts, got %d", len(prompts))
 		}
 
 		names := make(map[string]bool)
@@ -19,7 +19,15 @@ func TestPromptRegistry(t *testing.T) {
 			names[p.Name] = true
 		}
 
-		expected := []string{"system_health_audit", "diagnose_node", "incident_triage", "fleet_status_report"}
+		expected := []string{
+			"system_health_audit",
+			"diagnose_node",
+			"incident_triage",
+			"fleet_status_report",
+			"analyze_fleet_health",
+			"investigate_incident",
+			"triage_node_degradation",
+		}
 		for _, name := range expected {
 			if !names[name] {
 				t.Errorf("expected prompt %s to be in ListPrompts()", name)
@@ -80,6 +88,50 @@ func TestPromptRegistry(t *testing.T) {
 		}
 		if !strings.Contains(res.Messages[0].Content.Text, `filtering by tag "env=production"`) {
 			t.Errorf("expected message to contain tag filter, got: %s", res.Messages[0].Content.Text)
+		}
+	})
+
+	t.Run("GetPrompt analyze_fleet_health", func(t *testing.T) {
+		res, err := registry.GetPrompt("analyze_fleet_health", map[string]string{"focus": "incidents"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res.Messages[0].Content.Text, `focusing on "incidents"`) {
+			t.Errorf("expected message to contain focus, got: %s", res.Messages[0].Content.Text)
+		}
+	})
+
+	t.Run("GetPrompt investigate_incident", func(t *testing.T) {
+		// Missing incident_id
+		_, err := registry.GetPrompt("investigate_incident", map[string]string{})
+		if err == nil {
+			t.Fatalf("expected error when incident_id is missing")
+		}
+
+		// Valid incident_id
+		res, err := registry.GetPrompt("investigate_incident", map[string]string{"incident_id": "inc-100"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res.Messages[0].Content.Text, `inc-100`) {
+			t.Errorf("expected message to contain incident_id, got: %s", res.Messages[0].Content.Text)
+		}
+	})
+
+	t.Run("GetPrompt triage_node_degradation", func(t *testing.T) {
+		// Missing node_id
+		_, err := registry.GetPrompt("triage_node_degradation", map[string]string{})
+		if err == nil {
+			t.Fatalf("expected error when node_id is missing")
+		}
+
+		// Valid node_id
+		res, err := registry.GetPrompt("triage_node_degradation", map[string]string{"node_id": "worker-02", "metric_window": "6h"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res.Messages[0].Content.Text, `worker-02`) || !strings.Contains(res.Messages[0].Content.Text, `window 6h`) {
+			t.Errorf("expected message to contain node_id and window, got: %s", res.Messages[0].Content.Text)
 		}
 	})
 
