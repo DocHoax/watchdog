@@ -39,9 +39,10 @@ func TestValidateTransition(t *testing.T) {
 		{"Resolved to Detected (invalid)", IncidentStatusResolved, IncidentStatusDetected, true},
 
 		// Valid transitions from Suppressed
-		{"Suppressed to Detected", IncidentStatusSuppressed, IncidentStatusDetected, false},
+		{"Suppressed to Reopened", IncidentStatusSuppressed, IncidentStatusReopened, false},
 		{"Suppressed to Acknowledged", IncidentStatusSuppressed, IncidentStatusAcknowledged, false},
 		{"Suppressed to Investigating", IncidentStatusSuppressed, IncidentStatusInvestigating, false},
+		{"Suppressed to Detected (invalid)", IncidentStatusSuppressed, IncidentStatusDetected, true},
 		{"Suppressed to Resolved (invalid)", IncidentStatusSuppressed, IncidentStatusResolved, true},
 
 		// Valid transitions from Reopened

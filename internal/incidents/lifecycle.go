@@ -40,9 +40,8 @@ var validTransitions = map[IncidentStatus]map[IncidentStatus]bool{
 		IncidentStatusSuppressed:    true,
 	},
 	IncidentStatusInvestigating: {
-		IncidentStatusAcknowledged:  true,
-		IncidentStatusResolved:      true,
-		IncidentStatusSuppressed:    true,
+		IncidentStatusResolved:   true,
+		IncidentStatusSuppressed: true,
 	},
 	IncidentStatusResolved: {
 		IncidentStatusReopened: true,
@@ -82,10 +81,6 @@ func ValidateTransition(current, next IncidentStatus) error {
 	}
 	if !IsValidStatus(next) {
 		return fmt.Errorf("%w: '%s'", ErrInvalidStatus, next)
-	}
-
-	if current == next {
-		return nil // idempotent no-op transition
 	}
 
 	allowedNext, exists := validTransitions[current]
