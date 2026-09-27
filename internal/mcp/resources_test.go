@@ -64,6 +64,9 @@ func TestResourceRegistry(t *testing.T) {
 			"watchdog://fleet/test-node-01/health",
 			"watchdog://fleet/test-node-01/snapshot",
 			"watchdog://fleet/test-node-01/alerts",
+			"intelligence://fleet/summary",
+			"intelligence://incidents/active",
+			"intelligence://nodes/test-node-01/summary",
 		}
 		for _, uri := range expected {
 			if !uris[uri] {
@@ -83,6 +86,45 @@ func TestResourceRegistry(t *testing.T) {
 		}
 		if !strings.Contains(res.Contents[0].Text, "total_nodes") && !strings.Contains(res.Contents[0].Text, "TotalNodes") {
 			t.Errorf("expected content to contain fleet summary, got: %s", res.Contents[0].Text)
+		}
+	})
+
+	t.Run("ReadResource intelligence fleet summary", func(t *testing.T) {
+		mcpCtx := MCPContext{RequestID: "req-intel-fleet"}
+		res, jerr := registry.ReadResource(ctx, mcpCtx, "intelligence://fleet/summary")
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Contents) != 1 {
+			t.Fatalf("expected 1 content block, got %d", len(res.Contents))
+		}
+		if !strings.Contains(res.Contents[0].Text, "total_nodes") && !strings.Contains(res.Contents[0].Text, "TotalNodes") {
+			t.Errorf("expected content to contain fleet intelligence, got: %s", res.Contents[0].Text)
+		}
+	})
+
+	t.Run("ReadResource intelligence active incidents", func(t *testing.T) {
+		mcpCtx := MCPContext{RequestID: "req-intel-inc"}
+		res, jerr := registry.ReadResource(ctx, mcpCtx, "intelligence://incidents/active")
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Contents) != 1 {
+			t.Fatalf("expected 1 content block, got %d", len(res.Contents))
+		}
+	})
+
+	t.Run("ReadResource intelligence node summary", func(t *testing.T) {
+		mcpCtx := MCPContext{RequestID: "req-intel-node"}
+		res, jerr := registry.ReadResource(ctx, mcpCtx, "intelligence://nodes/test-node-01/summary")
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Contents) != 1 {
+			t.Fatalf("expected 1 content block, got %d", len(res.Contents))
+		}
+		if !strings.Contains(res.Contents[0].Text, "test-node-01") {
+			t.Errorf("expected node intelligence to contain test-node-01, got: %s", res.Contents[0].Text)
 		}
 	})
 
