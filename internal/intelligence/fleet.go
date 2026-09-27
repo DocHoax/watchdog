@@ -163,6 +163,6 @@ func (fpa *FleetPatternAnalyzer) AnalyzeFleet(summaries []NodeHealthSummary) []I
 
 func generateFindingID(prefix string, nodes []string) string {
 	h := sha256.New()
-	h.Write([]byte(fmt.Sprintf("%s:%v", prefix, nodes)))
+	_, _ = fmt.Fprintf(h, "%s:%v", prefix, nodes)
 	return fmt.Sprintf("find-%s-%s", prefix, hex.EncodeToString(h.Sum(nil))[:8])
 }

@@ -493,7 +493,8 @@ func (s *Scorer) evaluateAlerts(alerts []model.AlertEvent) (float64, []FactorCon
 		if !a.IsActive {
 			continue
 		}
-		if a.Severity == model.SeverityCritical {
+		switch a.Severity {
+		case model.SeverityCritical:
 			critCount++
 			d := 12.0
 			deduction += d
@@ -508,7 +509,7 @@ func (s *Scorer) evaluateAlerts(alerts []model.AlertEvent) (float64, []FactorCon
 				Impact:      ImpactNegative,
 				Explanation: msg,
 			})
-		} else if a.Severity == model.SeverityWarning {
+		case model.SeverityWarning:
 			warnCount++
 			d := 5.0
 			deduction += d
@@ -590,7 +591,8 @@ func (s *Scorer) evaluateAnomalies(anom *model.AnomalyReport) (float64, []Factor
 		if !score.IsAnomaly {
 			continue
 		}
-		if score.Severity == model.SeverityCritical {
+		switch score.Severity {
+		case model.SeverityCritical:
 			d := 7.0
 			deduction += d
 			msg := fmt.Sprintf("Critical anomaly on %s: %s", score.MetricName, score.Explanation)
@@ -604,7 +606,7 @@ func (s *Scorer) evaluateAnomalies(anom *model.AnomalyReport) (float64, []Factor
 				Impact:      ImpactNegative,
 				Explanation: msg,
 			})
-		} else if score.Severity == model.SeverityWarning {
+		case model.SeverityWarning:
 			d := 3.0
 			deduction += d
 			msg := fmt.Sprintf("Statistical anomaly on %s: %s", score.MetricName, score.Explanation)
