@@ -148,7 +148,135 @@ const (
 	FindingCategoryFleetPattern           FindingCategory = "fleet_pattern"
 	FindingCategoryStabilityRisk          FindingCategory = "stability_risk"
 	FindingCategoryAnomalyCluster         FindingCategory = "anomaly_cluster"
+
+	// Phase 2B Predictive Finding Categories
+	FindingCategoryCapacityRisk           FindingCategory = "capacity_risk"
+	FindingCategoryPredictedDegradation   FindingCategory = "predicted_degradation"
+	FindingCategoryThresholdForecast      FindingCategory = "threshold_forecast"
+	FindingCategoryRecurringIncident      FindingCategory = "recurring_incident"
+	FindingCategoryFleetCapacityPressure  FindingCategory = "fleet_capacity_pressure"
+	FindingCategoryAcceleratingResource   FindingCategory = "accelerating_resource_usage"
 )
+
+// PredictionConfidence rates confidence in a predictive threshold or capacity forecast.
+type PredictionConfidence string
+
+const (
+	PredictionConfidenceHigh             PredictionConfidence = "high"
+	PredictionConfidenceMedium           PredictionConfidence = "medium"
+	PredictionConfidenceLow              PredictionConfidence = "low"
+	PredictionConfidenceInsufficientData PredictionConfidence = "insufficient_data"
+)
+
+// PredictionDirection indicates the directional movement of a metric relative to a threshold.
+type PredictionDirection string
+
+const (
+	PredictionDirectionApproaching     PredictionDirection = "approaching"
+	PredictionDirectionReceding        PredictionDirection = "receding"
+	PredictionDirectionStable          PredictionDirection = "stable"
+	PredictionDirectionAlreadyExceeded PredictionDirection = "already_exceeded"
+	PredictionDirectionUnknown         PredictionDirection = "unknown"
+)
+
+// Prediction represents a deterministic linear threshold projection for a metric on a node.
+type Prediction struct {
+	ID                     string                `json:"id"`
+	NodeID                 string                `json:"node_id"`
+	Metric                 string                `json:"metric"`
+	CurrentValue           float64               `json:"current_value"`
+	TargetThreshold        float64               `json:"target_threshold"`
+	Direction              PredictionDirection   `json:"direction"`
+	SlopePerMinute         float64               `json:"slope_per_minute"`
+	RSquared               float64               `json:"r_squared"`
+	Variance               float64               `json:"variance"`
+	Confidence             PredictionConfidence  `json:"confidence"`
+	EstimatedTimeToThreshold *time.Duration      `json:"estimated_time_to_threshold,omitempty"`
+	PredictedCrossingTime  *time.Time            `json:"predicted_crossing_time,omitempty"`
+	Horizon                time.Duration         `json:"horizon"`
+	ObservationWindow      time.Duration         `json:"observation_window"`
+	SampleCount            int                   `json:"sample_count"`
+	Method                 string                `json:"method"`
+	Evidence               []string              `json:"evidence"`
+	GeneratedAt            time.Time             `json:"generated_at"`
+}
+
+// CapacityResource identifies the hardware subsystem being evaluated for capacity exhaustion.
+type CapacityResource string
+
+const (
+	CapacityResourceCPU    CapacityResource = "cpu"
+	CapacityResourceMemory CapacityResource = "memory"
+	CapacityResourceSwap   CapacityResource = "swap"
+	CapacityResourceDisk   CapacityResource = "disk"
+)
+
+// CapacityForecast represents a capacity projection for a single resource subsystem.
+type CapacityForecast struct {
+	Resource                        CapacityResource     `json:"resource"`
+	Unit                            string               `json:"unit"`
+	CurrentUtilization              float64              `json:"current_utilization"`
+	BaselineUtilization             float64              `json:"baseline_utilization"`
+	TrendSlopePerMinute             float64              `json:"trend_slope_per_minute"`
+	WarningThreshold                float64              `json:"warning_threshold"`
+	CriticalThreshold               float64              `json:"critical_threshold"`
+	TimeToWarning                   *time.Duration       `json:"time_to_warning,omitempty"`
+	TimeToCritical                  *time.Duration       `json:"time_to_critical,omitempty"`
+	Confidence                      PredictionConfidence `json:"confidence"`
+	ProjectedUtilizationAfterHorizon float64              `json:"projected_utilization_after_horizon"`
+	Horizon                         time.Duration        `json:"horizon"`
+	Evidence                        []string             `json:"evidence"`
+}
+
+// NodeCapacityReport aggregates multi-resource capacity forecasts for a single node.
+type NodeCapacityReport struct {
+	NodeID      string             `json:"node_id"`
+	Hostname    string             `json:"hostname"`
+	Status      model.NodeStatus   `json:"status"`
+	Forecasts   []CapacityForecast `json:"forecasts"`
+	Predictions []Prediction       `json:"predictions"`
+	EvaluatedAt time.Time          `json:"evaluated_at"`
+}
+
+// FleetCapacitySummary aggregates cluster-wide capacity risks, pressures, and forecasts.
+type FleetCapacitySummary struct {
+	EvaluatedAt              time.Time             `json:"evaluated_at"`
+	TotalNodes               int                   `json:"total_nodes"`
+	CPUPressurePercent       float64               `json:"cpu_pressure_percent"`
+	MemoryPressurePercent    float64               `json:"memory_pressure_percent"`
+	DiskPressurePercent      float64               `json:"disk_pressure_percent"`
+	NodesApproachingWarning  int                   `json:"nodes_approaching_warning"`
+	NodesApproachingCritical int                   `json:"nodes_approaching_critical"`
+	TopCapacityRisks         []NodeCapacityReport  `json:"top_capacity_risks"`
+	FleetPredictions         []Prediction          `json:"fleet_predictions"`
+	Findings                 []IntelligenceFinding `json:"findings"`
+}
+
+// RecurrenceScope defines the scope at which recurrence is evaluated.
+type RecurrenceScope string
+
+const (
+	RecurrenceScopeNode  RecurrenceScope = "node"
+	RecurrenceScopeFleet RecurrenceScope = "fleet"
+	RecurrenceScopeTag   RecurrenceScope = "tag"
+)
+
+// RecurrencePattern represents statistical recurrence of an incident or event type over time.
+type RecurrencePattern struct {
+	ID                     string               `json:"id"`
+	Scope                  RecurrenceScope      `json:"scope"`
+	TargetID               string               `json:"target_id"`
+	EventType              string               `json:"event_type"`
+	OccurrenceCount        int                  `json:"occurrence_count"`
+	FirstOccurrence        time.Time            `json:"first_occurrence"`
+	MostRecentOccurrence   time.Time            `json:"most_recent_occurrence"`
+	AverageInterval        time.Duration        `json:"average_interval"`
+	MedianInterval         time.Duration        `json:"median_interval"`
+	CoefficientOfVariation float64              `json:"coefficient_of_variation"`
+	Confidence             PredictionConfidence `json:"confidence"`
+	RelatedIncidentIDs     []string             `json:"related_incident_ids"`
+	Summary                string               `json:"summary"`
+}
 
 // FindingConfidence rates the confidence of an intelligence finding.
 type FindingConfidence string
