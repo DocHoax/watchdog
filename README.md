@@ -23,9 +23,10 @@ Watchdog is an all-in-one system health monitoring, diagnostic automation, and l
 - 🛡️ **Structured Security Audit Trails**: Zero-credential-leakage audit logging for authentication, lifecycle, TLS, config, and admin events with SQLite persistence, DoS flood throttling, and CSV formula injection neutralization.
 - 🔒 **Hardened Software Supply Chain**: Keyless Sigstore/Cosign signing, SLSA Build Provenance via GitHub Attestations, SPDX 2.3 SBOMs, and bit-for-bit reproducible builds.
 - 🛰️ **Distributed Fleet Management & Secure Telemetry**: Hub-and-spoke telemetry streaming with persistent node UUIDs, resilient offline buffering, token-bucket ingestion rate limiting, and centralized health querying.
+- 🧠 **Fleet Intelligence & Correlated Health Analysis**: Explainable 0–100 node and fleet health scoring with subsystem factor deductions, score trajectories, OLS linear slope trends, historical percentiles ($P_{50}, P_{90}, P_{95}, P_{99}$), temporal Pearson correlation ($r$), clustered incidents with timelines, and multi-node fleet pattern detection (strictly observational, zero remediation).
 - 📜 **Versioned REST API & OpenAPI 3.0**: Production-ready `/api/v1/...` REST endpoints with constant-time Bearer token verification, role-based scopes, and uniform error envelopes.
 - ☸️ **Enterprise Kubernetes & Fleet Readiness**: Production-ready DaemonSet, ServiceMonitor, and ConfigMap manifests (`deploy/k8s/`), HTTP panic recovery, 1MB payload limits, and Kubernetes liveness/readiness probes (`/healthz`, `/readyz`).
-- 🤖 **Model Context Protocol (MCP) & AI Assistant Integration**: Native, strictly read-only MCP interface (`ProtocolVersion = "2024-11-05"`) supporting dual `stdio` and authenticated HTTP/SSE transports, 8 core diagnostic tools, 5 readable resources, and 4 workflow prompt templates for Claude Desktop, Cursor, IDE extensions, and autonomous agents.
+- 🤖 **Model Context Protocol (MCP) & AI Assistant Integration**: Native, strictly read-only MCP interface (`ProtocolVersion = "2024-11-05"`) supporting dual `stdio` and authenticated HTTP/SSE transports, 13 core diagnostic & intelligence tools, 8 readable resources (`watchdog://` & `intelligence://`), and 7 workflow prompt templates for Claude Desktop, Cursor, IDE extensions, and autonomous agents.
 - 📊 **Self-Contained Multi-Format Reports**: Single-file dark-themed HTML5 reports with inline SVG vector sparklines (zero external JS/CDN requests), structured JSON, CSV, and ANSI terminal summaries.
 - 🌐 **Prometheus Exporter & REST API**: Native `/metrics` OpenMetrics endpoint, standard operational metrics (`watchdog_build_info`, `watchdog_up`), authenticated REST APIs, and runtime `pprof` profiling.
 
@@ -179,7 +180,11 @@ watchdog audit list --since 24h
 # 9. Export audit events to CSV for compliance review
 watchdog audit export --since 30d --format csv --output audit.csv
 
-# 10. Check version information
+# 10. Query fleet intelligence and explainable health scores
+watchdog intelligence fleet
+watchdog intelligence node worker-01
+
+# 11. Check version information
 watchdog version
 watchdog version --short
 watchdog version --json
@@ -200,6 +205,7 @@ watchdog version --json
 | **`watchdog audit`** | `list`, `export`, `audits` | `--since`, `--until`, `-t, --event-type`, `-s, --severity`, `--outcome`, `--limit`, `--format`, `--json` | Manages and queries security audit event logs. |
 | **`watchdog node`** | — | `-s, --short`, `--json`, `--node-id`, `--node-id-file`, `--tags` | Displays local machine identity, hardware specs, and persistent UUID. |
 | **`watchdog fleet`** | `status`, `list`, `get`, `register`, `heartbeat`, `deregister`, `fleets` | `--server`, `--token`, `--token-file`, `--insecure`, `--status`, `--search`, `--since`, `--sort-by` | Centralized fleet cluster management and observability querying. |
+| **`watchdog intelligence`** | `fleet`, `node`, `incidents`, `trends`, `baselines`, `correlations`, `findings`, `intel`, `ai` | `--server-url`, `--token`, `--token-file`, `--insecure`, `--window`, `--min-severity`, `--format`, `--json` | Explainable health scoring, trends, baselines, clustered incidents, and fleet pattern analysis. |
 | **`watchdog mcp`** | `serve`, `status`, `tools`, `resources`, `prompts`, `ai` | `--transport`, `-p, --port`, `-H, --host`, `-t, --token`, `--tls-cert`, `--tls-key`, `--rate-limit`, `--json` | Model Context Protocol (MCP) server & AI assistant integration. |
 | **`watchdog config`** | `init`, `validate`, `show`, `path` | `[path]`, `--json` | Manages and validates YAML configuration. |
 | **`watchdog export`** | — | `-f, --format`, `-m, --metric`, `-s, --since`, `-o, --output` | Dumps metrics from embedded SQLite database. |
