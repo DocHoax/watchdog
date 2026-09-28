@@ -151,11 +151,9 @@ func (a *SPOFAnalyzer) AnalyzeNode(g *Graph, nodeID string) *SPOFAnalysis {
 	// Assign risk level based on criticality score
 	var riskLevel model.Severity
 	switch {
-	case score >= 75.0:
+	case score >= 70.0:
 		riskLevel = model.SeverityCritical
-	case score >= 55.0:
-		riskLevel = model.SeverityHigh
-	case score >= 30.0:
+	case score >= 35.0:
 		riskLevel = model.SeverityWarning
 	default:
 		riskLevel = model.SeverityInfo
