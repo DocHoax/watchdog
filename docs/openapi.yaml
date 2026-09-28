@@ -484,6 +484,541 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
+  /api/v1/intelligence/fleet/predictions:
+    get:
+      summary: Fleet Capacity & Threshold Predictions
+      description: Evaluates multi-node threshold predictions, resource exhaustion risks, and fleet capacity pressure.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: horizon
+          schema:
+            type: string
+            default: "24h"
+          description: Forecast horizon window (e.g. 1h, 6h, 24h, 7d).
+      responses:
+        '200':
+          description: Fleet predictions summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetPredictionsSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/intelligence/nodes/{node_id}/predictions:
+    get:
+      summary: Node Metric Predictions
+      description: Returns threshold exhaustion predictions and linear regression metrics for a fleet node.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: horizon
+          schema:
+            type: string
+            default: "24h"
+          description: Prediction horizon window (e.g. 1h, 6h, 24h, 7d).
+      responses:
+        '200':
+          description: Array of metric predictions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MetricPrediction'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/intelligence/nodes/{node_id}/capacity:
+    get:
+      summary: Node Capacity Runway Forecast
+      description: Evaluates multi-subsystem runway (CPU, memory, disk, swap) and limiting resource runway for a node.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: horizon
+          schema:
+            type: string
+            default: "24h"
+      responses:
+        '200':
+          description: Multi-subsystem capacity forecast report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeCapacityForecast'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/intelligence/predictions/{prediction_id}:
+    get:
+      summary: Get Specific Metric Prediction
+      description: Retrieves a specific generated metric prediction by unique ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: prediction_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Metric prediction details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricPrediction'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/intelligence/recurrence:
+    get:
+      summary: Recurring Incident Patterns
+      description: Statistical analysis of recurring and flapping incidents across the fleet with inter-arrival intervals and coefficient of variation.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: since
+          schema:
+            type: string
+            default: "24h"
+          description: Lookback duration for recurrence analysis.
+      responses:
+        '200':
+          description: Array of recurrence patterns.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecurrencePattern'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/intelligence/root-cause/{incident_id}:
+    get:
+      summary: Incident Root Cause Analysis
+      description: Conducts multi-factor deterministic root cause analysis combining topological centrality, temporal precedence, blast radius, severity, and recurrence.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: incident_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Explainable root cause dossier and causal propagation chains.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RootCauseReport'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/topology:
+    get:
+      summary: Query Topology Graph
+      description: Returns filtered directed topology graph including nodes, dependency edges, and graph summary metadata.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+          description: Filter by comma-separated node types (e.g. service, database, physical_host).
+        - in: query
+          name: status
+          schema:
+            type: string
+          description: Filter by comma-separated node statuses (e.g. healthy, degraded, critical).
+        - in: query
+          name: source
+          schema:
+            type: string
+          description: Filter by discovery source.
+        - in: query
+          name: host_id
+          schema:
+            type: string
+          description: Filter nodes hosted on a specific physical host or VM.
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Case-insensitive search on node ID and name.
+        - in: query
+          name: max_depth
+          schema:
+            type: integer
+          description: Max traversal depth from matched roots.
+      responses:
+        '200':
+          description: Filtered topology graph response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopologyGraphResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/topology/summary:
+    get:
+      summary: Topology Summary
+      description: Returns structural graph metadata including node/edge counts, types, density, DAG status, and connected components.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Topology graph summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopologySummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/topology/dot:
+    get:
+      summary: Export Topology as Graphviz DOT
+      description: Serializes the current active service and infrastructure topology graph into Graphviz DOT format.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Graphviz DOT representation.
+          content:
+            text/vnd.graphviz:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/topology/path:
+    get:
+      summary: Find Shortest Dependency Path
+      description: Traverses the directed graph using BFS to find the shortest dependency path between source and target nodes.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: source
+          required: true
+          schema:
+            type: string
+          description: Source node ID.
+        - in: query
+          name: target
+          required: true
+          schema:
+            type: string
+          description: Target node ID.
+      responses:
+        '200':
+          description: Shortest path traversal result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopologyPath'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/topology/spof:
+    get:
+      summary: Find All Single Points of Failure (SPOF)
+      description: Evaluates all nodes in the topology graph to identify single points of failure without redundant backup paths.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: min_criticality
+          schema:
+            type: number
+            default: 0.0
+          description: Minimum criticality threshold (0-100) for filtering.
+      responses:
+        '200':
+          description: List of detected single points of failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SPOFListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/topology/spof/{node_id}:
+    get:
+      summary: Analyze Node SPOF Risk
+      description: Performs dedicated single point of failure and redundancy analysis for a specific node.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SPOF risk analysis for the node.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SPOFAnalysis'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/topology/impact/{node_id}:
+    get:
+      summary: Analyze Blast Radius & Impact
+      description: Computes transitive downstream blast radius, dependency count, max impact depth, and affected component breakdown if this node fails.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Blast radius impact evaluation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlastRadiusImpact'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/topology/nodes:
+    post:
+      summary: Add Declared Topology Node
+      description: Adds or updates a manually declared topology node in the persistent topology graph.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopologyNode'
+      responses:
+        '201':
+          description: Node successfully registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopologyNode'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/topology/nodes/{node_id}:
+    get:
+      summary: Get Topology Node
+      description: Retrieves a specific topology node by ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Topology node details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopologyNode'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Remove Topology Node
+      description: Deletes a declared topology node and removes all its connected incident edges.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node successfully deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    example: true
+                  node_id:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/topology/dependencies:
+    post:
+      summary: Add Declared Dependency
+      description: Adds a directional dependency edge between source and target topology nodes.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dependency'
+      responses:
+        '201':
+          description: Dependency successfully created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dependency'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    delete:
+      summary: Remove Declared Dependency
+      description: Removes a directional dependency edge between source and target nodes.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: source
+          schema:
+            type: string
+        - in: query
+          name: target
+          schema:
+            type: string
+        - in: query
+          name: type
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dependency successfully deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    example: true
+                  source_id:
+                    type: string
+                  target_id:
+                    type: string
+                  type:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/topology/dependencies/{node_id}:
+    get:
+      summary: Get Node Dependencies
+      description: Returns all upstream dependencies that this node relies on (outgoing edges).
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node upstream dependencies.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeDependenciesResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/topology/dependents/{node_id}:
+    get:
+      summary: Get Node Dependents
+      description: Returns all downstream dependents that rely on this node (incoming edges).
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: node_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node downstream dependents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeDependentsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
 components:
   securitySchemes:
     BearerAuth:
