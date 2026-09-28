@@ -125,6 +125,28 @@ func (p *PromptRegistry) ListPrompts() []Prompt {
 				},
 			},
 		},
+		{
+			Name:        "topology_spof_analysis",
+			Description: "Identify single points of failure (SPOFs) and evaluate component blast radius across the service topology.",
+			Arguments: []PromptArgument{
+				{
+					Name:        "min_criticality",
+					Description: "Minimum criticality threshold (0-100) for SPOF filtering",
+					Required:    false,
+				},
+			},
+		},
+		{
+			Name:        "root_cause_analysis",
+			Description: "Perform topological and temporal root cause analysis for an incident with causal chain discovery and factor contributions.",
+			Arguments: []PromptArgument{
+				{
+					Name:        "incident_id",
+					Description: "Identifier of the incident to analyze root cause for",
+					Required:    true,
+				},
+			},
+		},
 	}
 }
 
@@ -387,6 +409,57 @@ func (p *PromptRegistry) GetPrompt(name string, args map[string]string) (*GetPro
 								"3. For flapping nodes, call `get_node_intelligence` and `get_node_trends` to identify underlying trigger factors.\n"+
 								"4. Synthesize observational recurrence patterns and non-invasive investigation guidance.",
 							since, since,
+						),
+					},
+				},
+			},
+		}, nil
+
+	case "topology_spof_analysis":
+		minCrit := "0"
+		if mc, ok := args["min_criticality"]; ok && strings.TrimSpace(mc) != "" {
+			minCrit = strings.TrimSpace(mc)
+		}
+		return &GetPromptResult{
+			Description: "Analyze single points of failure and blast radius across the topology",
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: PromptContent{
+						Type: "text",
+						Text: fmt.Sprintf(
+							"Please analyze single points of failure and topological blast radius:\n"+
+								"1. Call `get_spofs` with min_criticality=%s to identify high-risk single points of failure.\n"+
+								"2. Call `get_topology_summary` to understand overall graph density, node distribution, and edge relationships.\n"+
+								"3. For identified SPOF nodes, call `get_node_impact` to assess downstream dependencies, blast radius, and affected components.\n"+
+								"4. Synthesize structural architectural risks and propose non-invasive redundancy enhancements.",
+							minCrit,
+						),
+					},
+				},
+			},
+		}, nil
+
+	case "root_cause_analysis":
+		incidentID, ok := args["incident_id"]
+		if !ok || strings.TrimSpace(incidentID) == "" {
+			return nil, NewInvalidParamsError("missing required argument 'incident_id'")
+		}
+		incidentID = strings.TrimSpace(incidentID)
+		return &GetPromptResult{
+			Description: fmt.Sprintf("Perform topological root cause analysis for incident %s", incidentID),
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: PromptContent{
+						Type: "text",
+						Text: fmt.Sprintf(
+							"Please perform topological and temporal root cause analysis for incident %q:\n"+
+								"1. Call `analyze_root_cause` with incident_id=%q to compute causal ranking, factor contributions, and propagation paths.\n"+
+								"2. Call `get_topology_path` between the suspected root cause and victim nodes to trace failure propagation.\n"+
+								"3. Call `get_node_impact` on the root-cause node to evaluate blast radius and dependent services.\n"+
+								"4. Synthesize the findings into an explainable root cause report with non-invasive operator recommendations.",
+							incidentID, incidentID,
 						),
 					},
 				},

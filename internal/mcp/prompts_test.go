@@ -10,8 +10,8 @@ func TestPromptRegistry(t *testing.T) {
 
 	t.Run("ListPrompts", func(t *testing.T) {
 		prompts := registry.ListPrompts()
-		if len(prompts) != 10 {
-			t.Fatalf("expected 10 prompts, got %d", len(prompts))
+		if len(prompts) != 12 {
+			t.Fatalf("expected 12 prompts, got %d", len(prompts))
 		}
 
 		names := make(map[string]bool)
@@ -30,6 +30,8 @@ func TestPromptRegistry(t *testing.T) {
 			"forecast_node_capacity",
 			"analyze_fleet_capacity",
 			"investigate_recurring_incidents",
+			"topology_spof_analysis",
+			"root_cause_analysis",
 		}
 		for _, name := range expected {
 			if !names[name] {
@@ -187,6 +189,33 @@ func TestPromptRegistry(t *testing.T) {
 		}
 		if !strings.Contains(res.Messages[0].Content.Text, `7d`) || !strings.Contains(res.Messages[0].Content.Text, `get_recurring_incidents`) {
 			t.Errorf("expected prompt text to include 7d and get_recurring_incidents: %s", res.Messages[0].Content.Text)
+		}
+	})
+
+	t.Run("GetPrompt topology_spof_analysis", func(t *testing.T) {
+		res, err := registry.GetPrompt("topology_spof_analysis", map[string]string{"min_criticality": "50"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res.Messages[0].Content.Text, "get_spofs") || !strings.Contains(res.Messages[0].Content.Text, "min_criticality=50") {
+			t.Errorf("expected prompt text to include get_spofs and min_criticality=50: %s", res.Messages[0].Content.Text)
+		}
+	})
+
+	t.Run("GetPrompt root_cause_analysis", func(t *testing.T) {
+		// Missing incident_id
+		_, err := registry.GetPrompt("root_cause_analysis", map[string]string{})
+		if err == nil {
+			t.Fatalf("expected error when incident_id is missing")
+		}
+
+		// Valid
+		res, err := registry.GetPrompt("root_cause_analysis", map[string]string{"incident_id": "inc-rca-01"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(res.Messages[0].Content.Text, "inc-rca-01") || !strings.Contains(res.Messages[0].Content.Text, "analyze_root_cause") {
+			t.Errorf("expected prompt text to include incident_id and analyze_root_cause: %s", res.Messages[0].Content.Text)
 		}
 	})
 
