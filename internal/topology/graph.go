@@ -489,6 +489,12 @@ func (g *Graph) GetTransitiveDependents(nodeID string, maxDepth int) []TopologyN
 	return result
 }
 
+// IsReachable checks if there is a directed path from sourceID to targetID.
+func (g *Graph) IsReachable(sourceID, targetID string) bool {
+	_, found := g.FindShortestPath(sourceID, targetID)
+	return found
+}
+
 // FindShortestPath calculates the shortest directed dependency path between source and target using BFS.
 func (g *Graph) FindShortestPath(sourceID, targetID string) (*DependencyPath, bool) {
 	g.mu.RLock()
