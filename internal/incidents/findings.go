@@ -39,9 +39,10 @@ func GenerateIncidentFindings(inc *Incident) []IntelligenceFinding {
 		}
 
 		conf := FindingConfidenceHigh
-		if inc.Confidence == "medium" {
+		switch inc.Confidence {
+		case "medium":
 			conf = FindingConfidenceMedium
-		} else if inc.Confidence == "low" {
+		case "low":
 			conf = FindingConfidenceLow
 		}
 
@@ -147,20 +148,20 @@ func GenerateIncidentFindings(inc *Incident) []IntelligenceFinding {
 	if hasPrediction {
 		findingID := generateFindingID(inc.ID, "capacity_risk")
 		findings = append(findings, IntelligenceFinding{
-			ID:                     findingID,
-			Category:               FindingCategoryCapacityRisk,
-			Severity:               inc.Severity,
-			Confidence:             FindingConfidenceHigh,
-			Title:                  fmt.Sprintf("Resource capacity threshold exhaustion projected (%s)", inc.ID),
-			Description:            fmt.Sprintf("Linear threshold projection indicates resources involved in incident %s will exceed capacity limits.", inc.ID),
-			AffectedNodes:          inc.AffectedNodes,
-			SupportingEvidence:     predEvidence,
+			ID:                 findingID,
+			Category:           FindingCategoryCapacityRisk,
+			Severity:           inc.Severity,
+			Confidence:         FindingConfidenceHigh,
+			Title:              fmt.Sprintf("Resource capacity threshold exhaustion projected (%s)", inc.ID),
+			Description:        fmt.Sprintf("Linear threshold projection indicates resources involved in incident %s will exceed capacity limits.", inc.ID),
+			AffectedNodes:      inc.AffectedNodes,
+			SupportingEvidence: predEvidence,
 			NonInvasiveSuggestions: []string{
 				"Review capacity trends and plan non-disruptive resource scaling or quota adjustments.",
 				"Evaluate workload distribution across other nodes in the fleet.",
 				"Analyze historical consumption patterns to identify sudden consumption spikes.",
 			},
-			DetectedAt:             now,
+			DetectedAt: now,
 		})
 	}
 

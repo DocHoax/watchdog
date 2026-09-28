@@ -78,7 +78,8 @@ func TestIncidentClusterer_ClusterFleetSignals(t *testing.T) {
 	foundIsolatedInc := false
 
 	for _, inc := range incidents {
-		if inc.Scope == IncidentScopeFleet || inc.Scope == IncidentScopeMultiNode {
+		switch inc.Scope {
+		case IncidentScopeFleet, IncidentScopeMultiNode:
 			foundFleetInc = true
 			if len(inc.AffectedNodes) != 3 {
 				t.Errorf("expected 3 affected nodes in fleet incident, got %d", len(inc.AffectedNodes))
@@ -89,7 +90,7 @@ func TestIncidentClusterer_ClusterFleetSignals(t *testing.T) {
 			if len(inc.Timeline) != 3 {
 				t.Errorf("expected 3 timeline entries, got %d", len(inc.Timeline))
 			}
-		} else if inc.Scope == IncidentScopeNode {
+		case IncidentScopeNode:
 			foundIsolatedInc = true
 			if len(inc.AffectedNodes) != 1 || inc.AffectedNodes[0] != "node-1" {
 				t.Errorf("expected single-node incident for node-1, got %+v", inc.AffectedNodes)

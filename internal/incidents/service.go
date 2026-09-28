@@ -192,9 +192,10 @@ func (s *DefaultService) GetSummary(ctx context.Context) (*IncidentSummary, erro
 				nodeMap[n] = &NodeIncidentCount{NodeID: n}
 			}
 			nodeMap[n].IncidentCount++
-			if inc.Severity == model.SeverityCritical {
+			switch inc.Severity {
+			case model.SeverityCritical:
 				nodeMap[n].CriticalCount++
-			} else if inc.Severity == model.SeverityWarning {
+			case model.SeverityWarning:
 				nodeMap[n].WarningCount++
 			}
 		}

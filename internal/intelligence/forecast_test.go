@@ -189,9 +189,10 @@ func TestCalculatePrediction_NonFiniteFiltering(t *testing.T) {
 	var points []storage.MetricPoint
 	for i := 0; i < 15; i++ {
 		val := 30.0 + float64(i)
-		if i == 5 {
+		switch i {
+		case 5:
 			val = math.NaN()
-		} else if i == 10 {
+		case 10:
 			val = math.Inf(1)
 		}
 		points = append(points, storage.MetricPoint{

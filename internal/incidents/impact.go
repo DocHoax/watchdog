@@ -71,9 +71,10 @@ func CalculateImpact(
 	for _, s := range signals {
 		sevKey := strings.ToLower(string(s.Severity))
 		sevDist[sevKey]++
-		if s.Severity == model.SeverityCritical {
+		switch s.Severity {
+		case model.SeverityCritical:
 			criticalCount++
-		} else if s.Severity == model.SeverityWarning {
+		case model.SeverityWarning:
 			warningCount++
 		}
 

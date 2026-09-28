@@ -26,16 +26,18 @@ func CalculateSeverity(signals []IncidentSignal, affectedNodesCount, totalFleetN
 		switch sig.Type {
 		case SignalTypeAlert:
 			alertCount++
-			if sig.Severity == model.SeverityCritical {
+			switch sig.Severity {
+			case model.SeverityCritical:
 				hasCriticalAlert = true
-			} else if sig.Severity == model.SeverityWarning {
+			case model.SeverityWarning:
 				hasWarningAlert = true
 			}
 		case SignalTypeDiagnostic:
 			diagCount++
-			if sig.Severity == model.SeverityCritical {
+			switch sig.Severity {
+			case model.SeverityCritical:
 				hasCriticalDiag = true
-			} else if sig.Severity == model.SeverityWarning {
+			case model.SeverityWarning:
 				hasWarningDiag = true
 			}
 		case SignalTypeAnomaly:

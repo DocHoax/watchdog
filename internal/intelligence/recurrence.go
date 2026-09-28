@@ -236,11 +236,12 @@ func GenerateRecurrenceFindings(patterns []RecurrencePattern) []IntelligenceFind
 
 	for _, p := range patterns {
 		var sev model.Severity
-		if p.Confidence == PredictionConfidenceHigh {
+		switch p.Confidence {
+		case PredictionConfidenceHigh:
 			sev = model.SeverityCritical
-		} else if p.Confidence == PredictionConfidenceMedium {
+		case PredictionConfidenceMedium:
 			sev = model.SeverityWarning
-		} else {
+		default:
 			sev = model.SeverityInfo
 		}
 
