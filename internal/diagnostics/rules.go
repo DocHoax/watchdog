@@ -424,7 +424,7 @@ func (r *NetworkConnectivityRule) Evaluate(ctx context.Context, snapshot *model.
 		Timestamp: time.Now(),
 	}
 
-	endpoints := []string{"1.1.1.1:53", "8.8.8.8:53"}
+	endpoints := []string{"1.1.1.1:443", "8.8.8.8:443", "1.1.1.1:53", "8.8.8.8:53"}
 	var successful []string
 	var latencies []time.Duration
 
