@@ -15,6 +15,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/storage"
+	"github.com/DocHoax/watchdog/internal/topology"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -37,6 +38,12 @@ var AllowedReadOperations = map[string]bool{
 	"get_node_capacity_forecast": true,
 	"get_fleet_predictions":      true,
 	"get_recurring_incidents":    true,
+	"get_topology":               true,
+	"get_topology_summary":       true,
+	"get_topology_path":          true,
+	"get_spofs":                  true,
+	"get_node_impact":            true,
+	"analyze_root_cause":         true,
 }
 
 // ToolRegistry manages and executes read-only MCP tools against domain services.
@@ -48,6 +55,7 @@ type ToolRegistry struct {
 	alerts        *alerts.Engine
 	localIdentity model.NodeIdentity
 	intelSvc      intelligence.IntelligenceService
+	topoSvc       topology.Service
 }
 
 // NewToolRegistry creates a new ToolRegistry with injected domain dependencies.
@@ -84,6 +92,39 @@ func (r *ToolRegistry) SetIntelligenceService(svc intelligence.IntelligenceServi
 	r.intelSvc = svc
 }
 
+// SetTopologyService sets or overrides the topology service instance.
+func (r *ToolRegistry) SetTopologyService(svc topology.Service) {
+	r.topoSvc = svc
+}
+
+func (r *ToolRegistry) getTopologyService() topology.Service {
+	if r.topoSvc != nil {
+		return r.topoSvc
+	}
+	svc := topology.NewService()
+	if r.fleetService != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		nodesResp, err := r.fleetService.ListNodes(ctx, model.FleetFilter{})
+		cancel()
+		if err == nil && nodesResp != nil {
+			identities := make([]model.NodeIdentity, 0, len(nodesResp.Nodes))
+			for _, n := range nodesResp.Nodes {
+				identities = append(identities, n.Identity)
+			}
+			svc.IngestFleet(identities)
+		}
+	}
+	if r.collector != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		snap, err := r.collector.CollectAll(ctx)
+		cancel()
+		if err == nil && snap != nil {
+			svc.IngestSnapshot(snap, r.localIdentity.NodeID)
+		}
+	}
+	return svc
+}
+
 func (r *ToolRegistry) getIntelligenceService() intelligence.IntelligenceService {
 	if r.intelSvc != nil {
 		return r.intelSvc
@@ -91,7 +132,7 @@ func (r *ToolRegistry) getIntelligenceService() intelligence.IntelligenceService
 	return intelligence.NewService(r.storage, r.fleetService, anomaly.NewDetector(nil), logger.GetDefault(), nil)
 }
 
-// ToolDefinitions returns the full list of 17 supported read-only MCP tools with JSON schemas.
+// ToolDefinitions returns the full list of 23 supported read-only MCP tools with JSON schemas.
 func ToolDefinitions() []Tool {
 	minLimit := 1.0
 	maxLimit100 := 100.0
@@ -424,6 +465,106 @@ func ToolDefinitions() []Tool {
 				},
 			},
 		},
+		{
+			Name:        "get_topology",
+			Description: "Retrieve the full or filtered service and infrastructure dependency topology graph including nodes, edges, and graph summary.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"type": {
+						Type:        "string",
+						Description: "Filter nodes by type (e.g. 'service', 'container', 'k8s_pod', 'database', 'host')",
+					},
+					"status": {
+						Type:        "string",
+						Description: "Filter nodes by status (e.g. 'healthy', 'warning', 'critical', 'offline', 'unknown')",
+					},
+					"source": {
+						Type:        "string",
+						Description: "Filter nodes by discovery source (e.g. 'docker', 'k8s', 'proc', 'declared')",
+					},
+					"host_id": {
+						Type:        "string",
+						Description: "Filter nodes hosted on or bound to a specific host ID",
+					},
+					"search": {
+						Type:        "string",
+						Description: "Search query matching node ID, name, or metadata",
+					},
+					"max_depth": {
+						Type:        "integer",
+						Description: "Maximum graph traversal depth (default: 0 for unlimited)",
+					},
+				},
+			},
+		},
+		{
+			Name:        "get_topology_summary",
+			Description: "Retrieve high-level topology graph summary statistics (total nodes by type and status, dependency counts by relationship type, cycle status, SPOF count).",
+			InputSchema: InputSchema{
+				Type:       "object",
+				Properties: map[string]Property{},
+			},
+		},
+		{
+			Name:        "get_topology_path",
+			Description: "Find the shortest dependency path and intermediate hops between two topology nodes.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"source": {
+						Type:        "string",
+						Description: "Source node identifier",
+					},
+					"target": {
+						Type:        "string",
+						Description: "Target node identifier",
+					},
+				},
+				Required: []string{"source", "target"},
+			},
+		},
+		{
+			Name:        "get_spofs",
+			Description: "Identify single points of failure (SPOFs) in the topology graph exceeding a minimum criticality score.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"min_criticality": {
+						Type:        "number",
+						Description: "Minimum criticality threshold score (0.0 - 100.0, default: 0.0)",
+					},
+				},
+			},
+		},
+		{
+			Name:        "get_node_impact",
+			Description: "Evaluate the upstream blast radius, affected services, and transitive impact depth if a node experiences an outage or degradation.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"node_id": {
+						Type:        "string",
+						Description: "Identifier of the target node to analyze",
+					},
+				},
+				Required: []string{"node_id"},
+			},
+		},
+		{
+			Name:        "analyze_root_cause",
+			Description: "Perform explainable, deterministic root-cause analysis for an incident cluster using topological centrality, temporal precedence, and severity weights.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"incident_id": {
+						Type:        "string",
+						Description: "Identifier of the incident cluster to analyze",
+					},
+				},
+				Required: []string{"incident_id"},
+			},
+		},
 	}
 }
 
@@ -482,6 +623,18 @@ func (r *ToolRegistry) Execute(ctx context.Context, mcpCtx MCPContext, name stri
 		return r.handleGetFleetPredictions(ctx, args)
 	case "get_recurring_incidents":
 		return r.handleGetRecurringIncidents(ctx, args)
+	case "get_topology":
+		return r.handleGetTopology(ctx, args)
+	case "get_topology_summary":
+		return r.handleGetTopologySummary(ctx, args)
+	case "get_topology_path":
+		return r.handleGetTopologyPath(ctx, args)
+	case "get_spofs":
+		return r.handleGetSPOFs(ctx, args)
+	case "get_node_impact":
+		return r.handleGetNodeImpact(ctx, args)
+	case "analyze_root_cause":
+		return r.handleAnalyzeRootCause(ctx, args)
 	default:
 		return nil, NewMethodNotFoundError(fmt.Sprintf("tool '%s'", name))
 	}
@@ -1000,6 +1153,105 @@ func (r *ToolRegistry) handleGetRecurringIncidents(ctx context.Context, args map
 	return jsonResult(recurring)
 }
 
+func (r *ToolRegistry) handleGetTopology(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	typeStr := getStringArg(args, "type")
+	statusStr := getStringArg(args, "status")
+	source := getStringArg(args, "source")
+	hostID := getStringArg(args, "host_id")
+	search := getStringArg(args, "search")
+	maxDepth := getIntArg(args, "max_depth", 0)
+
+	filter := topology.TopologyFilter{
+		Source:   source,
+		HostID:   hostID,
+		Search:   search,
+		MaxDepth: maxDepth,
+	}
+	if typeStr != "" {
+		for _, part := range strings.Split(typeStr, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				filter.Types = append(filter.Types, topology.NodeType(part))
+			}
+		}
+	}
+	if statusStr != "" {
+		for _, part := range strings.Split(statusStr, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				filter.Statuses = append(filter.Statuses, topology.NodeStatus(part))
+			}
+		}
+	}
+
+	svc := r.getTopologyService()
+	resp := svc.GetTopology(filter)
+	return jsonResult(resp)
+}
+
+func (r *ToolRegistry) handleGetTopologySummary(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	svc := r.getTopologyService()
+	summary := svc.GetGraph().Summary()
+	return jsonResult(summary)
+}
+
+func (r *ToolRegistry) handleGetTopologyPath(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	source := getStringArg(args, "source")
+	target := getStringArg(args, "target")
+	if source == "" || target == "" {
+		return nil, NewInvalidParamsError("both 'source' and 'target' node IDs are required")
+	}
+
+	svc := r.getTopologyService()
+	path, found := svc.FindPath(source, target)
+	if !found || path == nil {
+		return jsonResult(map[string]any{
+			"source": source,
+			"target": target,
+			"found":  false,
+			"path":   nil,
+		})
+	}
+	return jsonResult(path)
+}
+
+func (r *ToolRegistry) handleGetSPOFs(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	minCrit := getFloatArg(args, "min_criticality", 0.0)
+	svc := r.getTopologyService()
+	spofs := svc.FindAllSPOFs(minCrit)
+	return jsonResult(map[string]any{
+		"spofs": spofs,
+		"count": len(spofs),
+	})
+}
+
+func (r *ToolRegistry) handleGetNodeImpact(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	nodeID := getStringArg(args, "node_id")
+	if nodeID == "" {
+		return nil, NewInvalidParamsError("missing required argument 'node_id'")
+	}
+	svc := r.getTopologyService()
+	impact := svc.AnalyzeImpact(nodeID)
+	return jsonResult(impact)
+}
+
+func (r *ToolRegistry) handleAnalyzeRootCause(ctx context.Context, args map[string]any) (*CallToolResult, *JSONRPCError) {
+	incidentID := getStringArg(args, "incident_id")
+	if incidentID == "" {
+		return nil, NewInvalidParamsError("missing required argument 'incident_id'")
+	}
+	topoSvc := r.getTopologyService()
+	intelSvc := r.getIntelligenceService()
+	report, err := intelSvc.AnalyzeIncidentRootCause(ctx, incidentID, topoSvc.GetGraph())
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, NewInvalidParamsError(fmt.Sprintf("incident '%s' not found", incidentID))
+		}
+		return nil, NewInternalError(fmt.Sprintf("failed to analyze root cause for incident '%s': %v", incidentID, err))
+	}
+	return jsonResult(report)
+}
+
 func jsonResult(v any) (*CallToolResult, *JSONRPCError) {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -1036,6 +1288,26 @@ func getIntArg(args map[string]any, key string, def int) int {
 		case json.Number:
 			if i, err := v.Int64(); err == nil {
 				return int(i)
+			}
+		}
+	}
+	return def
+}
+
+func getFloatArg(args map[string]any, key string, def float64) float64 {
+	if val, ok := args[key]; ok {
+		switch v := val.(type) {
+		case float64:
+			return v
+		case float32:
+			return float64(v)
+		case int:
+			return float64(v)
+		case int64:
+			return float64(v)
+		case json.Number:
+			if f, err := v.Float64(); err == nil {
+				return f
 			}
 		}
 	}

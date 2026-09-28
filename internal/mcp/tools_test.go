@@ -16,8 +16,8 @@ import (
 
 func TestToolDefinitions(t *testing.T) {
 	tools := ToolDefinitions()
-	if len(tools) != 17 {
-		t.Fatalf("expected 17 tool definitions, got %d", len(tools))
+	if len(tools) != 23 {
+		t.Fatalf("expected 23 tool definitions, got %d", len(tools))
 	}
 
 	expectedTools := map[string]bool{
@@ -38,6 +38,12 @@ func TestToolDefinitions(t *testing.T) {
 		"get_node_capacity_forecast": false,
 		"get_fleet_predictions":      false,
 		"get_recurring_incidents":    false,
+		"get_topology":               false,
+		"get_topology_summary":       false,
+		"get_topology_path":          false,
+		"get_spofs":                  false,
+		"get_node_impact":            false,
+		"analyze_root_cause":         false,
 	}
 
 	for _, tool := range tools {
