@@ -13,6 +13,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/fleet"
 	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/storage"
+	"github.com/DocHoax/watchdog/internal/topology"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -42,6 +43,9 @@ type IntelligenceService interface {
 	GetFleetPredictions(ctx context.Context, horizon time.Duration) (*FleetCapacitySummary, error)
 	GetRecurringIncidents(ctx context.Context, since time.Duration) ([]RecurrencePattern, error)
 	GetPrediction(ctx context.Context, predictionID string) (*Prediction, error)
+
+	// Phase 2D Topology & Root Cause Analysis Intelligence
+	AnalyzeIncidentRootCause(ctx context.Context, incidentID string, g *topology.Graph) (*RootCauseReport, error)
 }
 
 // ServiceConfig holds optional configuration overrides for the intelligence service.
@@ -769,6 +773,31 @@ func (s *intelligenceService) GetPrediction(ctx context.Context, predictionID st
 	}
 
 	return nil, ErrPredictionNotFound
+}
+
+// AnalyzeIncidentRootCause evaluates deterministic root-cause candidates for an incident cluster against the topology graph.
+func (s *intelligenceService) AnalyzeIncidentRootCause(ctx context.Context, incidentID string, g *topology.Graph) (*RootCauseReport, error) {
+	if incidentID == "" {
+		return nil, ErrIncidentNotFound
+	}
+
+	inc, err := s.GetIncident(ctx, incidentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch predictions and recurrence patterns for context
+	var preds []Prediction
+	capReport, err := s.GetFleetPredictions(ctx, 24*time.Hour)
+	if err == nil && capReport != nil {
+		preds = capReport.FleetPredictions
+	}
+
+	recurrence, _ := s.GetRecurringIncidents(ctx, 24*time.Hour)
+
+	rcaEngine := NewRootCauseEngine()
+	report := rcaEngine.AnalyzeIncident(inc, g, preds, recurrence)
+	return report, nil
 }
 
 func isSeverityAtLeast(sev model.Severity, minSev model.Severity) bool {
