@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DocHoax/watchdog/internal/intelligence"
+	"github.com/DocHoax/watchdog/internal/topology"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -68,7 +69,19 @@ func (s *Server) handleIntelligenceRoute(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 6. /api/v1/intelligence/predictions/{id}
+	// 6. /api/v1/intelligence/root-cause or /api/v1/intelligence/root-cause/{id}
+	if strings.HasPrefix(path, "root-cause") {
+		subPath := strings.TrimPrefix(path, "root-cause")
+		subPath = strings.TrimPrefix(subPath, "/")
+		if subPath == "" {
+			s.writeAPIError(w, r, http.StatusBadRequest, "MISSING_INCIDENT_ID", "Incident ID is required for root cause analysis")
+			return
+		}
+		s.handleIntelligenceRootCauseByID(w, r, intelSvc, subPath)
+		return
+	}
+
+	// 7. /api/v1/intelligence/predictions/{id}
 	if strings.HasPrefix(path, "predictions/") {
 		predID := strings.TrimPrefix(path, "predictions/")
 		if predID != "" {
@@ -77,7 +90,7 @@ func (s *Server) handleIntelligenceRoute(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// 7. /api/v1/intelligence/nodes/{id}, /api/v1/intelligence/nodes/{id}/trends, /api/v1/intelligence/nodes/{id}/baselines, predictions, capacity
+	// 8. /api/v1/intelligence/nodes/{id}, /api/v1/intelligence/nodes/{id}/trends, /api/v1/intelligence/nodes/{id}/baselines, predictions, capacity
 	if strings.HasPrefix(path, "nodes/") {
 		nodeParts := strings.Split(strings.TrimPrefix(path, "nodes/"), "/")
 		nodeID := nodeParts[0]
@@ -265,6 +278,29 @@ func (s *Server) handleIntelligencePredictionByID(w http.ResponseWriter, r *http
 		return
 	}
 	s.writeJSON(w, http.StatusOK, pred)
+}
+
+func (s *Server) handleIntelligenceRootCauseByID(w http.ResponseWriter, r *http.Request, intelSvc intelligence.IntelligenceService, incidentID string) {
+	var g *topology.Graph
+	if topoSvc := s.TopologyService(); topoSvc != nil {
+		g = topoSvc.GetGraph()
+	}
+
+	report, err := intelSvc.AnalyzeIncidentRootCause(r.Context(), incidentID, g)
+	if err != nil {
+		if errors.Is(err, intelligence.ErrIncidentNotFound) {
+			s.writeAPIError(w, r, http.StatusNotFound, "INCIDENT_NOT_FOUND", fmt.Sprintf("Incident '%s' not found", incidentID))
+			return
+		}
+		s.writeAPIError(w, r, http.StatusInternalServerError, "ROOT_CAUSE_FAILED", fmt.Sprintf("Failed to analyze root cause for incident '%s': %v", incidentID, err))
+		return
+	}
+
+	if s.exporter != nil && report != nil {
+		s.exporter.RecordRootCauseAnalysis(report)
+	}
+
+	s.writeJSON(w, http.StatusOK, report)
 }
 
 func parseWindowDuration(raw string, defaultVal time.Duration) time.Duration {

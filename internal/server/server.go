@@ -23,6 +23,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/internal/storage"
+	"github.com/DocHoax/watchdog/internal/topology"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -98,6 +99,7 @@ type Server struct {
 	fleetService fleet.FleetService
 	intelService intelligence.IntelligenceService
 	incService   incidents.Service
+	topoService  topology.Service
 
 	httpServer *http.Server
 	startTime  time.Time
@@ -140,6 +142,8 @@ func NewServer(
 		incSvc = incidents.NewService(store, 15*time.Minute)
 	}
 
+	topoSvc := topology.NewService()
+
 	return &Server{
 		cfg:          cfg,
 		collector:    col,
@@ -152,6 +156,7 @@ func NewServer(
 		fleetService: fleetSvc,
 		intelService: intelSvc,
 		incService:   incSvc,
+		topoService:  topoSvc,
 		startTime:    time.Now(),
 	}
 }
@@ -203,6 +208,20 @@ func (s *Server) IntelligenceService() intelligence.IntelligenceService {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.intelService
+}
+
+// SetTopologyService configures the topology service instance for the server.
+func (s *Server) SetTopologyService(ts topology.Service) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.topoService = ts
+}
+
+// TopologyService returns the configured topology service instance.
+func (s *Server) TopologyService() topology.Service {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.topoService
 }
 
 // Start runs the HTTP server and background collection worker until ctx is cancelled.
@@ -263,6 +282,10 @@ func (s *Server) Start(ctx context.Context) error {
 	// Incident Operations API routes
 	mux.Handle("/api/v1/incidents", s.authMiddleware(http.HandlerFunc(s.handleIncidentsRoute)))
 	mux.Handle("/api/v1/incidents/", s.authMiddleware(http.HandlerFunc(s.handleIncidentsRoute)))
+
+	// Topology API routes
+	mux.Handle("/api/v1/topology", s.authMiddleware(http.HandlerFunc(s.handleTopologyRoute)))
+	mux.Handle("/api/v1/topology/", s.authMiddleware(http.HandlerFunc(s.handleTopologyRoute)))
 
 	// Diagnostic Profiling (pprof)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -485,6 +508,19 @@ func (s *Server) collectAndEvaluate(ctx context.Context) {
 		if summary, err := s.incService.GetSummary(ctx); err == nil && summary != nil {
 			s.exporter.UpdateIncidents(summary, summary.RecentIncidents)
 		}
+	}
+
+	if s.topoService != nil && snap != nil {
+		hostID := "localhost"
+		if snap.System != nil && snap.System.Hostname != "" {
+			hostID = snap.System.Hostname
+		} else if snap.System != nil && snap.System.HostID != "" {
+			hostID = snap.System.HostID
+		}
+		s.topoService.IngestSnapshot(snap, hostID)
+		topoResp := s.topoService.GetTopology(topology.TopologyFilter{})
+		spofs := s.topoService.FindAllSPOFs(0.0)
+		s.exporter.UpdateTopology(&topoResp.Summary, spofs)
 	}
 }
 

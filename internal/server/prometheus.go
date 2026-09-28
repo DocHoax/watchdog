@@ -10,6 +10,7 @@ import (
 
 	"github.com/DocHoax/watchdog/internal/incidents"
 	"github.com/DocHoax/watchdog/internal/intelligence"
+	"github.com/DocHoax/watchdog/internal/topology"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -29,6 +30,10 @@ type PrometheusExporter struct {
 
 	incidentSummary *incidents.IncidentSummary
 	incidentList    []incidents.Incident
+
+	topoSummary *topology.TopologyGraphSummary
+	spofList    []topology.SPOFAnalysis
+	rcaCount    map[string]int
 }
 
 // NewPrometheusExporter creates a new exporter instance.
@@ -82,6 +87,31 @@ func (e *PrometheusExporter) UpdateIncidents(
 	defer e.mu.Unlock()
 	e.incidentSummary = summary
 	e.incidentList = incList
+}
+
+// UpdateTopology updates the exporter with topology summary and SPOF analyses.
+func (e *PrometheusExporter) UpdateTopology(
+	summary *topology.TopologyGraphSummary,
+	spofs []topology.SPOFAnalysis,
+) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.topoSummary = summary
+	e.spofList = spofs
+}
+
+// RecordRootCauseAnalysis records a completed RCA report for metrics exposition.
+func (e *PrometheusExporter) RecordRootCauseAnalysis(report *intelligence.RootCauseReport) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.rcaCount == nil {
+		e.rcaCount = make(map[string]int)
+	}
+	if report != nil && report.PrimaryRootCause != nil {
+		e.rcaCount[string(report.PrimaryRootCause.Confidence)]++
+	} else {
+		e.rcaCount["none"]++
+	}
 }
 
 // Handler returns an HTTP handler for serving Prometheus metrics.
@@ -480,6 +510,48 @@ func (e *PrometheusExporter) RenderMetrics() string {
 		for _, node := range e.incidentSummary.TopAffectedNodes {
 			fmt.Fprintf(&sb, "watchdog_incidents_node_affected_total{node_id=\"%s\",hostname=\"%s\"} %d\n",
 				node.NodeID, node.Hostname, node.IncidentCount)
+		}
+	}
+
+	// Topology Metrics
+	if e.topoSummary != nil {
+		sb.WriteString("# HELP watchdog_topology_nodes_total Total number of nodes in topology graph\n")
+		sb.WriteString("# TYPE watchdog_topology_nodes_total gauge\n")
+		fmt.Fprintf(&sb, "watchdog_topology_nodes_total %d\n", e.topoSummary.TotalNodes)
+
+		for nodeType, count := range e.topoSummary.NodeTypeCounts {
+			fmt.Fprintf(&sb, "watchdog_topology_nodes_by_type_total{type=\"%s\"} %d\n", nodeType, count)
+		}
+		for status, count := range e.topoSummary.StatusCounts {
+			fmt.Fprintf(&sb, "watchdog_topology_nodes_by_status_total{status=\"%s\"} %d\n", status, count)
+		}
+
+		sb.WriteString("# HELP watchdog_topology_dependencies_total Total number of dependencies in topology graph\n")
+		sb.WriteString("# TYPE watchdog_topology_dependencies_total gauge\n")
+		fmt.Fprintf(&sb, "watchdog_topology_dependencies_total %d\n", e.topoSummary.TotalDependencies)
+
+		for relType, count := range e.topoSummary.RelationshipTypeCounts {
+			fmt.Fprintf(&sb, "watchdog_topology_dependencies_by_type_total{type=\"%s\"} %d\n", relType, count)
+		}
+
+		sb.WriteString("# HELP watchdog_topology_spofs_total Total single points of failure detected\n")
+		sb.WriteString("# TYPE watchdog_topology_spofs_total gauge\n")
+		fmt.Fprintf(&sb, "watchdog_topology_spofs_total %d\n", len(e.spofList))
+
+		if len(e.spofList) > 0 {
+			for _, spof := range e.spofList {
+				fmt.Fprintf(&sb, "watchdog_topology_spof_criticality{node_id=\"%s\",risk=\"%s\"} %.2f\n",
+					spof.NodeID, spof.RiskLevel, spof.CriticalityScore)
+			}
+		}
+	}
+
+	// Root Cause Analysis Metrics
+	if len(e.rcaCount) > 0 {
+		sb.WriteString("# HELP watchdog_root_cause_analyses_total Total root cause analyses evaluated by confidence\n")
+		sb.WriteString("# TYPE watchdog_root_cause_analyses_total counter\n")
+		for conf, count := range e.rcaCount {
+			fmt.Fprintf(&sb, "watchdog_root_cause_analyses_total{confidence=\"%s\"} %d\n", conf, count)
 		}
 	}
 

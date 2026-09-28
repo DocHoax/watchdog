@@ -117,6 +117,10 @@ func (s *Server) handleTelemetry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.topoService != nil && sub.Snapshot != nil {
+		s.topoService.IngestSnapshot(sub.Snapshot, sub.NodeID)
+	}
+
 	resp := model.TelemetryResponse{
 		Accepted:    true,
 		IngestedAt:  time.Now().UTC(),
