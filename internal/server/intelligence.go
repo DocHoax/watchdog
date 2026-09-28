@@ -40,8 +40,7 @@ func (s *Server) handleIntelligenceRoute(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 2. /api/v1/intelligence/incidents or /api/v1/intelligence/incidents/{id}
-	if strings.HasPrefix(path, "incidents") {
-		subPath := strings.TrimPrefix(path, "incidents")
+	if subPath, ok := strings.CutPrefix(path, "incidents"); ok {
 		subPath = strings.TrimPrefix(subPath, "/")
 		if subPath == "" {
 			s.handleIntelligenceIncidents(w, r, intelSvc)
@@ -70,8 +69,7 @@ func (s *Server) handleIntelligenceRoute(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 6. /api/v1/intelligence/root-cause or /api/v1/intelligence/root-cause/{id}
-	if strings.HasPrefix(path, "root-cause") {
-		subPath := strings.TrimPrefix(path, "root-cause")
+	if subPath, ok := strings.CutPrefix(path, "root-cause"); ok {
 		subPath = strings.TrimPrefix(subPath, "/")
 		if subPath == "" {
 			s.writeAPIError(w, r, http.StatusBadRequest, "MISSING_INCIDENT_ID", "Incident ID is required for root cause analysis")
@@ -82,8 +80,7 @@ func (s *Server) handleIntelligenceRoute(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 7. /api/v1/intelligence/predictions/{id}
-	if strings.HasPrefix(path, "predictions/") {
-		predID := strings.TrimPrefix(path, "predictions/")
+	if predID, ok := strings.CutPrefix(path, "predictions/"); ok {
 		if predID != "" {
 			s.handleIntelligencePredictionByID(w, r, intelSvc, predID)
 			return
@@ -91,8 +88,8 @@ func (s *Server) handleIntelligenceRoute(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 8. /api/v1/intelligence/nodes/{id}, /api/v1/intelligence/nodes/{id}/trends, /api/v1/intelligence/nodes/{id}/baselines, predictions, capacity
-	if strings.HasPrefix(path, "nodes/") {
-		nodeParts := strings.Split(strings.TrimPrefix(path, "nodes/"), "/")
+	if rest, ok := strings.CutPrefix(path, "nodes/"); ok {
+		nodeParts := strings.Split(rest, "/")
 		nodeID := nodeParts[0]
 		if nodeID == "" {
 			s.writeAPIError(w, r, http.StatusBadRequest, "INVALID_NODE_ID", "Node ID cannot be empty")
