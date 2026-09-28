@@ -408,6 +408,87 @@ func TestToolRegistry_FleetMode(t *testing.T) {
 		}
 	})
 
+	t.Run("get_topology", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_topology", map[string]any{})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("get_topology_summary", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_topology_summary", map[string]any{})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("get_topology_path", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_topology_path", map[string]any{
+			"source": "node-prod-01",
+			"target": "node-prod-02",
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("get_topology_path missing args", func(t *testing.T) {
+		_, jerr := registry.Execute(ctx, mcpCtx, "get_topology_path", map[string]any{
+			"source": "node-prod-01",
+		})
+		if jerr == nil {
+			t.Fatalf("expected error for missing target")
+		}
+		if jerr.Code != CodeInvalidParams {
+			t.Errorf("expected CodeInvalidParams, got: %d", jerr.Code)
+		}
+	})
+
+	t.Run("get_spofs", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_spofs", map[string]any{
+			"min_criticality": 0.0,
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("get_node_impact", func(t *testing.T) {
+		res, jerr := registry.Execute(ctx, mcpCtx, "get_node_impact", map[string]any{
+			"node_id": "node-prod-01",
+		})
+		if jerr != nil {
+			t.Fatalf("unexpected error: %v", jerr)
+		}
+		if len(res.Content) != 1 {
+			t.Fatalf("expected 1 content block")
+		}
+	})
+
+	t.Run("analyze_root_cause nonexistent", func(t *testing.T) {
+		_, jerr := registry.Execute(ctx, mcpCtx, "analyze_root_cause", map[string]any{
+			"incident_id": "inc-nonexistent",
+		})
+		if jerr == nil {
+			t.Fatalf("expected error for nonexistent incident")
+		}
+		if jerr.Code != CodeInvalidParams && jerr.Code != CodeInternalError {
+			t.Errorf("expected CodeInvalidParams or CodeInternalError, got: %d", jerr.Code)
+		}
+	})
+
 	t.Run("unknown tool name", func(t *testing.T) {
 		_, jerr := registry.Execute(ctx, mcpCtx, "execute_shell_command", map[string]any{})
 		if jerr == nil {
