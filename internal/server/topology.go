@@ -68,8 +68,7 @@ func (s *Server) handleTopologyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 5. /api/v1/topology/spof or /api/v1/topology/spof/{id}
-	if strings.HasPrefix(path, "spof") {
-		subPath := strings.TrimPrefix(path, "spof")
+	if subPath, ok := strings.CutPrefix(path, "spof"); ok {
 		subPath = strings.TrimPrefix(subPath, "/")
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
@@ -85,8 +84,7 @@ func (s *Server) handleTopologyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 6. /api/v1/topology/impact/{id}
-	if strings.HasPrefix(path, "impact") {
-		subPath := strings.TrimPrefix(path, "impact")
+	if subPath, ok := strings.CutPrefix(path, "impact"); ok {
 		subPath = strings.TrimPrefix(subPath, "/")
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
@@ -102,8 +100,7 @@ func (s *Server) handleTopologyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 7. /api/v1/topology/nodes or /api/v1/topology/nodes/{id}
-	if strings.HasPrefix(path, "nodes") {
-		subPath := strings.TrimPrefix(path, "nodes")
+	if subPath, ok := strings.CutPrefix(path, "nodes"); ok {
 		subPath = strings.TrimPrefix(subPath, "/")
 		if subPath == "" {
 			switch r.Method {
@@ -128,8 +125,7 @@ func (s *Server) handleTopologyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 8. /api/v1/topology/dependencies or /api/v1/topology/dependencies/{id}
-	if strings.HasPrefix(path, "dependencies") {
-		subPath := strings.TrimPrefix(path, "dependencies")
+	if subPath, ok := strings.CutPrefix(path, "dependencies"); ok {
 		subPath = strings.TrimPrefix(subPath, "/")
 		if subPath == "" {
 			switch r.Method {
@@ -154,8 +150,7 @@ func (s *Server) handleTopologyRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 9. /api/v1/topology/dependents/{id}
-	if strings.HasPrefix(path, "dependents") {
-		subPath := strings.TrimPrefix(path, "dependents")
+	if subPath, ok := strings.CutPrefix(path, "dependents"); ok {
 		subPath = strings.TrimPrefix(subPath, "/")
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
@@ -224,12 +219,12 @@ func (s *Server) handleGetTopology(w http.ResponseWriter, r *http.Request, topoS
 	s.writeJSON(w, http.StatusOK, resp)
 }
 
-func (s *Server) handleGetTopologySummary(w http.ResponseWriter, r *http.Request, topoSvc topology.Service) {
+func (s *Server) handleGetTopologySummary(w http.ResponseWriter, _ *http.Request, topoSvc topology.Service) {
 	resp := topoSvc.GetTopology(topology.TopologyFilter{})
 	s.writeJSON(w, http.StatusOK, resp.Summary)
 }
 
-func (s *Server) handleGetTopologyDOT(w http.ResponseWriter, r *http.Request, topoSvc topology.Service) {
+func (s *Server) handleGetTopologyDOT(w http.ResponseWriter, _ *http.Request, topoSvc topology.Service) {
 	dot := topoSvc.ExportDOT()
 	w.Header().Set("Content-Type", "text/vnd.graphviz; charset=utf-8")
 	w.WriteHeader(http.StatusOK)

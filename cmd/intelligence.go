@@ -187,6 +187,23 @@ var intelligenceRecurrenceCmd = &cobra.Command{
 	RunE: runIntelligenceRecurrence,
 }
 
+var intelligenceRootCauseCmd = &cobra.Command{
+	Use:     "root-cause <incident-id> [flags]",
+	Aliases: []string{"rootcause", "rca", "cause"},
+	Short:   "Perform explainable multi-factor root-cause analysis for an incident",
+	Long: `Performs deterministic multi-factor root cause analysis for an incident:
+evaluating temporal precedence (25%), topology centrality (30%), fault severity (20%),
+blast radius explanation (15%), and historical recurrence (10%), tracing fault propagation
+chains, and providing non-invasive remediation advice.`,
+	Example: `  # Analyze root cause for an incident
+  watchdog intelligence root-cause inc-20260927-001
+
+  # Output full dossier as JSON
+  watchdog intelligence root-cause inc-20260927-001 --format json`,
+	Args: cobra.ExactArgs(1),
+	RunE: runIntelligenceRootCause,
+}
+
 func init() {
 	// Persistent flags on intelligenceCmd
 	intelligenceCmd.PersistentFlags().StringVar(&intelServerURL, "server", "", "centralized fleet server URL (e.g. https://fleet.internal:8443)")
@@ -217,6 +234,7 @@ func init() {
 	intelligenceCmd.AddCommand(intelligencePredictionsCmd)
 	intelligenceCmd.AddCommand(intelligenceCapacityCmd)
 	intelligenceCmd.AddCommand(intelligenceRecurrenceCmd)
+	intelligenceCmd.AddCommand(intelligenceRootCauseCmd)
 
 	RootCmd.AddCommand(intelligenceCmd)
 }
@@ -991,5 +1009,124 @@ func runIntelligenceRecurrence(cmd *cobra.Command, args []string) error {
 	for _, p := range patterns {
 		fmt.Printf("  • [%s] %s\n", p.ID, p.Summary)
 	}
+	return nil
+}
+
+func runIntelligenceRootCause(cmd *cobra.Command, args []string) error {
+	client, err := getIntelligenceClient()
+	if err != nil {
+		return err
+	}
+
+	incidentID := args[0]
+	ctx, cancel := context.WithTimeout(context.Background(), intelTimeout)
+	defer cancel()
+
+	report, err := client.GetRootCauseAnalysis(ctx, incidentID)
+	if err != nil {
+		return NewExitError(ExitNetworkError, "failed to perform root cause analysis: %w", err)
+	}
+
+	if intelFormat == "json" || intelFormat == "yaml" || intelFormat == "yml" {
+		return outputFormatted(report)
+	}
+
+	fmt.Printf("🔍 Incident Root-Cause Analysis: %s\n", report.IncidentID)
+	fmt.Printf("  Title:       %s\n", report.IncidentTitle)
+	fmt.Printf("  Severity:    %s\n", report.IncidentSeverity)
+	fmt.Printf("  Start Time:  %s\n", report.IncidentStartTime.Local().Format(time.RFC3339))
+	fmt.Printf("  Analyzed At: %s\n", report.GeneratedAt.Local().Format(time.RFC3339))
+	if report.Methodology != "" {
+		fmt.Printf("  Methodology: %s\n", report.Methodology)
+	}
+
+	if report.PrimaryRootCause != nil {
+		rc := report.PrimaryRootCause
+		fmt.Printf("\n🎯 PRIMARY ROOT CAUSE IDENTIFIED:\n")
+		fmt.Printf("  Node ID:             %s\n", rc.NodeID)
+		fmt.Printf("  Node Name:           %s\n", rc.NodeName)
+		fmt.Printf("  Node Type:           %s\n", rc.NodeType)
+		fmt.Printf("  Current Status:      %s\n", rc.Status)
+		fmt.Printf("  Confidence:          %s (Score: %.1f / 100.0, Rank: #%d)\n", strings.ToUpper(string(rc.Confidence)), rc.TotalScore, rc.Rank)
+		if rc.EarliestSignalTime != nil {
+			fmt.Printf("  Earliest Signal:     %s (%s)\n", rc.EarliestSignalTime.Local().Format(time.RFC3339), rc.EarliestSignalType)
+		}
+		fmt.Printf("  Blast Radius:        %d direct downstream, %d transitive downstream (%.1f%% affected explained)\n",
+			rc.DirectDownstreamCount, rc.TransitiveDownstreamCount, rc.ExplainedAffectedPercentage)
+		if rc.IsSPOF {
+			fmt.Printf("  SPOF Status:         ⚠️  Single Point of Failure (Criticality: %.2f)\n", rc.SPOFCriticality)
+		}
+
+		if len(rc.Factors) > 0 {
+			fmt.Printf("\n  📊 Multi-Factor Score Breakdown:\n")
+			tw := util.NewTableWriter("Dimension", "Factor Name", "Raw Score", "Weight", "Contribution", "Explanation")
+			for _, f := range rc.Factors {
+				tw.Append(
+					string(f.Category),
+					f.Name,
+					fmt.Sprintf("%.1f/100", f.Score),
+					fmt.Sprintf("%.0f%%", f.Weight*100),
+					fmt.Sprintf("+%.1f", f.Contribution),
+					f.Explanation,
+				)
+			}
+			tw.Render(os.Stdout)
+		}
+
+		if len(rc.Reasoning) > 0 {
+			fmt.Printf("\n  🧠 Analytical Reasoning:\n")
+			for _, r := range rc.Reasoning {
+				fmt.Printf("    • %s\n", r)
+			}
+		}
+	} else {
+		fmt.Printf("\n⚠️  No definitive primary root cause could be determined.\n")
+	}
+
+	if len(report.PropagationChains) > 0 {
+		fmt.Printf("\n⛓️  Fault Propagation Chains (%d):\n", len(report.PropagationChains))
+		for i, chain := range report.PropagationChains {
+			fmt.Printf("  [%d] %s\n", i+1, chain.PathDescription)
+			for j, hop := range chain.Hops {
+				fmt.Printf("      (%d) %s (%s) ──[%s]──> %s (%s)\n",
+					j+1, hop.SourceName, hop.SourceID, hop.Relationship, hop.TargetName, hop.TargetID)
+			}
+		}
+	}
+
+	if len(report.AlternativeCandidates) > 0 {
+		fmt.Printf("\n📋 Alternative Candidates (%d):\n", len(report.AlternativeCandidates))
+		tw := util.NewTableWriter("Rank", "Node ID", "Name", "Type", "Status", "Confidence", "Score", "Downstream", "Earliest Signal")
+		for _, alt := range report.AlternativeCandidates {
+			signalStr := "N/A"
+			if alt.EarliestSignalTime != nil {
+				signalStr = alt.EarliestSignalTime.Local().Format("15:04:05")
+			}
+			tw.Append(
+				fmt.Sprintf("#%d", alt.Rank),
+				alt.NodeID,
+				alt.NodeName,
+				string(alt.NodeType),
+				string(alt.Status),
+				string(alt.Confidence),
+				fmt.Sprintf("%.1f", alt.TotalScore),
+				fmt.Sprintf("%d (trans: %d)", alt.DirectDownstreamCount, alt.TransitiveDownstreamCount),
+				signalStr,
+			)
+		}
+		tw.Render(os.Stdout)
+	}
+
+	if report.BlastRadiusExplanation != "" {
+		fmt.Printf("\n💥 Blast Radius Assessment:\n  %s\n", report.BlastRadiusExplanation)
+	}
+
+	if len(report.NonInvasiveRecommendations) > 0 {
+		fmt.Printf("\n🛡️  Non-Invasive Remediation Advice:\n")
+		for _, rec := range report.NonInvasiveRecommendations {
+			fmt.Printf("  • %s\n", rec)
+		}
+	}
+
 	return nil
 }

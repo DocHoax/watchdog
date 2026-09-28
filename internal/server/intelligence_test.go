@@ -312,6 +312,50 @@ func TestServer_IntelligenceEndpoints(t *testing.T) {
 		}
 	})
 
+	t.Run("GET /api/v1/intelligence/root-cause - 400 Bad Request", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/intelligence/root-cause", nil)
+		req.Header.Set("Authorization", "Bearer test-secret-token")
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 Bad Request, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("GET /api/v1/intelligence/root-cause/inc-non-existent - 404 Not Found", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/intelligence/root-cause/inc-non-existent", nil)
+		req.Header.Set("Authorization", "Bearer test-secret-token")
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, req)
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("expected 404 Not Found, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("GET /api/v1/intelligence/fleet/predictions - 200 OK", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/intelligence/fleet/predictions", nil)
+		req.Header.Set("Authorization", "Bearer test-secret-token")
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("GET /api/v1/intelligence/recurrence - 200 OK", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/intelligence/recurrence", nil)
+		req.Header.Set("Authorization", "Bearer test-secret-token")
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+
 	t.Run("POST /api/v1/intelligence/fleet - 405 Method Not Allowed", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/intelligence/fleet", nil)
 		req.Header.Set("Authorization", "Bearer test-secret-token")

@@ -242,6 +242,19 @@ func (c *Client) GetPrediction(ctx context.Context, predictionID string) (*Predi
 	return &resp, nil
 }
 
+// GetRootCauseAnalysis retrieves root cause analysis for an incident.
+func (c *Client) GetRootCauseAnalysis(ctx context.Context, incidentID string) (*RootCauseReport, error) {
+	if incidentID == "" {
+		return nil, fmt.Errorf("incident ID is required")
+	}
+	url := fmt.Sprintf("%s/api/v1/intelligence/root-cause/%s", c.endpoint, incidentID)
+	var resp RootCauseReport
+	if err := c.doJSON(ctx, http.MethodGet, url, nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 func (c *Client) doJSON(ctx context.Context, method, url string, payload any, result any) error {
 	var bodyReader io.Reader
 	if payload != nil {
