@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/topology"
 	"github.com/DocHoax/watchdog/pkg/util"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -376,6 +378,21 @@ func buildTopologyFilter() topology.TopologyFilter {
 	return filter
 }
 
+func outputTopologyFormatted(v any) error {
+	switch strings.ToLower(topoFormat) {
+	case "json":
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(v)
+	case "yaml", "yml":
+		enc := yaml.NewEncoder(os.Stdout)
+		defer enc.Close()
+		return enc.Encode(v)
+	default:
+		return nil
+	}
+}
+
 func runTopologyGraph(cmd *cobra.Command, args []string) error {
 	client, err := getTopologyClient()
 	if err != nil {
@@ -392,7 +409,7 @@ func runTopologyGraph(cmd *cobra.Command, args []string) error {
 	}
 
 	if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-		return outputFormatted(resp)
+		return outputTopologyFormatted(resp)
 	}
 
 	if len(resp.Nodes) == 0 {
@@ -461,7 +478,7 @@ func runTopologySummary(cmd *cobra.Command, args []string) error {
 	}
 
 	if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-		return outputFormatted(summary)
+		return outputTopologyFormatted(summary)
 	}
 
 	fmt.Println("📊 Topology Graph Summary")
@@ -539,7 +556,7 @@ func runTopologyPath(cmd *cobra.Command, args []string) error {
 	}
 
 	if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-		return outputFormatted(path)
+		return outputTopologyFormatted(path)
 	}
 
 	var nodeNames []string
@@ -587,7 +604,7 @@ func runTopologySPOF(cmd *cobra.Command, args []string) error {
 		}
 
 		if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-			return outputFormatted(spof)
+			return outputTopologyFormatted(spof)
 		}
 
 		fmt.Printf("🔍 SPOF Analysis for Node: %s (%s)\n", spof.NodeID, spof.NodeName)
@@ -616,7 +633,7 @@ func runTopologySPOF(cmd *cobra.Command, args []string) error {
 	}
 
 	if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-		return outputFormatted(spofs)
+		return outputTopologyFormatted(spofs)
 	}
 
 	if len(spofs) == 0 {
@@ -659,7 +676,7 @@ func runTopologyImpact(cmd *cobra.Command, args []string) error {
 	}
 
 	if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-		return outputFormatted(impact)
+		return outputTopologyFormatted(impact)
 	}
 
 	fmt.Printf("💥 Upstream Blast Radius Analysis for Node: %s (%s)\n", impact.TargetNodeID, impact.TargetNodeName)
@@ -716,7 +733,7 @@ func runTopologyNodeGet(cmd *cobra.Command, args []string) error {
 	}
 
 	if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-		return outputFormatted(node)
+		return outputTopologyFormatted(node)
 	}
 
 	fmt.Printf("📦 Topology Node: %s\n", node.ID)
@@ -786,7 +803,7 @@ func runTopologyNodeAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-		return outputFormatted(created)
+		return outputTopologyFormatted(created)
 	}
 
 	fmt.Printf("Successfully declared node %q (Type: %s, Status: %s).\n", created.ID, created.Type, created.Status)
@@ -827,7 +844,7 @@ func runTopologyDependenciesList(cmd *cobra.Command, args []string) error {
 			return NewExitError(ExitNetworkError, "failed to get dependents for %q: %w", nodeID, err)
 		}
 		if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-			return outputFormatted(dependents)
+			return outputTopologyFormatted(dependents)
 		}
 		if len(dependents) == 0 {
 			fmt.Printf("No upstream dependents rely on node %q.\n", nodeID)
@@ -847,7 +864,7 @@ func runTopologyDependenciesList(cmd *cobra.Command, args []string) error {
 		return NewExitError(ExitNetworkError, "failed to get dependencies for %q: %w", nodeID, err)
 	}
 	if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-		return outputFormatted(dependencies)
+		return outputTopologyFormatted(dependencies)
 	}
 	if len(dependencies) == 0 {
 		fmt.Printf("Node %q has no downstream dependencies.\n", nodeID)
@@ -885,7 +902,7 @@ func runTopologyDependencyAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	if topoFormat == "json" || topoFormat == "yaml" || topoFormat == "yml" {
-		return outputFormatted(created)
+		return outputTopologyFormatted(created)
 	}
 
 	fmt.Printf("Successfully declared dependency: %s ──[%s]──> %s\n", created.SourceID, created.Type, created.TargetID)
