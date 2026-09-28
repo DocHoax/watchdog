@@ -63,6 +63,11 @@ func TestDiagnosticEngineHealthySnapshot(t *testing.T) {
 
 	// In healthy state, critical checks should be 0
 	if report.CriticalChecks != 0 {
+		for _, res := range report.Results {
+			if res.Status == model.StatusFail {
+				t.Logf("Failed check: %s (%s): %s", res.ID, res.Name, res.Description)
+			}
+		}
 		t.Errorf("expected 0 critical checks in healthy state, got %d", report.CriticalChecks)
 	}
 }
