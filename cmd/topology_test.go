@@ -306,19 +306,20 @@ func setupTopologyMockServer(t *testing.T) *httptest.Server {
 		case strings.HasPrefix(r.URL.Path, "/api/v1/topology/dependencies/") && r.Method == http.MethodGet:
 			w.Header().Set("Content-Type", "application/json")
 			nodeID := strings.TrimPrefix(r.URL.Path, "/api/v1/topology/dependencies/")
-			if nodeID == "web-srv" {
+			switch nodeID {
+			case "web-srv":
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"node_id":      "web-srv",
 					"dependencies": []topology.TopologyNode{sampleNodes[1]},
 					"count":        1,
 				})
-			} else if nodeID == "db-primary" {
+			case "db-primary":
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"node_id":      "db-primary",
 					"dependencies": []topology.TopologyNode{},
 					"count":        0,
 				})
-			} else {
+			default:
 				w.WriteHeader(http.StatusNotFound)
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"error": map[string]any{
@@ -331,19 +332,20 @@ func setupTopologyMockServer(t *testing.T) *httptest.Server {
 		case strings.HasPrefix(r.URL.Path, "/api/v1/topology/dependents/") && r.Method == http.MethodGet:
 			w.Header().Set("Content-Type", "application/json")
 			nodeID := strings.TrimPrefix(r.URL.Path, "/api/v1/topology/dependents/")
-			if nodeID == "api-srv" {
+			switch nodeID {
+			case "api-srv":
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"node_id":    "api-srv",
 					"dependents": []topology.TopologyNode{sampleNodes[0]},
 					"count":      1,
 				})
-			} else if nodeID == "web-srv" {
+			case "web-srv":
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"node_id":    "web-srv",
 					"dependents": []topology.TopologyNode{},
 					"count":      0,
 				})
-			} else {
+			default:
 				w.WriteHeader(http.StatusNotFound)
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"error": map[string]any{

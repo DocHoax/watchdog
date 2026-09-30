@@ -23,14 +23,14 @@ func TestCmd_MCP_Status(t *testing.T) {
 	if !strings.Contains(out, "Watchdog Model Context Protocol (MCP) Server Status") {
 		t.Errorf("expected header in text output, got: %s", out)
 	}
-	if !strings.Contains(out, "Registered Tools:           17") {
-		t.Errorf("expected 17 tools, got: %s", out)
+	if !strings.Contains(out, "Registered Tools:           23") {
+		t.Errorf("expected 23 tools, got: %s", out)
 	}
 	if !strings.Contains(out, "Registered Resources:       12") {
 		t.Errorf("expected 12 resources, got: %s", out)
 	}
-	if !strings.Contains(out, "Registered Prompts:         10") {
-		t.Errorf("expected 10 prompts, got: %s", out)
+	if !strings.Contains(out, "Registered Prompts:         12") {
+		t.Errorf("expected 12 prompts, got: %s", out)
 	}
 
 	// 2. JSON mode
@@ -51,14 +51,14 @@ func TestCmd_MCP_Status(t *testing.T) {
 	if status["server_name"] != mcp.ServerName {
 		t.Errorf("expected server name %s, got %v", mcp.ServerName, status["server_name"])
 	}
-	if status["tools_count"] != float64(17) {
-		t.Errorf("expected 17 tools count, got %v", status["tools_count"])
+	if status["tools_count"] != float64(23) {
+		t.Errorf("expected 23 tools count, got %v", status["tools_count"])
 	}
 	if status["resources_count"] != float64(12) {
 		t.Errorf("expected 12 resources count, got %v", status["resources_count"])
 	}
-	if status["prompts_count"] != float64(10) {
-		t.Errorf("expected 10 prompts count, got %v", status["prompts_count"])
+	if status["prompts_count"] != float64(12) {
+		t.Errorf("expected 12 prompts count, got %v", status["prompts_count"])
 	}
 }
 
@@ -71,8 +71,8 @@ func TestCmd_MCP_Tools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runMCPTools failed: %v", err)
 	}
-	if !strings.Contains(out, "Watchdog MCP Tools (17 Registered)") {
-		t.Errorf("expected 17 tools header, got: %s", out)
+	if !strings.Contains(out, "Watchdog MCP Tools (23 Registered)") {
+		t.Errorf("expected 23 tools header, got: %s", out)
 	}
 	if !strings.Contains(out, "list_nodes") || !strings.Contains(out, "get_node_health") {
 		t.Errorf("expected tool names in output, got: %s", out)
@@ -90,8 +90,8 @@ func TestCmd_MCP_Tools(t *testing.T) {
 	if err := json.Unmarshal([]byte(outJSON), &tools); err != nil {
 		t.Fatalf("failed to unmarshal tools JSON: %v", err)
 	}
-	if len(tools) != 17 {
-		t.Errorf("expected 17 tools, got %d", len(tools))
+	if len(tools) != 23 {
+		t.Errorf("expected 23 tools, got %d", len(tools))
 	}
 }
 
@@ -137,8 +137,8 @@ func TestCmd_MCP_Prompts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runMCPPrompts failed: %v", err)
 	}
-	if !strings.Contains(out, "Watchdog MCP Prompt Templates (10 Registered)") {
-		t.Errorf("expected 10 prompts header, got: %s", out)
+	if !strings.Contains(out, "Watchdog MCP Prompt Templates (12 Registered)") {
+		t.Errorf("expected 12 prompts header, got: %s", out)
 	}
 	if !strings.Contains(out, "system_health_audit") || !strings.Contains(out, "diagnose_node") {
 		t.Errorf("expected prompt names in output, got: %s", out)
@@ -156,8 +156,8 @@ func TestCmd_MCP_Prompts(t *testing.T) {
 	if err := json.Unmarshal([]byte(outJSON), &prompts); err != nil {
 		t.Fatalf("failed to unmarshal prompts JSON: %v", err)
 	}
-	if len(prompts) != 10 {
-		t.Errorf("expected 10 prompts, got %d", len(prompts))
+	if len(prompts) != 12 {
+		t.Errorf("expected 12 prompts, got %d", len(prompts))
 	}
 }
 
