@@ -1586,3 +1586,549 @@ components:
         detected_at:
           type: string
           format: date-time
+
+    FleetPredictionsSummary:
+      type: object
+      properties:
+        evaluated_at:
+          type: string
+          format: date-time
+        total_nodes:
+          type: integer
+        cpu_pressure_percent:
+          type: number
+        memory_pressure_percent:
+          type: number
+        disk_pressure_percent:
+          type: number
+        nodes_approaching_warning:
+          type: integer
+        nodes_approaching_critical:
+          type: integer
+        top_capacity_risks:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeCapacityForecast'
+        fleet_predictions:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricPrediction'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntelligenceFinding'
+
+    MetricPrediction:
+      type: object
+      properties:
+        id:
+          type: string
+        node_id:
+          type: string
+        metric:
+          type: string
+        current_value:
+          type: number
+        target_threshold:
+          type: number
+        direction:
+          type: string
+          enum: [approaching, receding, stable, already_exceeded, unknown]
+        slope_per_minute:
+          type: number
+        r_squared:
+          type: number
+        variance:
+          type: number
+        confidence:
+          type: string
+          enum: [high, medium, low, insufficient_data]
+        estimated_time_to_threshold:
+          type: integer
+          description: Nanoseconds until predicted threshold crossing
+        predicted_crossing_time:
+          type: string
+          format: date-time
+          nullable: true
+        horizon:
+          type: integer
+          description: Horizon duration in nanoseconds
+        observation_window:
+          type: integer
+        sample_count:
+          type: integer
+        method:
+          type: string
+        evidence:
+          type: array
+          items:
+            type: string
+        generated_at:
+          type: string
+          format: date-time
+
+    NodeCapacityForecast:
+      type: object
+      properties:
+        node_id:
+          type: string
+        hostname:
+          type: string
+        status:
+          type: string
+        forecasts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CapacityForecast'
+        predictions:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricPrediction'
+        evaluated_at:
+          type: string
+          format: date-time
+
+    CapacityForecast:
+      type: object
+      properties:
+        resource:
+          type: string
+          enum: [cpu, memory, swap, disk]
+        unit:
+          type: string
+        current_utilization:
+          type: number
+        baseline_utilization:
+          type: number
+        trend_slope_per_minute:
+          type: number
+        warning_threshold:
+          type: number
+        critical_threshold:
+          type: number
+        time_to_warning:
+          type: integer
+          nullable: true
+        time_to_critical:
+          type: integer
+          nullable: true
+        confidence:
+          type: string
+          enum: [high, medium, low, insufficient_data]
+        projected_utilization_after_horizon:
+          type: number
+        horizon:
+          type: integer
+        evidence:
+          type: array
+          items:
+            type: string
+
+    RecurrencePattern:
+      type: object
+      properties:
+        id:
+          type: string
+        scope:
+          type: string
+          enum: [node, fleet, tag]
+        target_id:
+          type: string
+        event_type:
+          type: string
+        occurrence_count:
+          type: integer
+        first_occurrence:
+          type: string
+          format: date-time
+        most_recent_occurrence:
+          type: string
+          format: date-time
+        average_interval:
+          type: integer
+          description: Duration in nanoseconds
+        median_interval:
+          type: integer
+          description: Duration in nanoseconds
+        coefficient_of_variation:
+          type: number
+        confidence:
+          type: string
+          enum: [high, medium, low, insufficient_data]
+        related_incident_ids:
+          type: array
+          items:
+            type: string
+        summary:
+          type: string
+
+    RootCauseReport:
+      type: object
+      properties:
+        incident_id:
+          type: string
+        incident_title:
+          type: string
+        incident_severity:
+          type: string
+        incident_start_time:
+          type: string
+          format: date-time
+        primary_root_cause:
+          $ref: '#/components/schemas/RootCauseCandidate'
+        alternative_candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/RootCauseCandidate'
+        propagation_chains:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropagationChain'
+        blast_radius_explanation:
+          type: string
+        non_invasive_recommendations:
+          type: array
+          items:
+            type: string
+        generated_at:
+          type: string
+          format: date-time
+        methodology:
+          type: string
+
+    RootCauseCandidate:
+      type: object
+      properties:
+        node_id:
+          type: string
+        node_name:
+          type: string
+        node_type:
+          type: string
+        status:
+          type: string
+        total_score:
+          type: number
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        rank:
+          type: integer
+        factors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RootCauseFactor'
+        earliest_signal_time:
+          type: string
+          format: date-time
+          nullable: true
+        earliest_signal_type:
+          type: string
+        direct_downstream_count:
+          type: integer
+        transitive_downstream_count:
+          type: integer
+        explained_affected_percentage:
+          type: number
+        is_spof:
+          type: boolean
+        spof_criticality:
+          type: number
+        reasoning:
+          type: array
+          items:
+            type: string
+
+    RootCauseFactor:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: [temporal_precedence, topology_centrality, fault_severity, blast_radius_explanation, historical_context]
+        name:
+          type: string
+        score:
+          type: number
+        weight:
+          type: number
+        contribution:
+          type: number
+        explanation:
+          type: string
+
+    PropagationChain:
+      type: object
+      properties:
+        root_node_id:
+          type: string
+        root_node_name:
+          type: string
+        leaf_node_id:
+          type: string
+        leaf_node_name:
+          type: string
+        hops:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropagationHop'
+        path_description:
+          type: string
+
+    PropagationHop:
+      type: object
+      properties:
+        source_id:
+          type: string
+        source_name:
+          type: string
+        target_id:
+          type: string
+        target_name:
+          type: string
+        relationship:
+          type: string
+
+    TopologyGraphResponse:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyNode'
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dependency'
+        summary:
+          $ref: '#/components/schemas/TopologySummary'
+        evaluated_at:
+          type: string
+          format: date-time
+
+    TopologySummary:
+      type: object
+      properties:
+        total_nodes:
+          type: integer
+        total_dependencies:
+          type: integer
+        node_type_counts:
+          type: object
+          additionalProperties:
+            type: integer
+        relationship_type_counts:
+          type: object
+          additionalProperties:
+            type: integer
+        status_counts:
+          type: object
+          additionalProperties:
+            type: integer
+        connected_components:
+          type: integer
+        density:
+          type: number
+        evaluated_at:
+          type: string
+          format: date-time
+
+    TopologyNode:
+      type: object
+      required: [id, name, type, status]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [physical_host, vm, container, k8s_node, k8s_pod, service, database, cache, queue, storage, network_endpoint, custom]
+        status:
+          type: string
+          enum: [healthy, degraded, critical, unknown, offline]
+        host_id:
+          type: string
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        source:
+          type: string
+        first_observed:
+          type: string
+          format: date-time
+        last_observed:
+          type: string
+          format: date-time
+
+    Dependency:
+      type: object
+      required: [source_id, target_id, type]
+      properties:
+        id:
+          type: string
+        source_id:
+          type: string
+        target_id:
+          type: string
+        type:
+          type: string
+          enum: [hosts, runs_on, depends_on, communicates_with, stores_on, reads_from, writes_to, routes_to, contains, member_of]
+        weight:
+          type: number
+        confidence:
+          type: string
+          enum: [high, medium, low, unknown]
+        evidence:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        first_observed:
+          type: string
+          format: date-time
+        last_observed:
+          type: string
+          format: date-time
+
+    TopologyPath:
+      type: object
+      properties:
+        source_id:
+          type: string
+        target_id:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyNode'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dependency'
+        total_weight:
+          type: number
+        hops:
+          type: integer
+
+    SPOFListResponse:
+      type: object
+      properties:
+        spofs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SPOFAnalysis'
+        count:
+          type: integer
+        evaluated_at:
+          type: string
+          format: date-time
+
+    SPOFAnalysis:
+      type: object
+      properties:
+        node_id:
+          type: string
+        node_name:
+          type: string
+        node_type:
+          type: string
+        status:
+          type: string
+        criticality_score:
+          type: number
+        dependents_count:
+          type: integer
+        transitive_dependents_count:
+          type: integer
+        affected_services:
+          type: array
+          items:
+            type: string
+        redundancy_level:
+          type: string
+          enum: [none, partial, redundant]
+        alternative_paths:
+          type: integer
+        risk_level:
+          type: string
+          enum: [info, warning, critical]
+        reasoning:
+          type: array
+          items:
+            type: string
+
+    BlastRadiusImpact:
+      type: object
+      properties:
+        target_node_id:
+          type: string
+        target_node_name:
+          type: string
+        target_node_type:
+          type: string
+        target_node_status:
+          type: string
+        direct_dependents:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyNode'
+        transitive_dependents:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopologyNode'
+        max_impact_depth:
+          type: integer
+        blast_radius_score:
+          type: number
+        blast_radius_level:
+          type: string
+          enum: [critical, high, medium, low, minimal]
+        affected_node_types:
+          type: object
+          additionalProperties:
+            type: integer
+        affected_statuses:
+          type: object
+          additionalProperties:
+            type: integer
+        critical_nodes_affected:
+          type: integer
+        warning_nodes_affected:
+          type: integer
+        summary:
+          type: string
+        analyzed_at:
+          type: string
+          format: date-time
+
+    NodeDependenciesResponse:
+      type: object
+      properties:
+        node_id:
+          type: string
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dependency'
+        count:
+          type: integer
+
+    NodeDependentsResponse:
+      type: object
+      properties:
+        node_id:
+          type: string
+        dependents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dependency'
+        count:
+          type: integer
