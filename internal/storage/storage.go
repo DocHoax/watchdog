@@ -79,6 +79,14 @@ type ReadOnlyStorage interface {
 	ListIncidents(ctx context.Context, filter incidents.IncidentFilter) ([]incidents.Incident, int, error)
 	GetTimeline(ctx context.Context, incidentID string, filter incidents.TimelineFilter) ([]incidents.IncidentTimelineEntry, error)
 	GetIncidentHistory(ctx context.Context, lookback time.Duration) ([]incidents.Incident, error)
+
+	// Governance & Organizations (Read-Only)
+	GetOrganization(ctx context.Context, id string) (*model.Organization, error)
+	ListOrganizations(ctx context.Context) ([]model.Organization, error)
+	GetFleetGroup(ctx context.Context, id string) (*model.FleetGroup, error)
+	ListFleetGroups(ctx context.Context, orgID string) ([]model.FleetGroup, error)
+	GetGroupMembers(ctx context.Context, groupID string) ([]model.FleetGroupMember, error)
+	GetNodeGroups(ctx context.Context, nodeID string) ([]model.FleetGroup, error)
 }
 
 // Storage defines the contract for storing and querying system metrics, alerts, diagnostics, and audit events.
@@ -120,4 +128,13 @@ type Storage interface {
 	SaveIncident(ctx context.Context, inc *incidents.Incident) error
 	UpdateIncidentStatus(ctx context.Context, id string, status incidents.IncidentStatus, reason string, resolvedAt *time.Time) error
 	SaveTimelineEntries(ctx context.Context, entries []incidents.IncidentTimelineEntry) error
+
+	// Governance & Organizations
+	SaveOrganization(ctx context.Context, org *model.Organization) error
+	DeleteOrganization(ctx context.Context, id string) error
+	SaveFleetGroup(ctx context.Context, group *model.FleetGroup) error
+	DeleteFleetGroup(ctx context.Context, id string) error
+	AddGroupMember(ctx context.Context, member *model.FleetGroupMember) error
+	RemoveGroupMember(ctx context.Context, groupID string, nodeID string) error
+	SetGroupMembers(ctx context.Context, groupID string, nodeIDs []string) error
 }
