@@ -249,17 +249,32 @@ func (e *AnomalyDetectionEvaluator) Evaluate(
 		mean = agg.Avg
 		stdDev = agg.StdDev
 	} else if len(history) >= 3 {
-		var sum float64
+		var baselineValues []float64
 		for _, pt := range history {
-			sum += pt.Value
+			// Exclude latest observation from baseline if we have sufficient prior history
+			if evalCtx.LatestTelemetry != nil && pt.Timestamp.Equal(evalCtx.LatestTelemetry.Timestamp) && len(history) > 3 {
+				continue
+			}
+			baselineValues = append(baselineValues, pt.Value)
 		}
-		mean = sum / float64(len(history))
+		if len(baselineValues) < 3 {
+			baselineValues = nil
+			for _, pt := range history {
+				baselineValues = append(baselineValues, pt.Value)
+			}
+		}
+
+		var sum float64
+		for _, v := range baselineValues {
+			sum += v
+		}
+		mean = sum / float64(len(baselineValues))
 		var varianceSum float64
-		for _, pt := range history {
-			diff := pt.Value - mean
+		for _, v := range baselineValues {
+			diff := v - mean
 			varianceSum += diff * diff
 		}
-		stdDev = math.Sqrt(varianceSum / float64(len(history)))
+		stdDev = math.Sqrt(varianceSum / float64(len(baselineValues)))
 	} else {
 		res.Status = model.EvaluationStatusInsufficientData
 		res.ObservedValue = fmt.Sprintf("%.2f", val)
@@ -283,6 +298,8 @@ func (e *AnomalyDetectionEvaluator) Evaluate(
 	var zScore float64
 	if stdDev > 0.0001 {
 		zScore = math.Abs(val-mean) / stdDev
+	} else if math.Abs(val-mean) > 0.0001 {
+		zScore = 100.0 // Definite anomaly if stdDev is 0 but value shifted
 	}
 
 	res.ObservedValue = fmt.Sprintf("z_score=%.2f (val=%.2f, mean=%.2f, std=%.2f)", zScore, val, mean, stdDev)
