@@ -105,7 +105,8 @@ func DetectEffectiveRuleConflicts(effectiveRules []EffectiveRule) []PolicyConfli
 				cfgB := rB.Rule.OperationalCompliance
 				if cfgA != nil && cfgB != nil && strings.EqualFold(cfgA.CheckType, cfgB.CheckType) {
 					if rA.Priority == rB.Priority && rA.HierarchyLevel == rB.HierarchyLevel {
-						if cfgA.ExpectedValue != "" && cfgB.ExpectedValue != "" && cfgA.ExpectedValue != cfgB.ExpectedValue {
+						if (cfgA.ExpectedValue != "" && cfgB.ExpectedValue != "" && cfgA.ExpectedValue != cfgB.ExpectedValue) ||
+							(cfgA.MaxAgeSeconds > 0 && cfgB.MaxAgeSeconds > 0 && cfgA.MaxAgeSeconds != cfgB.MaxAgeSeconds) {
 							conflicts = append(conflicts, PolicyConflict{
 								Severity:  ConflictSeverityDefinite,
 								Category:  rA.Category,
@@ -183,6 +184,27 @@ func DetectPolicyPairConflicts(revA *model.PolicyRevision, revB *model.PolicyRev
 							RuleB:     ruleB.ID,
 							Reason: fmt.Sprintf("Divergent anomaly z-score thresholds for metric %q (Policy A: %.2f vs Policy B: %.2f)",
 								cfgA.Metric, cfgA.ZScoreThreshold, cfgB.ZScoreThreshold),
+						})
+					}
+				}
+			}
+
+			if ruleA.Type == model.RuleTypeOperationalCompliance && ruleB.Type == model.RuleTypeOperationalCompliance {
+				cfgA := ruleA.OperationalCompliance
+				cfgB := ruleB.OperationalCompliance
+				if cfgA != nil && cfgB != nil && strings.EqualFold(cfgA.CheckType, cfgB.CheckType) {
+					if (cfgA.ExpectedValue != "" && cfgB.ExpectedValue != "" && cfgA.ExpectedValue != cfgB.ExpectedValue) ||
+						(cfgA.MaxAgeSeconds > 0 && cfgB.MaxAgeSeconds > 0 && cfgA.MaxAgeSeconds != cfgB.MaxAgeSeconds) {
+						conflicts = append(conflicts, PolicyConflict{
+							Severity:  ConflictSeverityPotential,
+							Category:  model.PolicyCategoryOperationalCompliance,
+							PolicyA:   revA.PolicyID,
+							RevisionA: revA.Revision,
+							RuleA:     ruleA.ID,
+							PolicyB:   revB.PolicyID,
+							RevisionB: revB.Revision,
+							RuleB:     ruleB.ID,
+							Reason:    fmt.Sprintf("Divergent compliance expectations for check %q", cfgA.CheckType),
 						})
 					}
 				}
