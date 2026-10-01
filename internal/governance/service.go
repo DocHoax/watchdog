@@ -34,6 +34,21 @@ type ReadOnlyGovernanceService interface {
 	EvaluateNodeCompliance(ctx context.Context, nodeID string) (*NodeComplianceReport, error)
 	ExplainResolution(ctx context.Context, nodeID string) (*ResolutionExplanation, error)
 	DetectPolicyConflicts(ctx context.Context, policyIDA string, revA int, policyIDB string, revB int) ([]PolicyConflict, error)
+
+	// Runtime Evaluation & Findings Queries
+	GetEvaluationExecution(ctx context.Context, id string) (*model.EvaluationExecution, error)
+	GetLatestNodeEvaluation(ctx context.Context, orgID, targetNodeID string) (*model.EvaluationExecution, error)
+	ListEvaluationExecutions(ctx context.Context, filter model.EvaluationFilter) ([]model.EvaluationExecution, error)
+	GetComplianceFinding(ctx context.Context, id string) (*model.ComplianceFinding, error)
+	ListComplianceFindings(ctx context.Context, filter model.FindingFilter) ([]model.ComplianceFinding, error)
+
+	// Compliance Summaries & Hierarchical Rollups
+	GetNodeComplianceSummary(ctx context.Context, orgID, nodeID string) (*model.ComplianceRollupSummary, error)
+	GetGroupComplianceSummary(ctx context.Context, orgID, groupID string, includeSubgroups bool) (*model.ComplianceRollupSummary, error)
+	GetOrgComplianceSummary(ctx context.Context, orgID string) (*model.ComplianceRollupSummary, error)
+
+	// Isolated Policy Simulation
+	SimulatePolicyChanges(ctx context.Context, req *model.SimulationRequest) (*model.SimulationResult, error)
 }
 
 // GovernanceService defines the full administrative and query interface for fleet governance.
@@ -72,19 +87,51 @@ type GovernanceService interface {
 	CreateAssignment(ctx context.Context, asgn *model.PolicyAssignment) error
 	DeleteAssignment(ctx context.Context, id string) error
 	SetAssignmentEnabled(ctx context.Context, id string, enabled bool) error
+
+	// Runtime Evaluation Operations
+	EvaluateNode(ctx context.Context, nodeID string, trigger model.EvaluationTriggerType) (*model.EvaluationExecution, error)
+	EvaluateFleetGroup(ctx context.Context, orgID, groupID string, includeSubgroups bool, trigger model.EvaluationTriggerType) ([]*model.EvaluationExecution, error)
+	EvaluateOrganization(ctx context.Context, orgID string, trigger model.EvaluationTriggerType) ([]*model.EvaluationExecution, error)
 }
 
 type governanceService struct {
-	store    storage.Storage
-	resolver *PolicyResolver
-	mu       sync.RWMutex
+	store       storage.Storage
+	resolver    *PolicyResolver
+	acquisition *DataAcquisitionProvider
+	evaluators  *EvaluatorRegistry
+	reconciler  *FindingReconciler
+	aggregator  *ComplianceAggregator
+	simulation  *SimulationEngine
+	clock       Clock
+	mu          sync.RWMutex
 }
 
 // NewGovernanceService constructs an instance of GovernanceService backed by storage.
 func NewGovernanceService(store storage.Storage) GovernanceService {
+	return NewGovernanceServiceWithClock(store, RealClock{})
+}
+
+// NewGovernanceServiceWithClock constructs a GovernanceService with a custom Clock for deterministic testing.
+func NewGovernanceServiceWithClock(store storage.Storage, clock Clock) GovernanceService {
+	if clock == nil {
+		clock = RealClock{}
+	}
+	resolver := NewPolicyResolver(store)
+	acquisition := NewDataAcquisitionProvider(store, resolver, clock, nil)
+	evaluators := NewEvaluatorRegistry()
+	reconciler := NewFindingReconciler(store, clock)
+	aggregator := NewComplianceAggregator(store, clock)
+	simulation := NewSimulationEngine(store, evaluators, clock)
+
 	return &governanceService{
-		store:    store,
-		resolver: NewPolicyResolver(store),
+		store:       store,
+		resolver:    resolver,
+		acquisition: acquisition,
+		evaluators:  evaluators,
+		reconciler:  reconciler,
+		aggregator:  aggregator,
+		simulation:  simulation,
+		clock:       clock,
 	}
 }
 
@@ -901,4 +948,233 @@ func (s *governanceService) DetectPolicyConflicts(ctx context.Context, policyIDA
 	}
 
 	return DetectPolicyPairConflicts(rA, rB), nil
+}
+
+// EvaluateNode executes an evaluation of effective policies against a target node, persists the execution record, and reconciles findings.
+func (s *governanceService) EvaluateNode(ctx context.Context, nodeID string, trigger model.EvaluationTriggerType) (*model.EvaluationExecution, error) {
+	if strings.TrimSpace(nodeID) == "" {
+		return nil, fmt.Errorf("%w: empty node_id", ErrInvalidIdentifier)
+	}
+	if trigger == "" {
+		trigger = model.EvaluationTriggerOnDemand
+	} else if !trigger.IsValid() {
+		return nil, fmt.Errorf("%w: invalid trigger type %s", ErrInvalidInput, trigger)
+	}
+
+	evalCtx, err := s.acquisition.BuildEvaluationContext(ctx, nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build evaluation context for node %s: %w", nodeID, err)
+	}
+
+	start := s.clock.Now()
+	results, err := s.evaluators.EvaluateContext(ctx, evalCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to evaluate policies for node %s: %w", nodeID, err)
+	}
+
+	summary := model.CalculateSummary(results)
+	var status model.EvaluationStatus
+	switch {
+	case summary.NonCompliantRules > 0:
+		status = model.EvaluationStatusNonCompliant
+	case summary.WarningRules > 0:
+		status = model.EvaluationStatusWarning
+	case summary.ErrorRules > 0:
+		status = model.EvaluationStatusError
+	case summary.InsufficientDataRules > 0:
+		status = model.EvaluationStatusInsufficientData
+	case summary.TotalRules == 0 || summary.NotApplicableRules == summary.TotalRules:
+		status = model.EvaluationStatusNotApplicable
+	default:
+		status = model.EvaluationStatusCompliant
+	}
+
+	execID := fmt.Sprintf("exec-%s-%d", nodeID, start.UnixNano())
+	exec := &model.EvaluationExecution{
+		ID:           execID,
+		OrgID:        evalCtx.OrgID,
+		TargetNodeID: nodeID,
+		TriggerType:  trigger,
+		EvaluatedAt:  start,
+		DurationNs:   s.clock.Since(start).Nanoseconds(),
+		Status:       status,
+		Results:      results,
+		Summary:      summary,
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.store.SaveEvaluationExecution(ctx, exec); err != nil {
+		return nil, fmt.Errorf("failed to persist evaluation execution: %w", err)
+	}
+
+	if _, err := s.reconciler.ReconcileExecution(ctx, exec); err != nil {
+		return nil, fmt.Errorf("failed to reconcile findings: %w", err)
+	}
+
+	return exec, nil
+}
+
+// EvaluateFleetGroup evaluates all member nodes within a fleet group and optionally its recursive subgroups.
+func (s *governanceService) EvaluateFleetGroup(ctx context.Context, orgID, groupID string, includeSubgroups bool, trigger model.EvaluationTriggerType) ([]*model.EvaluationExecution, error) {
+	if strings.TrimSpace(groupID) == "" {
+		return nil, fmt.Errorf("%w: empty group_id", ErrInvalidIdentifier)
+	}
+	if orgID == "" {
+		orgID = model.DefaultOrganizationID
+	}
+
+	group, err := s.store.GetFleetGroup(ctx, groupID)
+	if err != nil || group == nil {
+		return nil, fmt.Errorf("%w: group %s", ErrFleetGroupNotFound, groupID)
+	}
+	if group.OrgID != orgID {
+		return nil, fmt.Errorf("%w: group org %q != requested org %q", ErrCrossOrgAssignment, group.OrgID, orgID)
+	}
+
+	var nodeIDs []string
+	if includeSubgroups {
+		nodes, err := s.GetSubtreeNodes(ctx, groupID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get subtree nodes: %w", err)
+		}
+		nodeIDs = nodes
+	} else {
+		members, err := s.store.GetGroupMembers(ctx, groupID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get group members: %w", err)
+		}
+		for _, m := range members {
+			nodeIDs = append(nodeIDs, m.NodeID)
+		}
+	}
+
+	var executions []*model.EvaluationExecution
+	for _, nid := range nodeIDs {
+		exec, err := s.EvaluateNode(ctx, nid, trigger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to evaluate node %s: %w", nid, err)
+		}
+		executions = append(executions, exec)
+	}
+
+	return executions, nil
+}
+
+// EvaluateOrganization evaluates all fleet nodes belonging to the specified organization.
+func (s *governanceService) EvaluateOrganization(ctx context.Context, orgID string, trigger model.EvaluationTriggerType) ([]*model.EvaluationExecution, error) {
+	if orgID == "" {
+		orgID = model.DefaultOrganizationID
+	}
+
+	if _, err := s.store.GetOrganization(ctx, orgID); err != nil {
+		return nil, fmt.Errorf("%w: organization %s", ErrOrganizationNotFound, orgID)
+	}
+
+	nodes, _, err := s.store.ListFleetNodes(ctx, model.FleetFilter{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list fleet nodes: %w", err)
+	}
+
+	var orgNodeIDs []string
+	for _, n := range nodes {
+		nodeOrg := model.DefaultOrganizationID
+		if n.Metadata != nil {
+			if val, ok := n.Metadata["org_id"]; ok && val != "" {
+				nodeOrg = val
+			} else if val, ok := n.Metadata["organization_id"]; ok && val != "" {
+				nodeOrg = val
+			}
+		}
+		if nodeOrg == orgID {
+			orgNodeIDs = append(orgNodeIDs, n.Identity.NodeID)
+		}
+	}
+
+	var executions []*model.EvaluationExecution
+	for _, nid := range orgNodeIDs {
+		exec, err := s.EvaluateNode(ctx, nid, trigger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to evaluate node %s: %w", nid, err)
+		}
+		executions = append(executions, exec)
+	}
+
+	return executions, nil
+}
+
+// GetEvaluationExecution retrieves an evaluation execution by its unique identifier.
+func (s *governanceService) GetEvaluationExecution(ctx context.Context, id string) (*model.EvaluationExecution, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, fmt.Errorf("%w: empty evaluation execution id", ErrInvalidIdentifier)
+	}
+	return s.store.GetEvaluationExecution(ctx, id)
+}
+
+// GetLatestNodeEvaluation returns the most recent evaluation execution for a specific node in an organization.
+func (s *governanceService) GetLatestNodeEvaluation(ctx context.Context, orgID, targetNodeID string) (*model.EvaluationExecution, error) {
+	if strings.TrimSpace(targetNodeID) == "" {
+		return nil, fmt.Errorf("%w: empty target_node_id", ErrInvalidIdentifier)
+	}
+	if orgID == "" {
+		orgID = model.DefaultOrganizationID
+	}
+	return s.store.GetLatestNodeEvaluation(ctx, orgID, targetNodeID)
+}
+
+// ListEvaluationExecutions queries evaluation records according to filter criteria.
+func (s *governanceService) ListEvaluationExecutions(ctx context.Context, filter model.EvaluationFilter) ([]model.EvaluationExecution, error) {
+	return s.store.ListEvaluationExecutions(ctx, filter)
+}
+
+// GetComplianceFinding retrieves a single compliance finding by ID.
+func (s *governanceService) GetComplianceFinding(ctx context.Context, id string) (*model.ComplianceFinding, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, fmt.Errorf("%w: empty finding id", ErrInvalidIdentifier)
+	}
+	return s.store.GetComplianceFinding(ctx, id)
+}
+
+// ListComplianceFindings queries compliance findings according to filter parameters.
+func (s *governanceService) ListComplianceFindings(ctx context.Context, filter model.FindingFilter) ([]model.ComplianceFinding, error) {
+	return s.store.ListComplianceFindings(ctx, filter)
+}
+
+// GetNodeComplianceSummary aggregates the latest compliance posture and open findings for a single node.
+func (s *governanceService) GetNodeComplianceSummary(ctx context.Context, orgID, nodeID string) (*model.ComplianceRollupSummary, error) {
+	if strings.TrimSpace(nodeID) == "" {
+		return nil, fmt.Errorf("%w: empty node_id", ErrInvalidIdentifier)
+	}
+	if orgID == "" {
+		orgID = model.DefaultOrganizationID
+	}
+	return s.aggregator.AggregateNodeSummary(ctx, orgID, nodeID)
+}
+
+// GetGroupComplianceSummary computes aggregated compliance rollup for a fleet group.
+func (s *governanceService) GetGroupComplianceSummary(ctx context.Context, orgID, groupID string, includeSubgroups bool) (*model.ComplianceRollupSummary, error) {
+	if strings.TrimSpace(groupID) == "" {
+		return nil, fmt.Errorf("%w: empty group_id", ErrInvalidIdentifier)
+	}
+	if orgID == "" {
+		orgID = model.DefaultOrganizationID
+	}
+	return s.aggregator.AggregateGroupSummary(ctx, orgID, groupID, includeSubgroups)
+}
+
+// GetOrgComplianceSummary computes tenant-wide compliance rollup across all organization nodes.
+func (s *governanceService) GetOrgComplianceSummary(ctx context.Context, orgID string) (*model.ComplianceRollupSummary, error) {
+	if orgID == "" {
+		orgID = model.DefaultOrganizationID
+	}
+	return s.aggregator.AggregateOrgSummary(ctx, orgID)
+}
+
+// SimulatePolicyChanges executes candidate policy revisions and assignments in an isolated in-memory overlay.
+func (s *governanceService) SimulatePolicyChanges(ctx context.Context, req *model.SimulationRequest) (*model.SimulationResult, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w: nil simulation request", ErrInvalidInput)
+	}
+	return s.simulation.SimulatePolicyChanges(ctx, req)
 }
