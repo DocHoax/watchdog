@@ -343,6 +343,7 @@ func (o *NodeOwnershipMetadata) MergeIntoMetadata(target map[string]string) map[
 }
 
 // NodeOwnershipFromMetadata extracts structured ownership metadata from a generic string map.
+// Supports both canonical governance-prefixed keys (e.g. "governance.owner_team") and direct keys (e.g. "owner_team").
 func NodeOwnershipFromMetadata(meta map[string]string) *NodeOwnershipMetadata {
 	if meta == nil {
 		return nil
@@ -358,6 +359,35 @@ func NodeOwnershipFromMetadata(meta map[string]string) *NodeOwnershipMetadata {
 		BusinessCriticality: BusinessCriticality(meta[MetaKeyCriticality]),
 		Lifecycle:           NodeLifecycleStatus(meta[MetaKeyLifecycle]),
 		CustomProperties:    make(map[string]string),
+	}
+
+	// Fallback to unprefixed keys if canonical keys are empty
+	if res.OwnerTeam == "" {
+		res.OwnerTeam = meta["owner_team"]
+	}
+	if res.ContactEmail == "" {
+		res.ContactEmail = meta["contact_email"]
+	}
+	if res.ContactChannel == "" {
+		res.ContactChannel = meta["contact_channel"]
+	}
+	if res.Environment == "" {
+		res.Environment = meta["environment"]
+	}
+	if res.Region == "" {
+		res.Region = meta["region"]
+	}
+	if res.DataClassification == "" {
+		res.DataClassification = meta["data_classification"]
+	}
+	if res.CostCenter == "" {
+		res.CostCenter = meta["cost_center"]
+	}
+	if res.BusinessCriticality == "" {
+		res.BusinessCriticality = BusinessCriticality(meta["business_criticality"])
+	}
+	if res.Lifecycle == "" {
+		res.Lifecycle = NodeLifecycleStatus(meta["lifecycle"])
 	}
 
 	for k, v := range meta {
