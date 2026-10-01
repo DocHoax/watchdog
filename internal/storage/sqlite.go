@@ -234,6 +234,52 @@ func (s *SQLiteStorage) migrate(ctx context.Context) error {
 
 	CREATE INDEX IF NOT EXISTS idx_incident_nodes_node ON incident_nodes(node_id);
 	CREATE INDEX IF NOT EXISTS idx_incident_nodes_inc ON incident_nodes(incident_id);
+
+	CREATE TABLE IF NOT EXISTS organizations (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		display_name TEXT,
+		description TEXT,
+		status TEXT NOT NULL,
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_organizations_status ON organizations(status);
+
+	CREATE TABLE IF NOT EXISTS fleet_groups (
+		id TEXT PRIMARY KEY,
+		org_id TEXT NOT NULL,
+		parent_group_id TEXT,
+		name TEXT NOT NULL,
+		display_name TEXT,
+		description TEXT,
+		group_type TEXT NOT NULL,
+		path TEXT,
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_fleet_groups_org ON fleet_groups(org_id);
+	CREATE INDEX IF NOT EXISTS idx_fleet_groups_parent ON fleet_groups(parent_group_id);
+
+	CREATE TABLE IF NOT EXISTS fleet_group_members (
+		group_id TEXT NOT NULL,
+		node_id TEXT NOT NULL,
+		added_at INTEGER NOT NULL,
+		added_by TEXT,
+		role TEXT NOT NULL,
+		metadata_json TEXT,
+		PRIMARY KEY (group_id, node_id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_fleet_group_members_node ON fleet_group_members(node_id);
+	CREATE INDEX IF NOT EXISTS idx_fleet_group_members_group ON fleet_group_members(group_id);
+
+	INSERT OR IGNORE INTO organizations (id, name, display_name, description, status, created_at, updated_at, metadata_json)
+	VALUES ('default', 'Default Organization', 'Default Organization', 'Built-in single-tenant organization boundary', 'active', 0, 0, '{}');
 	`
 
 	_, err := s.db.ExecContext(ctx, schema)
