@@ -64,6 +64,30 @@ const (
 	EventMCPPromptGet    = "mcp.prompt.get"
 	EventMCPRateLimited  = "mcp.rate_limit.exceeded"
 	EventMCPAuthFailure  = "mcp.auth.failure"
+
+	// Governance Events
+	EventGovernanceOrgCreated           = "governance.org.created"
+	EventGovernanceOrgUpdated           = "governance.org.updated"
+	EventGovernanceOrgDeleted           = "governance.org.deleted"
+	EventGovernanceGroupCreated         = "governance.group.created"
+	EventGovernanceGroupUpdated         = "governance.group.updated"
+	EventGovernanceGroupDeleted         = "governance.group.deleted"
+	EventGovernanceGroupMemberAdded     = "governance.group.member.added"
+	EventGovernanceGroupMemberRemoved   = "governance.group.member.removed"
+	EventGovernancePolicyCreated        = "governance.policy.created"
+	EventGovernancePolicyUpdated        = "governance.policy.updated"
+	EventGovernancePolicyDeleted        = "governance.policy.deleted"
+	EventGovernancePolicyAssigned       = "governance.policy.assigned"
+	EventGovernancePolicyUnassigned     = "governance.policy.unassigned"
+	EventGovernanceMaintenanceCreated   = "governance.maintenance.created"
+	EventGovernanceMaintenanceUpdated   = "governance.maintenance.updated"
+	EventGovernanceMaintenanceCancelled = "governance.maintenance.cancelled"
+	EventGovernanceMaintenanceStarted   = "governance.maintenance.started"
+	EventGovernanceMaintenanceEnded     = "governance.maintenance.ended"
+	EventGovernanceSuppressionEvaluated = "governance.suppression.evaluated"
+	EventGovernanceEscalationEvaluated  = "governance.escalation.evaluated"
+	EventGovernanceEscalationUpdated    = "governance.escalation.updated"
+	EventGovernanceOwnershipUpdated     = "governance.ownership.updated"
 )
 
 // Audit Severity Constants
