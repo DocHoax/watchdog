@@ -19,6 +19,7 @@ import (
 	"github.com/DocHoax/watchdog/internal/config"
 	"github.com/DocHoax/watchdog/internal/diagnostics"
 	"github.com/DocHoax/watchdog/internal/fleet"
+	"github.com/DocHoax/watchdog/internal/governance"
 	"github.com/DocHoax/watchdog/internal/incidents"
 	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/internal/logger"
@@ -100,6 +101,7 @@ type Server struct {
 	intelService intelligence.IntelligenceService
 	incService   incidents.Service
 	topoService  topology.Service
+	govService   governance.GovernanceService
 
 	httpServer *http.Server
 	startTime  time.Time
@@ -142,6 +144,11 @@ func NewServer(
 		incSvc = incidents.NewService(store, 15*time.Minute)
 	}
 
+	var govSvc governance.GovernanceService
+	if store != nil {
+		govSvc = governance.NewGovernanceService(store)
+	}
+
 	topoSvc := topology.NewService()
 
 	return &Server{
@@ -157,8 +164,23 @@ func NewServer(
 		intelService: intelSvc,
 		incService:   incSvc,
 		topoService:  topoSvc,
+		govService:   govSvc,
 		startTime:    time.Now(),
 	}
+}
+
+// SetGovernanceService configures the governance service instance for the server.
+func (s *Server) SetGovernanceService(gs governance.GovernanceService) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.govService = gs
+}
+
+// GovernanceService returns the configured governance service instance.
+func (s *Server) GovernanceService() governance.GovernanceService {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.govService
 }
 
 // SetIncidentService configures the incident operations service instance for the server.
