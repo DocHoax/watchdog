@@ -22,6 +22,16 @@ const (
 	SeverityCritical Severity = "CRITICAL"
 )
 
+// IsValid reports whether the severity is recognized.
+func (s Severity) IsValid() bool {
+	switch s {
+	case SeverityInfo, SeverityWarning, SeverityCritical:
+		return true
+	default:
+		return false
+	}
+}
+
 // DiagnosticResult represents an individual health check evaluation.
 type DiagnosticResult struct {
 	ID             string           `json:"id" yaml:"id"`
