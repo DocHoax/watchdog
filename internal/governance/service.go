@@ -1419,6 +1419,7 @@ func (s *governanceService) CancelMaintenanceWindow(ctx context.Context, id stri
 	}
 	if reason != "" {
 		existing.Metadata["cancellation_reason"] = reason
+		existing.Metadata["cancel_reason"] = reason
 	}
 
 	if err := s.store.SaveMaintenanceWindow(ctx, existing); err != nil {
