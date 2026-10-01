@@ -160,6 +160,24 @@ func (m *mockStorage) GetComplianceFinding(_ context.Context, _ string) (*model.
 func (m *mockStorage) ListComplianceFindings(_ context.Context, _ model.FindingFilter) ([]model.ComplianceFinding, error) {
 	return nil, nil
 }
+func (m *mockStorage) GetMaintenanceWindow(_ context.Context, _ string) (*model.MaintenanceWindow, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListMaintenanceWindows(_ context.Context, _ model.MaintenanceWindowFilter) ([]model.MaintenanceWindow, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetEscalationPolicy(_ context.Context, _ string) (*model.EscalationPolicy, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListEscalationPolicies(_ context.Context, _ model.EscalationPolicyFilter) ([]model.EscalationPolicy, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetSuppressionDecision(_ context.Context, _ string) (*model.SuppressionDecision, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListSuppressionDecisions(_ context.Context, _ model.SuppressionFilter) ([]model.SuppressionDecision, error) {
+	return nil, nil
+}
 
 func TestIntelligenceService_EvaluateNodeHealth(t *testing.T) {
 	ctx := context.Background()
