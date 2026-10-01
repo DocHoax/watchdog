@@ -34,8 +34,8 @@ func setupTestStorage(t *testing.T) (storage.Storage, context.Context) {
 		ID:        "grp-root",
 		OrgID:     "org-prod",
 		Name:      "Root Infrastructure",
+		Type:      model.GroupTypeEnvironment,
 		Path:      "/grp-root",
-		Depth:     1,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 	}
@@ -49,8 +49,8 @@ func setupTestStorage(t *testing.T) (storage.Storage, context.Context) {
 		OrgID:         "org-prod",
 		ParentGroupID: "grp-root",
 		Name:          "Web Tier",
+		Type:          model.GroupTypeTier,
 		Path:          "/grp-root/grp-web",
-		Depth:         2,
 		CreatedAt:     time.Now().UTC(),
 		UpdatedAt:     time.Now().UTC(),
 	}
@@ -87,7 +87,13 @@ func setupTestStorage(t *testing.T) (storage.Storage, context.Context) {
 	}
 
 	// Add node to group
-	if err := store.AddGroupMember(ctx, "grp-web", "node-web-01"); err != nil {
+	member := &model.FleetGroupMember{
+		GroupID: "grp-web",
+		NodeID:  "node-web-01",
+		Role:    model.MembershipRolePrimary,
+		AddedAt: time.Now().UTC(),
+	}
+	if err := store.AddGroupMember(ctx, member); err != nil {
 		t.Fatalf("AddGroupMember failed: %v", err)
 	}
 
@@ -252,7 +258,7 @@ func TestPolicyResolver_HierarchicalResolution(t *testing.T) {
 	if cpuRule.Rule.ResourceThreshold.CriticalThreshold != 75.0 {
 		t.Errorf("expected CPU critical threshold 75.0, got %.1f", cpuRule.Rule.ResourceThreshold.CriticalThreshold)
 	}
-	if cpuRule.OverrodeRule == nil || cpuRule.OverrodeRule.SourcePolicyID != "pol-org-baseline" {
+	if cpuRule.OverrodeRule == nil || cpuRule.OverrodeRule.PolicyID != "pol-org-baseline" {
 		t.Errorf("expected OverrodeRule provenance to track pol-org-baseline, got %+v", cpuRule.OverrodeRule)
 	}
 
@@ -273,44 +279,60 @@ func TestPolicyResolver_InheritanceModes(t *testing.T) {
 			ID: "pol-org", OrgID: "org-prod", Name: "org", Category: model.PolicyCategoryResourceThresholds,
 			Status: model.PolicyStatusActive, ActiveRevision: 1,
 		}
-		_ = store.SavePolicy(ctx, orgPol)
+		if err := store.SavePolicy(ctx, orgPol); err != nil {
+			t.Fatalf("SavePolicy org failed: %v", err)
+		}
 		orgRev := &model.PolicyRevision{
 			PolicyID: "pol-org", Revision: 1, Priority: 100, InheritanceMode: model.InheritanceModeInheritAndOverride,
+			EnforcementMode: model.EnforcementModeEnforce,
 			Rules: []model.PolicyRule{
 				{
-					ID: "r1", Type: model.RuleTypeResourceThreshold, Enabled: true,
+					ID: "r1", Name: "Rule 1", Type: model.RuleTypeResourceThreshold, Enabled: true,
 					ResourceThreshold: &model.ResourceThresholdRuleConfig{Metric: "cpu", WarningThreshold: 80, CriticalThreshold: 90},
 				},
 				{
-					ID: "r2", Type: model.RuleTypeResourceThreshold, Enabled: true,
+					ID: "r2", Name: "Rule 2", Type: model.RuleTypeResourceThreshold, Enabled: true,
 					ResourceThreshold: &model.ResourceThresholdRuleConfig{Metric: "mem", WarningThreshold: 80, CriticalThreshold: 90},
 				},
 			},
 		}
-		_ = store.SavePolicyRevision(ctx, orgRev)
-		_ = store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
+		orgRev.ComputeDigest()
+		if err := store.SavePolicyRevision(ctx, orgRev); err != nil {
+			t.Fatalf("SavePolicyRevision org failed: %v", err)
+		}
+		if err := store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
 			ID: "asgn-org", PolicyID: "pol-org", OrgID: "org-prod", TargetType: model.TargetTypeOrganization, TargetID: "org-prod", Enabled: true,
-		})
+		}); err != nil {
+			t.Fatalf("SavePolicyAssignment org failed: %v", err)
+		}
 
 		// 2. Node policy with Strict Override and only 1 rule (disk)
 		nodePol := &model.Policy{
 			ID: "pol-node", OrgID: "org-prod", Name: "node", Category: model.PolicyCategoryResourceThresholds,
 			Status: model.PolicyStatusActive, ActiveRevision: 1,
 		}
-		_ = store.SavePolicy(ctx, nodePol)
+		if err := store.SavePolicy(ctx, nodePol); err != nil {
+			t.Fatalf("SavePolicy node failed: %v", err)
+		}
 		nodeRev := &model.PolicyRevision{
 			PolicyID: "pol-node", Revision: 1, Priority: 100, InheritanceMode: model.InheritanceModeStrictOverride,
+			EnforcementMode: model.EnforcementModeEnforce,
 			Rules: []model.PolicyRule{
 				{
-					ID: "r-disk", Type: model.RuleTypeResourceThreshold, Enabled: true,
+					ID: "r-disk", Name: "Disk Rule", Type: model.RuleTypeResourceThreshold, Enabled: true,
 					ResourceThreshold: &model.ResourceThresholdRuleConfig{Metric: "disk", WarningThreshold: 75, CriticalThreshold: 85},
 				},
 			},
 		}
-		_ = store.SavePolicyRevision(ctx, nodeRev)
-		_ = store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
+		nodeRev.ComputeDigest()
+		if err := store.SavePolicyRevision(ctx, nodeRev); err != nil {
+			t.Fatalf("SavePolicyRevision node failed: %v", err)
+		}
+		if err := store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
 			ID: "asgn-node", PolicyID: "pol-node", OrgID: "org-prod", TargetType: model.TargetTypeNode, TargetID: "node-web-01", Enabled: true,
-		})
+		}); err != nil {
+			t.Fatalf("SavePolicyAssignment node failed: %v", err)
+		}
 
 		resolved, err := resolver.ResolveNodePolicies(ctx, "node-web-01")
 		if err != nil {
@@ -336,40 +358,56 @@ func TestPolicyResolver_InheritanceModes(t *testing.T) {
 			ID: "pol-org", OrgID: "org-prod", Name: "org", Category: model.PolicyCategoryOperationalCompliance,
 			Status: model.PolicyStatusActive, ActiveRevision: 1,
 		}
-		_ = store.SavePolicy(ctx, orgPol)
+		if err := store.SavePolicy(ctx, orgPol); err != nil {
+			t.Fatalf("SavePolicy org failed: %v", err)
+		}
 		orgRev := &model.PolicyRevision{
 			PolicyID: "pol-org", Revision: 1, Priority: 100, InheritanceMode: model.InheritanceModeAdditive,
+			EnforcementMode: model.EnforcementModeEnforce,
 			Rules: []model.PolicyRule{
 				{
-					ID: "c1", Type: model.RuleTypeOperationalCompliance, Enabled: true,
+					ID: "c1", Name: "Compliance 1", Type: model.RuleTypeOperationalCompliance, Enabled: true,
 					OperationalCompliance: &model.OperationalComplianceRuleConfig{CheckType: "heartbeat_freshness", MaxAgeSeconds: 300},
 				},
 			},
 		}
-		_ = store.SavePolicyRevision(ctx, orgRev)
-		_ = store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
+		orgRev.ComputeDigest()
+		if err := store.SavePolicyRevision(ctx, orgRev); err != nil {
+			t.Fatalf("SavePolicyRevision org failed: %v", err)
+		}
+		if err := store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
 			ID: "asgn-org", PolicyID: "pol-org", OrgID: "org-prod", TargetType: model.TargetTypeOrganization, TargetID: "org-prod", Enabled: true,
-		})
+		}); err != nil {
+			t.Fatalf("SavePolicyAssignment org failed: %v", err)
+		}
 
 		// Node additive rule with same checkType
 		nodePol := &model.Policy{
 			ID: "pol-node", OrgID: "org-prod", Name: "node", Category: model.PolicyCategoryOperationalCompliance,
 			Status: model.PolicyStatusActive, ActiveRevision: 1,
 		}
-		_ = store.SavePolicy(ctx, nodePol)
+		if err := store.SavePolicy(ctx, nodePol); err != nil {
+			t.Fatalf("SavePolicy node failed: %v", err)
+		}
 		nodeRev := &model.PolicyRevision{
 			PolicyID: "pol-node", Revision: 1, Priority: 100, InheritanceMode: model.InheritanceModeAdditive,
+			EnforcementMode: model.EnforcementModeEnforce,
 			Rules: []model.PolicyRule{
 				{
-					ID: "c2", Type: model.RuleTypeOperationalCompliance, Enabled: true,
+					ID: "c2", Name: "Compliance 2", Type: model.RuleTypeOperationalCompliance, Enabled: true,
 					OperationalCompliance: &model.OperationalComplianceRuleConfig{CheckType: "heartbeat_freshness", MaxAgeSeconds: 120},
 				},
 			},
 		}
-		_ = store.SavePolicyRevision(ctx, nodeRev)
-		_ = store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
+		nodeRev.ComputeDigest()
+		if err := store.SavePolicyRevision(ctx, nodeRev); err != nil {
+			t.Fatalf("SavePolicyRevision node failed: %v", err)
+		}
+		if err := store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
 			ID: "asgn-node", PolicyID: "pol-node", OrgID: "org-prod", TargetType: model.TargetTypeNode, TargetID: "node-web-01", Enabled: true,
-		})
+		}); err != nil {
+			t.Fatalf("SavePolicyAssignment node failed: %v", err)
+		}
 
 		resolved, err := resolver.ResolveNodePolicies(ctx, "node-web-01")
 		if err != nil {
@@ -392,40 +430,58 @@ func TestPolicyResolver_SelectorFiltering(t *testing.T) {
 		ID: "pol-staging", OrgID: "org-prod", Name: "staging-rules", Category: model.PolicyCategoryResourceThresholds,
 		Status: model.PolicyStatusActive, ActiveRevision: 1,
 	}
-	_ = store.SavePolicy(ctx, polStaging)
+	if err := store.SavePolicy(ctx, polStaging); err != nil {
+		t.Fatalf("SavePolicy staging failed: %v", err)
+	}
 	revStaging := &model.PolicyRevision{
 		PolicyID: "pol-staging", Revision: 1, Priority: 100, Selector: `env == "staging"`,
+		InheritanceMode: model.InheritanceModeInheritAndOverride,
+		EnforcementMode: model.EnforcementModeEnforce,
 		Rules: []model.PolicyRule{
 			{
-				ID: "r-stg", Type: model.RuleTypeResourceThreshold, Enabled: true,
+				ID: "r-stg", Name: "Staging Rule", Type: model.RuleTypeResourceThreshold, Enabled: true,
 				ResourceThreshold: &model.ResourceThresholdRuleConfig{Metric: "cpu", WarningThreshold: 90, CriticalThreshold: 95},
 			},
 		},
 	}
-	_ = store.SavePolicyRevision(ctx, revStaging)
-	_ = store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
+	revStaging.ComputeDigest()
+	if err := store.SavePolicyRevision(ctx, revStaging); err != nil {
+		t.Fatalf("SavePolicyRevision staging failed: %v", err)
+	}
+	if err := store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
 		ID: "asgn-stg", PolicyID: "pol-staging", OrgID: "org-prod", TargetType: model.TargetTypeOrganization, TargetID: "org-prod", Enabled: true,
-	})
+	}); err != nil {
+		t.Fatalf("SavePolicyAssignment staging failed: %v", err)
+	}
 
 	// Policy matching production environment
 	polProd := &model.Policy{
 		ID: "pol-prod", OrgID: "org-prod", Name: "prod-rules", Category: model.PolicyCategoryResourceThresholds,
 		Status: model.PolicyStatusActive, ActiveRevision: 1,
 	}
-	_ = store.SavePolicy(ctx, polProd)
+	if err := store.SavePolicy(ctx, polProd); err != nil {
+		t.Fatalf("SavePolicy prod failed: %v", err)
+	}
 	revProd := &model.PolicyRevision{
 		PolicyID: "pol-prod", Revision: 1, Priority: 100, Selector: `env == "production"`,
+		InheritanceMode: model.InheritanceModeInheritAndOverride,
+		EnforcementMode: model.EnforcementModeEnforce,
 		Rules: []model.PolicyRule{
 			{
-				ID: "r-prd", Type: model.RuleTypeResourceThreshold, Enabled: true,
+				ID: "r-prd", Name: "Prod Rule", Type: model.RuleTypeResourceThreshold, Enabled: true,
 				ResourceThreshold: &model.ResourceThresholdRuleConfig{Metric: "cpu", WarningThreshold: 70, CriticalThreshold: 80},
 			},
 		},
 	}
-	_ = store.SavePolicyRevision(ctx, revProd)
-	_ = store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
+	revProd.ComputeDigest()
+	if err := store.SavePolicyRevision(ctx, revProd); err != nil {
+		t.Fatalf("SavePolicyRevision prod failed: %v", err)
+	}
+	if err := store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
 		ID: "asgn-prd", PolicyID: "pol-prod", OrgID: "org-prod", TargetType: model.TargetTypeOrganization, TargetID: "org-prod", Enabled: true,
-	})
+	}); err != nil {
+		t.Fatalf("SavePolicyAssignment prod failed: %v", err)
+	}
 
 	resolved, err := resolver.ResolveNodePolicies(ctx, "node-web-01")
 	if err != nil {
@@ -450,10 +506,14 @@ func TestPolicyResolver_ComplianceEvaluation(t *testing.T) {
 		ID: "pol-compliance", OrgID: "org-prod", Name: "compliance-checks", Category: model.PolicyCategoryOperationalCompliance,
 		Status: model.PolicyStatusActive, ActiveRevision: 1,
 	}
-	_ = store.SavePolicy(ctx, pol)
+	if err := store.SavePolicy(ctx, pol); err != nil {
+		t.Fatalf("SavePolicy compliance failed: %v", err)
+	}
 
 	rev := &model.PolicyRevision{
 		PolicyID: "pol-compliance", Revision: 1, Priority: 100,
+		InheritanceMode: model.InheritanceModeInheritAndOverride,
+		EnforcementMode: model.EnforcementModeEnforce,
 		Rules: []model.PolicyRule{
 			{
 				ID: "comp-hb", Name: "Heartbeat Freshness", Type: model.RuleTypeOperationalCompliance, Enabled: true,
@@ -489,10 +549,15 @@ func TestPolicyResolver_ComplianceEvaluation(t *testing.T) {
 			},
 		},
 	}
-	_ = store.SavePolicyRevision(ctx, rev)
-	_ = store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
+	rev.ComputeDigest()
+	if err := store.SavePolicyRevision(ctx, rev); err != nil {
+		t.Fatalf("SavePolicyRevision compliance failed: %v", err)
+	}
+	if err := store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
 		ID: "asgn-comp", PolicyID: "pol-compliance", OrgID: "org-prod", TargetType: model.TargetTypeOrganization, TargetID: "org-prod", Enabled: true,
-	})
+	}); err != nil {
+		t.Fatalf("SavePolicyAssignment compliance failed: %v", err)
+	}
 
 	report, err := resolver.EvaluateNodeCompliance(ctx, "node-web-01")
 	if err != nil {
@@ -508,7 +573,7 @@ func TestPolicyResolver_ComplianceEvaluation(t *testing.T) {
 	// Collector Version: v1.4.2 matches v1.4.2 -> Pass
 	// Approved Platforms: ubuntu is in [ubuntu, debian, rhel] -> Pass
 	// Mandatory Tags: missing 'owner' -> Fail (Warning)
-	if report.IsCompliant {
+	if report.Compliant {
 		t.Errorf("expected non-compliant report due to missing tag 'owner'")
 	}
 	if len(report.Violations) != 1 {
@@ -531,20 +596,29 @@ func TestPolicyResolver_ExplainResolution(t *testing.T) {
 		ID: "pol-explain", OrgID: "org-prod", Name: "explain-test", Category: model.PolicyCategoryResourceThresholds,
 		Status: model.PolicyStatusActive, ActiveRevision: 1,
 	}
-	_ = store.SavePolicy(ctx, pol)
+	if err := store.SavePolicy(ctx, pol); err != nil {
+		t.Fatalf("SavePolicy explain failed: %v", err)
+	}
 	rev := &model.PolicyRevision{
 		PolicyID: "pol-explain", Revision: 1, Priority: 50,
+		InheritanceMode: model.InheritanceModeInheritAndOverride,
+		EnforcementMode: model.EnforcementModeEnforce,
 		Rules: []model.PolicyRule{
 			{
-				ID: "r-cpu", Type: model.RuleTypeResourceThreshold, Enabled: true,
+				ID: "r-cpu", Name: "Explain CPU", Type: model.RuleTypeResourceThreshold, Enabled: true,
 				ResourceThreshold: &model.ResourceThresholdRuleConfig{Metric: "cpu", WarningThreshold: 70, CriticalThreshold: 85},
 			},
 		},
 	}
-	_ = store.SavePolicyRevision(ctx, rev)
-	_ = store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
+	rev.ComputeDigest()
+	if err := store.SavePolicyRevision(ctx, rev); err != nil {
+		t.Fatalf("SavePolicyRevision explain failed: %v", err)
+	}
+	if err := store.SavePolicyAssignment(ctx, &model.PolicyAssignment{
 		ID: "asgn-explain", PolicyID: "pol-explain", OrgID: "org-prod", TargetType: model.TargetTypeOrganization, TargetID: "org-prod", Enabled: true,
-	})
+	}); err != nil {
+		t.Fatalf("SavePolicyAssignment explain failed: %v", err)
+	}
 
 	explanation, err := resolver.ExplainResolution(ctx, "node-web-01")
 	if err != nil {
@@ -554,10 +628,10 @@ func TestPolicyResolver_ExplainResolution(t *testing.T) {
 	if explanation.NodeID != "node-web-01" {
 		t.Errorf("expected node ID node-web-01, got %s", explanation.NodeID)
 	}
-	if len(explanation.Steps) == 0 {
-		t.Errorf("expected diagnostic steps in explanation")
+	if len(explanation.AuditTrail) == 0 {
+		t.Errorf("expected diagnostic audit trail in explanation")
 	}
-	if len(explanation.ResolvedSet.EffectiveRules) != 1 {
-		t.Errorf("expected 1 effective rule in resolved set")
+	if len(explanation.EffectiveRules) != 1 {
+		t.Errorf("expected 1 effective rule in explanation")
 	}
 }
