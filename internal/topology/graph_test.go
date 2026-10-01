@@ -210,3 +210,151 @@ func TestGraph_Filter(t *testing.T) {
 		t.Errorf("expected srv-1 to be excluded by type filter")
 	}
 }
+
+func TestGraph_EdgeCases_EmptyAndSelfLoops(t *testing.T) {
+	g := NewGraph()
+
+	// Empty graph checks
+	if g.NodeCount() != 0 || g.EdgeCount() != 0 {
+		t.Errorf("expected empty graph, got nodes=%d edges=%d", g.NodeCount(), g.EdgeCount())
+	}
+	if _, found := g.GetNode("missing"); found {
+		t.Errorf("expected GetNode on missing node to return false")
+	}
+	if g.RemoveNode("missing") {
+		t.Errorf("expected RemoveNode on missing node to return false")
+	}
+	if _, found := g.FindShortestPath("src", "dst"); found {
+		t.Errorf("expected FindShortestPath on missing nodes to return false")
+	}
+	if deps := g.GetTransitiveDependencies("missing", 5); len(deps) != 0 {
+		t.Errorf("expected 0 dependencies for missing node")
+	}
+
+	// Self-loop check
+	g.AddNode(TopologyNode{ID: "self-node", Name: "Self Loop", Type: NodeTypeService})
+	g.AddDependency(Dependency{SourceID: "self-node", TargetID: "self-node", Type: RelCommunicatesWith})
+
+	path, found := g.FindShortestPath("self-node", "self-node")
+	if !found {
+		t.Fatalf("expected self-loop path to be found")
+	}
+	if path.Hops != 0 || len(path.Nodes) != 1 {
+		t.Errorf("expected 0 hops for self-path, got hops=%d nodes=%d", path.Hops, len(path.Nodes))
+	}
+
+	// Transitive dependencies with self loop should terminate cleanly
+	transDeps := g.GetTransitiveDependencies("self-node", 10)
+	if len(transDeps) != 0 {
+		t.Errorf("expected 0 other transitive dependencies, got %d", len(transDeps))
+	}
+}
+
+func TestGraph_MultiEdges_And_Confidence(t *testing.T) {
+	g := NewGraph()
+
+	g.AddNode(TopologyNode{ID: "svc-a", Name: "Service A", Type: NodeTypeService})
+	g.AddNode(TopologyNode{ID: "svc-b", Name: "Service B", Type: NodeTypeService})
+
+	// Add 2 different relationship types between svc-a and svc-b
+	g.AddDependency(Dependency{SourceID: "svc-a", TargetID: "svc-b", Type: RelCommunicatesWith, Confidence: ConfidenceHigh})
+	g.AddDependency(Dependency{SourceID: "svc-a", TargetID: "svc-b", Type: RelDependsOn, Confidence: ConfidenceMedium})
+
+	if g.EdgeCount() != 2 {
+		t.Errorf("expected 2 distinct edges, got %d", g.EdgeCount())
+	}
+
+	outDeps := g.GetOutDependencies("svc-a")
+	if len(outDeps) != 2 {
+		t.Errorf("expected 2 outgoing dependencies, got %d", len(outDeps))
+	}
+
+	// Remove one relationship type
+	removed := g.RemoveDependency("svc-a", "svc-b", RelCommunicatesWith)
+	if !removed {
+		t.Errorf("expected RemoveDependency to return true")
+	}
+	if g.EdgeCount() != 1 {
+		t.Errorf("expected 1 edge remaining, got %d", g.EdgeCount())
+	}
+
+	remaining := g.GetOutDependencies("svc-a")
+	if len(remaining) != 1 || remaining[0].Type != RelDependsOn {
+		t.Errorf("expected RelDependsOn edge to remain, got %+v", remaining)
+	}
+}
+
+func TestGraph_DeepLinearChain(t *testing.T) {
+	g := NewGraph()
+	chainLength := 100
+
+	for i := 0; i < chainLength; i++ {
+		g.AddNode(TopologyNode{
+			ID:   fmt.Sprintf("node-%03d", i),
+			Name: fmt.Sprintf("Node %03d", i),
+			Type: NodeTypeService,
+		})
+		if i > 0 {
+			g.AddDependency(Dependency{
+				SourceID: fmt.Sprintf("node-%03d", i-1),
+				TargetID: fmt.Sprintf("node-%03d", i),
+				Type:     RelDependsOn,
+			})
+		}
+	}
+
+	if g.NodeCount() != chainLength {
+		t.Fatalf("expected %d nodes, got %d", chainLength, g.NodeCount())
+	}
+	if g.EdgeCount() != chainLength-1 {
+		t.Fatalf("expected %d edges, got %d", chainLength-1, g.EdgeCount())
+	}
+
+	// Test bounded traversal
+	bounded := g.GetTransitiveDependencies("node-000", 5)
+	if len(bounded) != 5 {
+		t.Errorf("expected 5 bounded dependencies, got %d", len(bounded))
+	}
+
+	// Test shortest path across 50 hops
+	path, found := g.FindShortestPath("node-000", "node-050")
+	if !found {
+		t.Fatalf("expected path from node-000 to node-050")
+	}
+	if path.Hops != 50 {
+		t.Errorf("expected 50 hops, got %d", path.Hops)
+	}
+	if len(path.Nodes) != 51 {
+		t.Errorf("expected 51 nodes in path, got %d", len(path.Nodes))
+	}
+}
+
+func TestGraph_CloneAndSubGraph(t *testing.T) {
+	g := NewGraph()
+	g.AddNode(TopologyNode{ID: "n1", Name: "N1", Type: NodeTypeService})
+	g.AddNode(TopologyNode{ID: "n2", Name: "N2", Type: NodeTypeDatabase})
+	g.AddNode(TopologyNode{ID: "n3", Name: "N3", Type: NodeTypeCache})
+	g.AddDependency(Dependency{SourceID: "n1", TargetID: "n2", Type: RelDependsOn})
+	g.AddDependency(Dependency{SourceID: "n2", TargetID: "n3", Type: RelCommunicatesWith})
+
+	// Subgraph with only n1 and n2
+	sub := g.SubGraph([]string{"n1", "n2"})
+	if sub.NodeCount() != 2 || sub.EdgeCount() != 1 {
+		t.Errorf("expected subGraph to have 2 nodes and 1 edge, got %d nodes, %d edges", sub.NodeCount(), sub.EdgeCount())
+	}
+	if sub.HasNode("n3") {
+		t.Errorf("expected subGraph not to have n3")
+	}
+
+	// Clone graph
+	clone := g.Clone()
+	if clone.NodeCount() != 3 || clone.EdgeCount() != 2 {
+		t.Errorf("expected clone to have 3 nodes and 2 edges")
+	}
+
+	// Modifying clone should not mutate original
+	clone.RemoveNode("n1")
+	if !g.HasNode("n1") {
+		t.Errorf("modifying clone mutated original graph")
+	}
+}

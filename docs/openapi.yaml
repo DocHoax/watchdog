@@ -641,6 +641,338 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundError'
 
+  /api/v1/incidents:
+    get:
+      summary: List & Filter Incidents
+      description: Returns paginated list of clustered fleet incidents with rich filtering by status, severity, node, scope, and time window.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+          description: Comma-separated status filter (detected, acknowledged, investigating, resolved, suppressed, reopened)
+        - in: query
+          name: severity
+          schema:
+            type: string
+          description: Comma-separated severity filter (critical, warning, info)
+        - in: query
+          name: node_id
+          schema:
+            type: string
+          description: Filter incidents affecting a specific node
+        - in: query
+          name: scope
+          schema:
+            type: string
+          description: Filter by incident scope (node_local, host_level, multi_node, fleet_wide)
+        - in: query
+          name: since
+          schema:
+            type: string
+          description: Relative lookback window (e.g. 1h, 24h, 7d)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+          description: Maximum number of incidents to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+          description: Number of incidents to skip
+      responses:
+        '200':
+          description: Filtered incidents and pagination metadata.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incidents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Incident'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/incidents/summary:
+    get:
+      summary: Get Incident Summary
+      description: Returns aggregate incident metrics, status counts, severity distribution, scope breakdown, and MTTR statistics.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Incident summary statistics.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_incidents:
+                    type: integer
+                  detected_count:
+                    type: integer
+                  acknowledged_count:
+                    type: integer
+                  investigating_count:
+                    type: integer
+                  resolved_count:
+                    type: integer
+                  suppressed_count:
+                    type: integer
+                  reopened_count:
+                    type: integer
+                  critical_count:
+                    type: integer
+                  warning_count:
+                    type: integer
+                  info_count:
+                    type: integer
+                  average_resolution_time_seconds:
+                    type: number
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/incidents/similar:
+    get:
+      summary: Find Similar Incidents
+      description: Identifies historical incidents matching fingerprint or symptom patterns.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: incident_id
+          schema:
+            type: string
+          description: Target incident to find similarities for
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 5
+          description: Maximum similar incidents
+      responses:
+        '200':
+          description: List of similar incidents with similarity scores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Incident'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/incidents/{incident_id}:
+    get:
+      summary: Get Incident by ID
+      description: Retrieves complete details of a specific incident.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: incident_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Incident details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/incidents/{incident_id}/timeline:
+    get:
+      summary: Get Incident Timeline
+      description: Retrieves chronological event stream for the specified incident.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: incident_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Incident chronological event timeline.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IncidentTimelineEvent'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/incidents/{incident_id}/related:
+    get:
+      summary: Get Related Incidents
+      description: Retrieves related incidents connected temporally, topologically, or by symptom.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: incident_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Related incident list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Incident'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/incidents/{incident_id}/impact:
+    get:
+      summary: Get Incident Impact
+      description: Evaluates affected nodes, services, and blast radius of the incident.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: incident_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Incident impact analysis.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlastRadiusImpact'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/incidents/{incident_id}/findings:
+    get:
+      summary: Get Incident Intelligence Findings
+      description: Retrieves intelligence findings and anomaly deductions tied to the incident.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: incident_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Intelligence findings for incident.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IntelligenceFinding'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/incidents/{incident_id}/investigate:
+    get:
+      summary: Investigate Incident Dossier
+      description: Generates a comprehensive investigation dossier for an incident including timeline, symptoms, affected nodes, and root cause hints.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: incident_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Complete incident investigation dossier.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incident:
+                    $ref: '#/components/schemas/Incident'
+                  findings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IntelligenceFinding'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/v1/incidents/{incident_id}/status:
+    post:
+      summary: Update Incident Status
+      description: Transitions incident lifecycle status (e.g. acknowledged, investigating, resolved, suppressed) with audit logging.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: incident_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [detected, acknowledged, investigating, resolved, suppressed, reopened]
+                comment:
+                  type: string
+                  example: "Mitigation applied; monitoring stabilization"
+      responses:
+        '200':
+          description: Incident status updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
   /api/v1/topology:
     get:
       summary: Query Topology Graph

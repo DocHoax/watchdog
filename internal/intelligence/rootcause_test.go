@@ -138,3 +138,97 @@ func TestRootCauseEngine_CustomWeightsAndSafety(t *testing.T) {
 		t.Errorf("expected safe empty report without primary root cause")
 	}
 }
+
+func TestRootCauseEngine_SPOFAndFlappingRecurrence(t *testing.T) {
+	g := topology.NewGraph()
+
+	// Redis cache is a SPOF with 3 dependents
+	g.AddNode(topology.TopologyNode{ID: "redis-spof", Name: "Redis Master", Type: topology.NodeTypeCache, Status: topology.NodeStatusDegraded})
+	g.AddNode(topology.TopologyNode{ID: "svc-1", Name: "Service 1", Type: topology.NodeTypeService, Status: topology.NodeStatusDegraded})
+	g.AddNode(topology.TopologyNode{ID: "svc-2", Name: "Service 2", Type: topology.NodeTypeService, Status: topology.NodeStatusDegraded})
+	g.AddNode(topology.TopologyNode{ID: "svc-3", Name: "Service 3", Type: topology.NodeTypeService, Status: topology.NodeStatusDegraded})
+
+	g.AddDependency(topology.Dependency{SourceID: "svc-1", TargetID: "redis-spof", Type: topology.RelDependsOn})
+	g.AddDependency(topology.Dependency{SourceID: "svc-2", TargetID: "redis-spof", Type: topology.RelDependsOn})
+	g.AddDependency(topology.Dependency{SourceID: "svc-3", TargetID: "redis-spof", Type: topology.RelDependsOn})
+
+	t0 := time.Date(2026, 9, 28, 14, 0, 0, 0, time.UTC)
+
+	timeline := []IncidentTimelineEvent{
+		{
+			Timestamp:   t0,
+			NodeID:      "redis-spof",
+			EventType:   "anomaly_detected",
+			Description: "Eviction rate spike 500/s",
+			Severity:    model.SeverityCritical,
+		},
+		{
+			Timestamp:   t0.Add(5 * time.Second),
+			NodeID:      "svc-1",
+			EventType:   "alert_fired",
+			Description: "Cache read timeout",
+			Severity:    model.SeverityWarning,
+		},
+	}
+
+	predictions := []Prediction{
+		{
+			NodeID:     "redis-spof",
+			Metric:     "memory",
+			Confidence: PredictionConfidenceHigh,
+		},
+	}
+
+	recurrence := []RecurrencePattern{
+		{
+			TargetID:        "redis-spof",
+			OccurrenceCount: 4,
+			Summary:         "Periodic memory flapping on redis-spof",
+		},
+	}
+
+	engine := NewRootCauseEngine()
+	report := engine.AnalyzeIncidentWithSignals(
+		"inc-spof",
+		"Redis Master SPOF Saturation",
+		model.SeverityCritical,
+		t0,
+		[]string{"redis-spof", "svc-1", "svc-2", "svc-3"},
+		nil,
+		nil,
+		timeline,
+		g,
+		predictions,
+		recurrence,
+	)
+
+	if report == nil || report.PrimaryRootCause == nil {
+		t.Fatalf("expected report with primary root cause")
+	}
+
+	if report.PrimaryRootCause.NodeID != "redis-spof" {
+		t.Errorf("expected redis-spof to be primary root cause, got %s", report.PrimaryRootCause.NodeID)
+	}
+
+	if !report.PrimaryRootCause.IsSPOF {
+		t.Errorf("expected redis-spof to be marked as SPOF")
+	}
+
+	// Verify factor contributions
+	foundHist := false
+	for _, f := range report.PrimaryRootCause.Factors {
+		if f.Category == FactorHistoricalContext {
+			foundHist = true
+			if f.Score < 80.0 {
+				t.Errorf("expected high historical score due to flapping and predictions, got %.1f", f.Score)
+			}
+		}
+	}
+	if !foundHist {
+		t.Errorf("expected FactorHistoricalContext in factors")
+	}
+
+	if len(report.AlternativeCandidates) == 0 {
+		t.Errorf("expected alternative candidates in report")
+	}
+}
