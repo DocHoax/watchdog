@@ -145,6 +145,21 @@ func (m *mockStorage) ListPolicyAssignments(_ context.Context, _ model.PolicyAss
 func (m *mockStorage) GetAssignmentsForTargets(_ context.Context, _ string, _ model.PolicyTargetType, _ []string) ([]model.PolicyAssignment, error) {
 	return nil, nil
 }
+func (m *mockStorage) GetEvaluationExecution(_ context.Context, _ string) (*model.EvaluationExecution, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetLatestNodeEvaluation(_ context.Context, _, _ string) (*model.EvaluationExecution, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListEvaluationExecutions(_ context.Context, _ model.EvaluationFilter) ([]model.EvaluationExecution, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetComplianceFinding(_ context.Context, _ string) (*model.ComplianceFinding, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListComplianceFindings(_ context.Context, _ model.FindingFilter) ([]model.ComplianceFinding, error) {
+	return nil, nil
+}
 
 func TestIntelligenceService_EvaluateNodeHealth(t *testing.T) {
 	ctx := context.Background()

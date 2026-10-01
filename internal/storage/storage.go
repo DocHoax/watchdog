@@ -96,6 +96,13 @@ type ReadOnlyStorage interface {
 	GetPolicyAssignment(ctx context.Context, id string) (*model.PolicyAssignment, error)
 	ListPolicyAssignments(ctx context.Context, filter model.PolicyAssignmentFilter) ([]model.PolicyAssignment, error)
 	GetAssignmentsForTargets(ctx context.Context, orgID string, targetType model.PolicyTargetType, targetIDs []string) ([]model.PolicyAssignment, error)
+
+	// Policy Evaluations & Compliance Findings (Read-Only)
+	GetEvaluationExecution(ctx context.Context, id string) (*model.EvaluationExecution, error)
+	GetLatestNodeEvaluation(ctx context.Context, orgID, targetNodeID string) (*model.EvaluationExecution, error)
+	ListEvaluationExecutions(ctx context.Context, filter model.EvaluationFilter) ([]model.EvaluationExecution, error)
+	GetComplianceFinding(ctx context.Context, id string) (*model.ComplianceFinding, error)
+	ListComplianceFindings(ctx context.Context, filter model.FindingFilter) ([]model.ComplianceFinding, error)
 }
 
 // Storage defines the contract for storing and querying system metrics, alerts, diagnostics, and audit events.
@@ -153,4 +160,11 @@ type Storage interface {
 	SavePolicyRevision(ctx context.Context, rev *model.PolicyRevision) error
 	SavePolicyAssignment(ctx context.Context, asgn *model.PolicyAssignment) error
 	DeletePolicyAssignment(ctx context.Context, id string) error
+
+	// Policy Evaluations & Compliance Findings
+	SaveEvaluationExecution(ctx context.Context, exec *model.EvaluationExecution) error
+	SaveComplianceFinding(ctx context.Context, finding *model.ComplianceFinding) error
+	SaveComplianceFindings(ctx context.Context, findings []model.ComplianceFinding) error
+	DeleteComplianceFinding(ctx context.Context, id string) error
+	PruneEvaluationExecutions(ctx context.Context, retention time.Duration) (int64, error)
 }
