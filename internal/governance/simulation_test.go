@@ -101,8 +101,8 @@ func TestSimulationEngine_DiffsAndImpacts(t *testing.T) {
 		t.Fatalf("failed to save base assignment: %v", err)
 	}
 
-	// 4. Run Simulation: Proposed Revision relaxes CPU CriticalThreshold to 90 (Node becomes compliant/warning)
-	// and adds a new rule for Disk (<90) which also passes.
+	// 4. Run Simulation: Proposed Revision relaxes CPU CriticalThreshold to 95 and Warning to 90 (Node becomes compliant)
+	// and adds a new rule for Disk (<80) which also passes.
 	simReq := &model.SimulationRequest{
 		OrgID:         orgID,
 		TargetNodeIDs: []string{"node-sim-01"},
@@ -132,8 +132,8 @@ func TestSimulationEngine_DiffsAndImpacts(t *testing.T) {
 						Enabled:  true,
 						ResourceThreshold: &model.ResourceThresholdRuleConfig{
 							Metric:            "cpu_usage_pct",
-							WarningThreshold:  70,
-							CriticalThreshold: 90,
+							WarningThreshold:  90,
+							CriticalThreshold: 95,
 						},
 					},
 					{
@@ -168,10 +168,10 @@ func TestSimulationEngine_DiffsAndImpacts(t *testing.T) {
 		t.Errorf("expected baseline compliance ratio 0.0, got %f", simResult.BaselineComplianceRatio)
 	}
 
-	// In proposed: 85% cpu < 90% (warning since >= 70, so 1 warning, 1 compliant disk)
-	// Warning rule + Compliant rule -> compliant rules = 1, warning = 1 -> compliance ratio = 1 / 2 = 0.5
-	if simResult.ProposedComplianceRatio != 0.5 {
-		t.Errorf("expected proposed compliance ratio 0.5, got %f", simResult.ProposedComplianceRatio)
+	// In proposed: 85% cpu < 90% (compliant) and 40% disk < 80% (compliant)
+	// Compliant rules = 2, total = 2 -> compliance ratio = 2 / 2 = 1.0
+	if simResult.ProposedComplianceRatio != 1.0 {
+		t.Errorf("expected proposed compliance ratio 1.0, got %f", simResult.ProposedComplianceRatio)
 	}
 
 	if simResult.ComplianceRatioDelta <= 0 {
@@ -189,8 +189,8 @@ func TestSimulationEngine_DiffsAndImpacts(t *testing.T) {
 	if impact.BaselineStatus != model.EvaluationStatusNonCompliant {
 		t.Errorf("expected baseline non-compliant, got %s", impact.BaselineStatus)
 	}
-	if impact.ProposedStatus != model.EvaluationStatusWarning {
-		t.Errorf("expected proposed warning, got %s", impact.ProposedStatus)
+	if impact.ProposedStatus != model.EvaluationStatusCompliant {
+		t.Errorf("expected proposed compliant, got %s", impact.ProposedStatus)
 	}
 
 	// Check Rule Diffs
@@ -262,6 +262,11 @@ func TestSimulationEngine_NoMutationGuarantee(t *testing.T) {
 						Type:     model.RuleTypeOperationalCompliance,
 						Severity: model.SeverityCritical,
 						Enabled:  true,
+						OperationalCompliance: &model.OperationalComplianceRuleConfig{
+							CheckType:         "heartbeat_freshness",
+							MaxAgeSeconds:     300,
+							ViolationSeverity: model.SeverityCritical,
+						},
 					},
 				},
 			},
