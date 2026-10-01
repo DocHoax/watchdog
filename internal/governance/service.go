@@ -239,6 +239,16 @@ func (s *governanceService) UpdateFleetGroup(ctx context.Context, group *model.F
 		return fmt.Errorf("%w: %s", ErrFleetGroupNotFound, group.ID)
 	}
 
+	if group.ParentGroupID != "" {
+		parent, err := s.store.GetFleetGroup(ctx, group.ParentGroupID)
+		if err != nil || parent == nil {
+			return fmt.Errorf("%w: parent_group_id %q", ErrParentNotFound, group.ParentGroupID)
+		}
+		if parent.OrgID != group.OrgID {
+			return fmt.Errorf("%w: parent org is %q, child org is %q", ErrCrossOrgParent, parent.OrgID, group.OrgID)
+		}
+	}
+
 	allGroups, err := s.store.ListFleetGroups(ctx, group.OrgID)
 	if err != nil {
 		return fmt.Errorf("failed to list fleet groups: %w", err)
@@ -254,13 +264,6 @@ func (s *governanceService) UpdateFleetGroup(ctx context.Context, group *model.F
 	}
 
 	if group.ParentGroupID != "" {
-		parent, exists := groupMap[group.ParentGroupID]
-		if !exists {
-			return fmt.Errorf("%w: parent_group_id %q", ErrParentNotFound, group.ParentGroupID)
-		}
-		if parent.OrgID != group.OrgID {
-			return fmt.Errorf("%w: parent org is %q, child org is %q", ErrCrossOrgParent, parent.OrgID, group.OrgID)
-		}
 		if DetectCycle(groupMap, group.ID, group.ParentGroupID) {
 			return fmt.Errorf("%w: group %s -> parent %s", ErrCycleDetected, group.ID, group.ParentGroupID)
 		}
