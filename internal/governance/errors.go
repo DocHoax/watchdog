@@ -25,4 +25,28 @@ var (
 	ErrInvalidIdentifier = errors.New("invalid identifier")
 	// ErrInvalidInput is returned when input data fails semantic or structural validation.
 	ErrInvalidInput = errors.New("invalid input data")
+
+	// Policy & Compliance Errors
+	// ErrPolicyNotFound is returned when a policy is not found.
+	ErrPolicyNotFound = errors.New("policy not found")
+	// ErrPolicyExists is returned when a policy with the same ID already exists.
+	ErrPolicyExists = errors.New("policy already exists")
+	// ErrPolicyRevisionNotFound is returned when a policy revision is not found.
+	ErrPolicyRevisionNotFound = errors.New("policy revision not found")
+	// ErrPolicyRevisionDigestMismatch is returned when a revision's computed digest does not match its record.
+	ErrPolicyRevisionDigestMismatch = errors.New("policy revision digest mismatch")
+	// ErrPolicyAssignmentNotFound is returned when a policy assignment is not found.
+	ErrPolicyAssignmentNotFound = errors.New("policy assignment not found")
+	// ErrPolicyAssignmentExists is returned when an assignment already exists.
+	ErrPolicyAssignmentExists = errors.New("policy assignment already exists")
+	// ErrCrossOrgAssignment is returned when attempting to assign a policy across organization boundaries.
+	ErrCrossOrgAssignment = errors.New("cross-organization policy assignment forbidden")
+	// ErrInvalidLifecycleTransition is returned when an illegal policy status transition is attempted.
+	ErrInvalidLifecycleTransition = errors.New("invalid policy lifecycle transition")
+	// ErrInvalidSelector is returned when a selector query expression is invalid.
+	ErrInvalidSelector = errors.New("invalid selector expression")
+	// ErrSelectorMaxDepthExceeded is returned when a selector AST exceeds the maximum nesting depth.
+	ErrSelectorMaxDepthExceeded = errors.New("selector expression exceeds maximum depth")
+	// ErrSelectorTooLong is returned when a selector string exceeds the maximum allowable length.
+	ErrSelectorTooLong = errors.New("selector expression exceeds maximum length")
 )
