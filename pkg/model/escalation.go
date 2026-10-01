@@ -91,8 +91,8 @@ func (s *EscalationStage) Validate() error {
 	if s.DelayMinutes < 0 {
 		return fmt.Errorf("delay_minutes cannot be negative, got %d", s.DelayMinutes)
 	}
-	if len(s.Targets) == 0 {
-		return fmt.Errorf("stage %d must specify at least one target", s.StageNumber)
+	if len(s.Targets) == 0 && s.FallbackTarget == nil {
+		return fmt.Errorf("stage %d must specify at least one target or fallback target", s.StageNumber)
 	}
 	for i, t := range s.Targets {
 		if err := t.Validate(); err != nil {
