@@ -2,6 +2,7 @@ package governance
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -584,22 +585,12 @@ func (e *InExpression) Evaluate(ctx *NodeEvaluationContext) (bool, error) {
 
 	switch v := val.(type) {
 	case string:
-		for _, target := range e.Values {
-			if v == target {
-				matchFound = true
-				break
-			}
-		}
+		matchFound = slices.Contains(e.Values, v)
 	case []string:
 		// Check if any element of slice matches target list
 		for _, item := range v {
-			for _, target := range e.Values {
-				if item == target {
-					matchFound = true
-					break
-				}
-			}
-			if matchFound {
+			if slices.Contains(e.Values, item) {
+				matchFound = true
 				break
 			}
 		}
@@ -612,12 +603,7 @@ func (e *InExpression) Evaluate(ctx *NodeEvaluationContext) (bool, error) {
 		}
 	default:
 		s := fmt.Sprintf("%v", v)
-		for _, target := range e.Values {
-			if s == target {
-				matchFound = true
-				break
-			}
-		}
+		matchFound = slices.Contains(e.Values, s)
 	}
 
 	if e.NotIn {
@@ -654,13 +640,7 @@ func (e *ComparisonExpression) Evaluate(ctx *NodeEvaluationContext) (bool, error
 
 	// Slice matching (e.g. group_id == "grp-prod")
 	if sl, ok := val.([]string); ok {
-		contains := false
-		for _, s := range sl {
-			if s == e.Value {
-				contains = true
-				break
-			}
-		}
+		contains := slices.Contains(sl, e.Value)
 		if e.Operator == TokenEq {
 			return contains, nil
 		}
@@ -835,11 +815,9 @@ func (p *Parser) advance() Token {
 
 func (p *Parser) match(types ...TokenType) bool {
 	cur := p.current().Type
-	for _, t := range types {
-		if cur == t {
-			p.advance()
-			return true
-		}
+	if slices.Contains(types, cur) {
+		p.advance()
+		return true
 	}
 	return false
 }
