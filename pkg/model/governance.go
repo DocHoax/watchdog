@@ -361,8 +361,7 @@ func NodeOwnershipFromMetadata(meta map[string]string) *NodeOwnershipMetadata {
 	}
 
 	for k, v := range meta {
-		if strings.HasPrefix(k, MetaPrefixCustom) {
-			customKey := strings.TrimPrefix(k, MetaPrefixCustom)
+		if customKey, ok := strings.CutPrefix(k, MetaPrefixCustom); ok {
 			res.CustomProperties[customKey] = v
 		}
 	}
