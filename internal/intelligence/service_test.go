@@ -106,6 +106,24 @@ func (m *mockStorage) GetTimeline(_ context.Context, _ string, _ incidents.Timel
 func (m *mockStorage) GetIncidentHistory(_ context.Context, _ time.Duration) ([]incidents.Incident, error) {
 	return nil, nil
 }
+func (m *mockStorage) GetOrganization(_ context.Context, _ string) (*model.Organization, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListOrganizations(_ context.Context) ([]model.Organization, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetFleetGroup(_ context.Context, _ string) (*model.FleetGroup, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListFleetGroups(_ context.Context, _ string) ([]model.FleetGroup, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetGroupMembers(_ context.Context, _ string) ([]model.FleetGroupMember, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetNodeGroups(_ context.Context, _ string) ([]model.FleetGroup, error) {
+	return nil, nil
+}
 
 func TestIntelligenceService_EvaluateNodeHealth(t *testing.T) {
 	ctx := context.Background()
