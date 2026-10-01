@@ -53,6 +53,14 @@ func (s MaintenanceStatus) CanTransitionTo(target MaintenanceStatus) bool {
 	}
 }
 
+// CanTransitionTo reports whether this maintenance window can transition to target status.
+func (w *MaintenanceWindow) CanTransitionTo(target MaintenanceStatus) bool {
+	if w == nil {
+		return false
+	}
+	return w.Status.CanTransitionTo(target)
+}
+
 // MaintenanceTargetScope represents the scope of entities covered by a maintenance window.
 type MaintenanceTargetScope string
 

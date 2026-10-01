@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DocHoax/watchdog/internal/incidents"
 	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
@@ -22,6 +23,7 @@ type ReadOnlyGovernanceService interface {
 	GetNodeGroups(ctx context.Context, nodeID string) ([]model.FleetGroup, error)
 	GetSubtreeNodes(ctx context.Context, groupID string) ([]string, error)
 	GetNodeOwnership(ctx context.Context, nodeID string) (*model.NodeOwnershipMetadata, error)
+	ResolveNodeOwnership(ctx context.Context, nodeID string) (*model.ResolvedOwnership, error)
 
 	// Policy Queries & Resolution
 	GetPolicy(ctx context.Context, id string) (*model.Policy, error)
@@ -49,6 +51,24 @@ type ReadOnlyGovernanceService interface {
 
 	// Isolated Policy Simulation
 	SimulatePolicyChanges(ctx context.Context, req *model.SimulationRequest) (*model.SimulationResult, error)
+
+	// Maintenance Windows
+	GetMaintenanceWindow(ctx context.Context, id string) (*model.MaintenanceWindow, error)
+	ListMaintenanceWindows(ctx context.Context, filter model.MaintenanceWindowFilter) ([]model.MaintenanceWindow, error)
+	EvaluateMaintenanceWindows(ctx context.Context, orgID string, evalTime time.Time) ([]model.MaintenanceWindow, error)
+
+	// Escalation Policies
+	GetEscalationPolicy(ctx context.Context, id string) (*model.EscalationPolicy, error)
+	ListEscalationPolicies(ctx context.Context, filter model.EscalationPolicyFilter) ([]model.EscalationPolicy, error)
+	EvaluateIncidentEscalation(ctx context.Context, orgID string, incident *incidents.Incident, evalTime time.Time) (*model.EscalationEvaluationResult, error)
+
+	// Alert & Finding Suppression
+	EvaluateSuppression(ctx context.Context, req SuppressionEvaluationRequest) (*model.SuppressionDecision, error)
+	GetSuppressionDecision(ctx context.Context, id string) (*model.SuppressionDecision, error)
+	ListSuppressionDecisions(ctx context.Context, filter model.SuppressionFilter) ([]model.SuppressionDecision, error)
+
+	// Audit Trail
+	QueryAuditEvents(ctx context.Context, filter storage.AuditFilter) ([]model.AuditEvent, error)
 }
 
 // GovernanceService defines the full administrative and query interface for fleet governance.
@@ -92,18 +112,37 @@ type GovernanceService interface {
 	EvaluateNode(ctx context.Context, nodeID string, trigger model.EvaluationTriggerType) (*model.EvaluationExecution, error)
 	EvaluateFleetGroup(ctx context.Context, orgID, groupID string, includeSubgroups bool, trigger model.EvaluationTriggerType) ([]*model.EvaluationExecution, error)
 	EvaluateOrganization(ctx context.Context, orgID string, trigger model.EvaluationTriggerType) ([]*model.EvaluationExecution, error)
+
+	// Maintenance Windows
+	CreateMaintenanceWindow(ctx context.Context, window *model.MaintenanceWindow) error
+	UpdateMaintenanceWindow(ctx context.Context, window *model.MaintenanceWindow) error
+	DeleteMaintenanceWindow(ctx context.Context, id string) error
+	CancelMaintenanceWindow(ctx context.Context, id string, reason string) error
+
+	// Escalation Policies
+	CreateEscalationPolicy(ctx context.Context, policy *model.EscalationPolicy) error
+	UpdateEscalationPolicy(ctx context.Context, policy *model.EscalationPolicy) error
+	DeleteEscalationPolicy(ctx context.Context, id string) error
+
+	// Audit Trail
+	RecordAuditEvent(ctx context.Context, event model.AuditEvent) error
 }
 
 type governanceService struct {
-	store       storage.Storage
-	resolver    *PolicyResolver
-	acquisition *DataAcquisitionProvider
-	evaluators  *EvaluatorRegistry
-	reconciler  *FindingReconciler
-	aggregator  *ComplianceAggregator
-	simulation  *SimulationEngine
-	clock       Clock
-	mu          sync.RWMutex
+	store             storage.Storage
+	resolver          *PolicyResolver
+	acquisition       *DataAcquisitionProvider
+	evaluators        *EvaluatorRegistry
+	reconciler        *FindingReconciler
+	aggregator        *ComplianceAggregator
+	simulation        *SimulationEngine
+	maintenanceEngine *MaintenanceEngine
+	suppressionEngine *SuppressionEngine
+	ownershipResolver *OwnershipResolver
+	escalationEngine  *EscalationEngine
+	auditRecorder     *AuditRecorder
+	clock             Clock
+	mu                sync.RWMutex
 }
 
 // NewGovernanceService constructs an instance of GovernanceService backed by storage.
@@ -122,16 +161,26 @@ func NewGovernanceServiceWithClock(store storage.Storage, clock Clock) Governanc
 	reconciler := NewFindingReconciler(store, clock)
 	aggregator := NewComplianceAggregator(store, clock)
 	simulation := NewSimulationEngine(store, evaluators, clock)
+	maintenanceEngine := NewMaintenanceEngine(store, clock)
+	suppressionEngine := NewSuppressionEngine(store, maintenanceEngine, clock)
+	ownershipResolver := NewOwnershipResolver(store, clock)
+	escalationEngine := NewEscalationEngine(store, clock)
+	auditRecorder := NewAuditRecorder(store, clock)
 
 	return &governanceService{
-		store:       store,
-		resolver:    resolver,
-		acquisition: acquisition,
-		evaluators:  evaluators,
-		reconciler:  reconciler,
-		aggregator:  aggregator,
-		simulation:  simulation,
-		clock:       clock,
+		store:             store,
+		resolver:          resolver,
+		acquisition:       acquisition,
+		evaluators:        evaluators,
+		reconciler:        reconciler,
+		aggregator:        aggregator,
+		simulation:        simulation,
+		maintenanceEngine: maintenanceEngine,
+		suppressionEngine: suppressionEngine,
+		ownershipResolver: ownershipResolver,
+		escalationEngine:  escalationEngine,
+		auditRecorder:     auditRecorder,
+		clock:             clock,
 	}
 }
 
@@ -1177,4 +1226,404 @@ func (s *governanceService) SimulatePolicyChanges(ctx context.Context, req *mode
 		return nil, fmt.Errorf("%w: nil simulation request", ErrInvalidInput)
 	}
 	return s.simulation.SimulatePolicyChanges(ctx, req)
+}
+
+// ResolveNodeOwnership resolves operational ownership metadata across hierarchical levels for a node.
+func (s *governanceService) ResolveNodeOwnership(ctx context.Context, nodeID string) (*model.ResolvedOwnership, error) {
+	if strings.TrimSpace(nodeID) == "" {
+		return nil, fmt.Errorf("%w: empty node id", ErrInvalidIdentifier)
+	}
+	return s.ownershipResolver.ResolveNodeOwnership(ctx, nodeID)
+}
+
+// CreateMaintenanceWindow validates, persists, and audits a new maintenance window.
+func (s *governanceService) CreateMaintenanceWindow(ctx context.Context, window *model.MaintenanceWindow) error {
+	if window == nil {
+		return fmt.Errorf("%w: nil maintenance window", ErrInvalidInput)
+	}
+	if err := window.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Verify organization exists
+	if _, err := s.store.GetOrganization(ctx, window.OrgID); err != nil {
+		return fmt.Errorf("%w: org_id %q does not exist", ErrOrganizationNotFound, window.OrgID)
+	}
+
+	// Verify ID uniqueness
+	if existing, _ := s.store.GetMaintenanceWindow(ctx, window.ID); existing != nil {
+		return fmt.Errorf("%w: maintenance window %q", ErrMaintenanceWindowExists, window.ID)
+	}
+
+	if window.Status == "" {
+		window.Status = model.MaintenanceStatusDraft
+	}
+	now := s.clock.Now().UTC()
+	if window.CreatedAt.IsZero() {
+		window.CreatedAt = now
+	}
+	window.UpdatedAt = now
+
+	if err := s.store.SaveMaintenanceWindow(ctx, window); err != nil {
+		return err
+	}
+
+	_ = s.auditRecorder.RecordEvent(
+		ctx,
+		model.EventGovernanceMaintenanceCreated,
+		model.AuditSeverityNotice,
+		model.AuditOutcomeSuccess,
+		window.ID,
+		"create",
+		fmt.Sprintf("Created maintenance window %q (%s)", window.Name, window.ID),
+		model.AuditActor{Type: model.ActorTypeCLI, Identity: "governance-service"},
+		map[string]string{
+			"org_id":      window.OrgID,
+			"window_id":   window.ID,
+			"window_name": window.Name,
+			"status":      string(window.Status),
+		},
+	)
+
+	return nil
+}
+
+// GetMaintenanceWindow retrieves a maintenance window by its unique ID.
+func (s *governanceService) GetMaintenanceWindow(ctx context.Context, id string) (*model.MaintenanceWindow, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, fmt.Errorf("%w: empty maintenance window id", ErrInvalidIdentifier)
+	}
+	return s.store.GetMaintenanceWindow(ctx, id)
+}
+
+// ListMaintenanceWindows queries maintenance windows according to filter criteria.
+func (s *governanceService) ListMaintenanceWindows(ctx context.Context, filter model.MaintenanceWindowFilter) ([]model.MaintenanceWindow, error) {
+	return s.store.ListMaintenanceWindows(ctx, filter)
+}
+
+// UpdateMaintenanceWindow validates and updates a mutable maintenance window with lifecycle state transition checks.
+func (s *governanceService) UpdateMaintenanceWindow(ctx context.Context, window *model.MaintenanceWindow) error {
+	if window == nil {
+		return fmt.Errorf("%w: nil maintenance window", ErrInvalidInput)
+	}
+	if err := window.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.store.GetMaintenanceWindow(ctx, window.ID)
+	if err != nil || existing == nil {
+		return fmt.Errorf("%w: maintenance window %s", ErrMaintenanceWindowNotFound, window.ID)
+	}
+
+	if window.Status != existing.Status {
+		if !existing.CanTransitionTo(window.Status) {
+			return fmt.Errorf("%w: cannot transition from %s to %s", ErrInvalidMaintenanceTransition, existing.Status, window.Status)
+		}
+	}
+
+	window.CreatedAt = existing.CreatedAt
+	window.UpdatedAt = s.clock.Now().UTC()
+
+	if err := s.store.SaveMaintenanceWindow(ctx, window); err != nil {
+		return err
+	}
+
+	_ = s.auditRecorder.RecordEvent(
+		ctx,
+		model.EventGovernanceMaintenanceUpdated,
+		model.AuditSeverityNotice,
+		model.AuditOutcomeSuccess,
+		window.ID,
+		"update",
+		fmt.Sprintf("Updated maintenance window %q (%s)", window.Name, window.ID),
+		model.AuditActor{Type: model.ActorTypeCLI, Identity: "governance-service"},
+		map[string]string{
+			"org_id":      window.OrgID,
+			"window_id":   window.ID,
+			"window_name": window.Name,
+			"status":      string(window.Status),
+		},
+	)
+
+	return nil
+}
+
+// DeleteMaintenanceWindow removes a maintenance window from storage.
+func (s *governanceService) DeleteMaintenanceWindow(ctx context.Context, id string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("%w: empty maintenance window id", ErrInvalidIdentifier)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.store.GetMaintenanceWindow(ctx, id)
+	if err != nil || existing == nil {
+		return fmt.Errorf("%w: maintenance window %s", ErrMaintenanceWindowNotFound, id)
+	}
+
+	if err := s.store.DeleteMaintenanceWindow(ctx, id); err != nil {
+		return err
+	}
+
+	_ = s.auditRecorder.RecordEvent(
+		ctx,
+		model.EventGovernanceMaintenanceEnded,
+		model.AuditSeverityNotice,
+		model.AuditOutcomeSuccess,
+		id,
+		"delete",
+		fmt.Sprintf("Deleted maintenance window %q", id),
+		model.AuditActor{Type: model.ActorTypeCLI, Identity: "governance-service"},
+		map[string]string{
+			"org_id":    existing.OrgID,
+			"window_id": id,
+		},
+	)
+
+	return nil
+}
+
+// CancelMaintenanceWindow cancels an active or scheduled maintenance window.
+func (s *governanceService) CancelMaintenanceWindow(ctx context.Context, id string, reason string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("%w: empty maintenance window id", ErrInvalidIdentifier)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.store.GetMaintenanceWindow(ctx, id)
+	if err != nil || existing == nil {
+		return fmt.Errorf("%w: maintenance window %s", ErrMaintenanceWindowNotFound, id)
+	}
+
+	if !existing.CanTransitionTo(model.MaintenanceStatusCancelled) {
+		return fmt.Errorf("%w: cannot transition from %s to %s", ErrInvalidMaintenanceTransition, existing.Status, model.MaintenanceStatusCancelled)
+	}
+
+	existing.Status = model.MaintenanceStatusCancelled
+	existing.UpdatedAt = s.clock.Now().UTC()
+	if existing.Metadata == nil {
+		existing.Metadata = make(map[string]string)
+	}
+	if reason != "" {
+		existing.Metadata["cancellation_reason"] = reason
+	}
+
+	if err := s.store.SaveMaintenanceWindow(ctx, existing); err != nil {
+		return err
+	}
+
+	_ = s.auditRecorder.RecordEvent(
+		ctx,
+		model.EventGovernanceMaintenanceCancelled,
+		model.AuditSeverityWarning,
+		model.AuditOutcomeSuccess,
+		id,
+		"cancel",
+		fmt.Sprintf("Cancelled maintenance window %q (%s): %s", existing.Name, id, reason),
+		model.AuditActor{Type: model.ActorTypeCLI, Identity: "governance-service"},
+		map[string]string{
+			"org_id":    existing.OrgID,
+			"window_id": id,
+			"reason":    reason,
+		},
+	)
+
+	return nil
+}
+
+// EvaluateMaintenanceWindows calculates all active maintenance windows for an organization at evalTime.
+func (s *governanceService) EvaluateMaintenanceWindows(ctx context.Context, orgID string, evalTime time.Time) ([]model.MaintenanceWindow, error) {
+	if orgID == "" {
+		orgID = model.DefaultOrganizationID
+	}
+	return s.maintenanceEngine.EvaluateActiveWindows(ctx, orgID, evalTime)
+}
+
+// CreateEscalationPolicy validates, persists, and audits a new escalation policy.
+func (s *governanceService) CreateEscalationPolicy(ctx context.Context, policy *model.EscalationPolicy) error {
+	if policy == nil {
+		return fmt.Errorf("%w: nil escalation policy", ErrInvalidInput)
+	}
+	if err := policy.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, err := s.store.GetOrganization(ctx, policy.OrgID); err != nil {
+		return fmt.Errorf("%w: org_id %q does not exist", ErrOrganizationNotFound, policy.OrgID)
+	}
+
+	if existing, _ := s.store.GetEscalationPolicy(ctx, policy.ID); existing != nil {
+		return fmt.Errorf("%w: escalation policy %q", ErrEscalationPolicyExists, policy.ID)
+	}
+
+	now := s.clock.Now().UTC()
+	if policy.CreatedAt.IsZero() {
+		policy.CreatedAt = now
+	}
+	policy.UpdatedAt = now
+
+	if err := s.store.SaveEscalationPolicy(ctx, policy); err != nil {
+		return err
+	}
+
+	_ = s.auditRecorder.RecordEvent(
+		ctx,
+		model.EventGovernanceEscalationUpdated,
+		model.AuditSeverityNotice,
+		model.AuditOutcomeSuccess,
+		policy.ID,
+		"create",
+		fmt.Sprintf("Created escalation policy %q (%s)", policy.Name, policy.ID),
+		model.AuditActor{Type: model.ActorTypeCLI, Identity: "governance-service"},
+		map[string]string{
+			"org_id":      policy.OrgID,
+			"policy_id":   policy.ID,
+			"policy_name": policy.Name,
+		},
+	)
+
+	return nil
+}
+
+// GetEscalationPolicy retrieves an escalation policy by ID.
+func (s *governanceService) GetEscalationPolicy(ctx context.Context, id string) (*model.EscalationPolicy, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, fmt.Errorf("%w: empty escalation policy id", ErrInvalidIdentifier)
+	}
+	return s.store.GetEscalationPolicy(ctx, id)
+}
+
+// ListEscalationPolicies queries escalation policies matching filter criteria.
+func (s *governanceService) ListEscalationPolicies(ctx context.Context, filter model.EscalationPolicyFilter) ([]model.EscalationPolicy, error) {
+	return s.store.ListEscalationPolicies(ctx, filter)
+}
+
+// UpdateEscalationPolicy validates and updates an existing escalation policy.
+func (s *governanceService) UpdateEscalationPolicy(ctx context.Context, policy *model.EscalationPolicy) error {
+	if policy == nil {
+		return fmt.Errorf("%w: nil escalation policy", ErrInvalidInput)
+	}
+	if err := policy.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.store.GetEscalationPolicy(ctx, policy.ID)
+	if err != nil || existing == nil {
+		return fmt.Errorf("%w: escalation policy %s", ErrEscalationPolicyNotFound, policy.ID)
+	}
+
+	policy.CreatedAt = existing.CreatedAt
+	policy.UpdatedAt = s.clock.Now().UTC()
+
+	if err := s.store.SaveEscalationPolicy(ctx, policy); err != nil {
+		return err
+	}
+
+	_ = s.auditRecorder.RecordEvent(
+		ctx,
+		model.EventGovernanceEscalationUpdated,
+		model.AuditSeverityNotice,
+		model.AuditOutcomeSuccess,
+		policy.ID,
+		"update",
+		fmt.Sprintf("Updated escalation policy %q (%s)", policy.Name, policy.ID),
+		model.AuditActor{Type: model.ActorTypeCLI, Identity: "governance-service"},
+		map[string]string{
+			"org_id":      policy.OrgID,
+			"policy_id":   policy.ID,
+			"policy_name": policy.Name,
+		},
+	)
+
+	return nil
+}
+
+// DeleteEscalationPolicy deletes an escalation policy by ID.
+func (s *governanceService) DeleteEscalationPolicy(ctx context.Context, id string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("%w: empty escalation policy id", ErrInvalidIdentifier)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.store.GetEscalationPolicy(ctx, id)
+	if err != nil || existing == nil {
+		return fmt.Errorf("%w: escalation policy %s", ErrEscalationPolicyNotFound, id)
+	}
+
+	if err := s.store.DeleteEscalationPolicy(ctx, id); err != nil {
+		return err
+	}
+
+	_ = s.auditRecorder.RecordEvent(
+		ctx,
+		model.EventGovernanceEscalationUpdated,
+		model.AuditSeverityNotice,
+		model.AuditOutcomeSuccess,
+		id,
+		"delete",
+		fmt.Sprintf("Deleted escalation policy %q", id),
+		model.AuditActor{Type: model.ActorTypeCLI, Identity: "governance-service"},
+		map[string]string{
+			"org_id":    existing.OrgID,
+			"policy_id": id,
+		},
+	)
+
+	return nil
+}
+
+// EvaluateIncidentEscalation evaluates the escalation timeline and active notification targets for an incident.
+func (s *governanceService) EvaluateIncidentEscalation(ctx context.Context, orgID string, incident *incidents.Incident, evalTime time.Time) (*model.EscalationEvaluationResult, error) {
+	return s.escalationEngine.EvaluateIncident(ctx, orgID, incident, evalTime)
+}
+
+// EvaluateSuppression evaluates policy-driven alert and finding suppression and persists the resulting decision record.
+func (s *governanceService) EvaluateSuppression(ctx context.Context, req SuppressionEvaluationRequest) (*model.SuppressionDecision, error) {
+	decision, err := s.suppressionEngine.Evaluate(ctx, req)
+	if decision != nil {
+		s.mu.Lock()
+		_ = s.store.SaveSuppressionDecision(ctx, decision)
+		s.mu.Unlock()
+	}
+	return decision, err
+}
+
+// GetSuppressionDecision retrieves a suppression decision by ID.
+func (s *governanceService) GetSuppressionDecision(ctx context.Context, id string) (*model.SuppressionDecision, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, fmt.Errorf("%w: empty suppression decision id", ErrInvalidIdentifier)
+	}
+	return s.store.GetSuppressionDecision(ctx, id)
+}
+
+// ListSuppressionDecisions queries suppression decisions matching filter criteria.
+func (s *governanceService) ListSuppressionDecisions(ctx context.Context, filter model.SuppressionFilter) ([]model.SuppressionDecision, error) {
+	return s.store.ListSuppressionDecisions(ctx, filter)
+}
+
+// RecordAuditEvent persists and sanitizes a governance audit event.
+func (s *governanceService) RecordAuditEvent(ctx context.Context, event model.AuditEvent) error {
+	return s.auditRecorder.Record(ctx, event)
+}
+
+// QueryAuditEvents queries audit log events matching the specified filter.
+func (s *governanceService) QueryAuditEvents(ctx context.Context, filter storage.AuditFilter) ([]model.AuditEvent, error) {
+	return s.store.QueryAuditEvents(ctx, filter)
 }

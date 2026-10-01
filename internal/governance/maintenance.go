@@ -389,6 +389,35 @@ func (e *MaintenanceEngine) GetActiveWindowsForNode(
 	return activeWindows, nil
 }
 
+// EvaluateActiveWindows returns all maintenance windows belonging to orgID that are active at evalTime.
+func (e *MaintenanceEngine) EvaluateActiveWindows(ctx context.Context, orgID string, evalTime time.Time) ([]model.MaintenanceWindow, error) {
+	if orgID == "" {
+		orgID = model.DefaultOrganizationID
+	}
+	if e.store == nil {
+		return nil, fmt.Errorf("%w: nil storage", ErrInvalidInput)
+	}
+
+	windows, err := e.store.ListMaintenanceWindows(ctx, model.MaintenanceWindowFilter{
+		OrgID: orgID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list maintenance windows: %w", err)
+	}
+
+	var active []model.MaintenanceWindow
+	for _, w := range windows {
+		isActive, err := e.IsWindowActive(&w, evalTime)
+		if err != nil {
+			continue
+		}
+		if isActive {
+			active = append(active, w)
+		}
+	}
+	return active, nil
+}
+
 // TransitionWindowStatus validates and updates the lifecycle status of a maintenance window.
 func (e *MaintenanceEngine) TransitionWindowStatus(w *model.MaintenanceWindow, newStatus model.MaintenanceStatus, now time.Time) error {
 	if w == nil {
