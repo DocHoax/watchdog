@@ -196,3 +196,55 @@ func TestNodeOwnershipMetadata_Validate(t *testing.T) {
 		t.Errorf("expected error on invalid lifecycle status")
 	}
 }
+
+func TestNodeOwnershipMetadata_Serialization(t *testing.T) {
+	orig := &NodeOwnershipMetadata{
+		OwnerTeam:           "Infrastructure Core",
+		ContactEmail:        "infra@company.com",
+		ContactChannel:      "#infra-oncall",
+		Environment:         "production",
+		Region:              "eu-central-1",
+		DataClassification:  "restricted",
+		CostCenter:          "CC-1020",
+		BusinessCriticality: CriticalityHigh,
+		Lifecycle:           LifecycleMaintenance,
+		CustomProperties: map[string]string{
+			"tier": "tier-1",
+			"rack": "R12-U04",
+		},
+	}
+
+	m := orig.ToMetadata()
+	if m[MetaKeyOwnerTeam] != "Infrastructure Core" {
+		t.Errorf("expected owner team in map, got %s", m[MetaKeyOwnerTeam])
+	}
+	if m[MetaPrefixCustom+"tier"] != "tier-1" {
+		t.Errorf("expected custom tier in map, got %s", m[MetaPrefixCustom+"tier"])
+	}
+
+	// Merge into existing
+	base := map[string]string{
+		"existing_key": "val",
+	}
+	merged := orig.MergeIntoMetadata(base)
+	if merged["existing_key"] != "val" || merged[MetaKeyRegion] != "eu-central-1" {
+		t.Errorf("merge failed: %+v", merged)
+	}
+
+	// Decode
+	decoded := NodeOwnershipFromMetadata(merged)
+	if decoded == nil {
+		t.Fatalf("expected non-nil decoded struct")
+	}
+	if decoded.OwnerTeam != orig.OwnerTeam || decoded.Region != orig.Region ||
+		decoded.BusinessCriticality != orig.BusinessCriticality ||
+		decoded.Lifecycle != orig.Lifecycle ||
+		decoded.CustomProperties["rack"] != "R12-U04" {
+		t.Errorf("decoded struct does not match original: %+v", decoded)
+	}
+
+	// Empty map decode
+	if emptyDecoded := NodeOwnershipFromMetadata(map[string]string{"foo": "bar"}); emptyDecoded != nil {
+		t.Errorf("expected nil for map with no governance keys, got %+v", emptyDecoded)
+	}
+}
