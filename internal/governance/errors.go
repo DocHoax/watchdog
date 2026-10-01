@@ -49,4 +49,22 @@ var (
 	ErrSelectorMaxDepthExceeded = errors.New("selector expression exceeds maximum depth")
 	// ErrSelectorTooLong is returned when a selector string exceeds the maximum allowable length.
 	ErrSelectorTooLong = errors.New("selector expression exceeds maximum length")
+
+	// Operational Governance Errors
+	// ErrMaintenanceWindowNotFound is returned when a maintenance window is not found.
+	ErrMaintenanceWindowNotFound = errors.New("maintenance window not found")
+	// ErrMaintenanceWindowExists is returned when a maintenance window already exists.
+	ErrMaintenanceWindowExists = errors.New("maintenance window already exists")
+	// ErrInvalidMaintenanceTransition is returned when an invalid maintenance window status transition is attempted.
+	ErrInvalidMaintenanceTransition = errors.New("invalid maintenance window status transition")
+	// ErrCrossOrgMaintenance is returned when a maintenance window targets a resource outside its organization.
+	ErrCrossOrgMaintenance = errors.New("cross-organization maintenance window target forbidden")
+	// ErrEscalationPolicyNotFound is returned when an escalation policy is not found.
+	ErrEscalationPolicyNotFound = errors.New("escalation policy not found")
+	// ErrEscalationPolicyExists is returned when an escalation policy already exists.
+	ErrEscalationPolicyExists = errors.New("escalation policy already exists")
+	// ErrCrossOrgEscalation is returned when an escalation policy references cross-organization entities.
+	ErrCrossOrgEscalation = errors.New("cross-organization escalation reference forbidden")
+	// ErrSuppressionDecisionNotFound is returned when a suppression decision is not found.
+	ErrSuppressionDecisionNotFound = errors.New("suppression decision not found")
 )
