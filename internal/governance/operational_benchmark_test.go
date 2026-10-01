@@ -14,7 +14,7 @@ func BenchmarkMaintenanceEngine_IsWindowActive_WeeklyRecurrence(b *testing.B) {
 	clock := NewMockClock(time.Date(2026, 10, 1, 14, 30, 0, 0, time.UTC))
 	engine := NewMaintenanceEngine(nil, clock)
 
-	start := time.Date(2026, 1, 1, 2, 0, 0, 0, time.UTC)
+	start := time.Date(2026, 6, 6, 2, 0, 0, 0, time.UTC)
 	end := start.Add(4 * time.Hour)
 
 	window := &model.MaintenanceWindow{
@@ -26,7 +26,7 @@ func BenchmarkMaintenanceEngine_IsWindowActive_WeeklyRecurrence(b *testing.B) {
 		Schedule: model.MaintenanceSchedule{
 			StartTime: start,
 			EndTime:   end,
-			TimeZone:  "America/New_York",
+			TimeZone:  "UTC",
 			Recurrence: &model.RecurrenceSchedule{
 				Frequency:      model.RecurrenceFrequencyWeekly,
 				Interval:       1,
