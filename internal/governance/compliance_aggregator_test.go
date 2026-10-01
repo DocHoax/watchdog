@@ -16,15 +16,20 @@ func TestRollupExecutionsAndFindings(t *testing.T) {
 		ID:           "exec-01",
 		OrgID:        "org-acme",
 		TargetNodeID: "node-01",
+		TriggerType:  model.EvaluationTriggerScheduled,
 		Status:       model.EvaluationStatusCompliant,
 		Results: []model.EvaluationResult{
 			{
+				PolicyID: "pol-res",
 				RuleID:   "rule-cpu",
+				RuleType: model.RuleTypeResourceThreshold,
 				Category: model.PolicyCategoryResourceThresholds,
 				Status:   model.EvaluationStatusCompliant,
 			},
 			{
+				PolicyID: "pol-res",
 				RuleID:   "rule-mem",
+				RuleType: model.RuleTypeResourceThreshold,
 				Category: model.PolicyCategoryResourceThresholds,
 				Status:   model.EvaluationStatusCompliant,
 			},
@@ -35,15 +40,20 @@ func TestRollupExecutionsAndFindings(t *testing.T) {
 		ID:           "exec-02",
 		OrgID:        "org-acme",
 		TargetNodeID: "node-02",
+		TriggerType:  model.EvaluationTriggerScheduled,
 		Status:       model.EvaluationStatusNonCompliant,
 		Results: []model.EvaluationResult{
 			{
+				PolicyID: "pol-res",
 				RuleID:   "rule-cpu",
+				RuleType: model.RuleTypeResourceThreshold,
 				Category: model.PolicyCategoryResourceThresholds,
 				Status:   model.EvaluationStatusNonCompliant,
 			},
 			{
+				PolicyID: "pol-ops",
 				RuleID:   "rule-heartbeat",
+				RuleType: model.RuleTypeOperationalCompliance,
 				Category: model.PolicyCategoryOperationalCompliance,
 				Status:   model.EvaluationStatusCompliant,
 			},
@@ -54,10 +64,13 @@ func TestRollupExecutionsAndFindings(t *testing.T) {
 		ID:           "exec-03",
 		OrgID:        "org-acme",
 		TargetNodeID: "node-03",
+		TriggerType:  model.EvaluationTriggerScheduled,
 		Status:       model.EvaluationStatusWarning,
 		Results: []model.EvaluationResult{
 			{
+				PolicyID: "pol-res",
 				RuleID:   "rule-disk",
+				RuleType: model.RuleTypeResourceThreshold,
 				Category: model.PolicyCategoryResourceThresholds,
 				Status:   model.EvaluationStatusWarning,
 			},
@@ -231,7 +244,9 @@ func TestComplianceAggregator_IntegrationWithStore(t *testing.T) {
 		EvaluatedAt:  clock.Now(),
 		Results: []model.EvaluationResult{
 			{
+				PolicyID: "pol-fin",
 				RuleID:   "rule-fin-res",
+				RuleType: model.RuleTypeResourceThreshold,
 				Category: model.PolicyCategoryResourceThresholds,
 				Status:   model.EvaluationStatusCompliant,
 			},
@@ -251,7 +266,9 @@ func TestComplianceAggregator_IntegrationWithStore(t *testing.T) {
 		EvaluatedAt:  clock.Now(),
 		Results: []model.EvaluationResult{
 			{
+				PolicyID: "pol-fin",
 				RuleID:   "rule-fin-res",
+				RuleType: model.RuleTypeResourceThreshold,
 				Category: model.PolicyCategoryResourceThresholds,
 				Status:   model.EvaluationStatusNonCompliant,
 			},
