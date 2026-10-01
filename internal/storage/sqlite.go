@@ -444,7 +444,7 @@ func (s *SQLiteStorage) migrate(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_suppression_decisions_outcome ON governance_suppression_decisions(outcome);
 
 	INSERT OR IGNORE INTO organizations (id, name, display_name, description, status, created_at, updated_at, metadata_json)
-	VALUES ('default', 'Default Organization', 'Default Organization', 'Built-in single-tenant organization boundary', 0, 0, '{}');
+	VALUES ('default', 'Default Organization', 'Default Organization', 'Built-in single-tenant organization boundary', 'active', 0, 0, '{}');
 	`
 
 	_, err := s.db.ExecContext(ctx, schema)

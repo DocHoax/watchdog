@@ -114,15 +114,19 @@ func (d *SuppressionDecision) Validate() error {
 
 // SuppressionFilter defines query parameters for retrieving suppression decisions.
 type SuppressionFilter struct {
-	OrgID    string             `json:"org_id,omitempty"`
-	NodeID   string             `json:"node_id,omitempty"`
-	WindowID string             `json:"window_id,omitempty"`
-	AlertID  string             `json:"alert_id,omitempty"`
-	Outcome  SuppressionOutcome `json:"outcome,omitempty"`
-	Severity Severity           `json:"severity,omitempty"`
-	Category string             `json:"category,omitempty"`
-	From     *time.Time         `json:"from,omitempty"`
-	To       *time.Time         `json:"to,omitempty"`
-	Limit    int                `json:"limit,omitempty"`
-	Offset   int                `json:"offset,omitempty"`
+	OrgID      string             `json:"org_id,omitempty"`
+	NodeID     string             `json:"node_id,omitempty"`
+	WindowID   string             `json:"window_id,omitempty"`
+	AlertID    string             `json:"alert_id,omitempty"`
+	IncidentID string             `json:"incident_id,omitempty"`
+	Outcome    SuppressionOutcome `json:"outcome,omitempty"`
+	Reason     SuppressionReason  `json:"reason,omitempty"`
+	Severity   Severity           `json:"severity,omitempty"`
+	Category   string             `json:"category,omitempty"`
+	From       *time.Time         `json:"from,omitempty"`
+	To         *time.Time         `json:"to,omitempty"`
+	Since      *time.Time         `json:"since,omitempty"`
+	Until      *time.Time         `json:"until,omitempty"`
+	Limit      int                `json:"limit,omitempty"`
+	Offset     int                `json:"offset,omitempty"`
 }
