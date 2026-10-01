@@ -53,6 +53,41 @@ func (r *EvaluatorRegistry) Get(ruleType model.PolicyRuleType) (RuleEvaluator, b
 	return eval, ok
 }
 
+// EvaluateContext executes all effective rules on the evaluation context and produces evaluation results.
+func (r *EvaluatorRegistry) EvaluateContext(ctx context.Context, evalCtx *EvaluationContext) ([]model.EvaluationResult, error) {
+	if evalCtx == nil {
+		return nil, fmt.Errorf("nil evaluation context")
+	}
+	if evalCtx.ResolvedPolicySet == nil {
+		return nil, nil
+	}
+
+	var results []model.EvaluationResult
+	now := evalCtx.Clock.Now()
+
+	for _, effective := range evalCtx.ResolvedPolicySet.EffectiveRules {
+		eval, ok := r.Get(effective.Rule.Type)
+		if !ok {
+			res := initBaseResult(effective, now)
+			res.Status = model.EvaluationStatusError
+			res.Message = fmt.Sprintf("no evaluator registered for rule type: %s", effective.Rule.Type)
+			res.DataFreshness = model.DataFreshnessUnsupported
+			results = append(results, res)
+			continue
+		}
+
+		res, err := eval.Evaluate(ctx, evalCtx, effective)
+		if err != nil {
+			res = initBaseResult(effective, now)
+			res.Status = model.EvaluationStatusError
+			res.Message = fmt.Sprintf("evaluator error: %v", err)
+		}
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
 func initBaseResult(effective EffectiveRule, now time.Time) model.EvaluationResult {
 	sev := effective.Rule.Severity
 	if sev == "" {
