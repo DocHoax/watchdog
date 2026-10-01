@@ -124,6 +124,27 @@ func (m *mockStorage) GetGroupMembers(_ context.Context, _ string) ([]model.Flee
 func (m *mockStorage) GetNodeGroups(_ context.Context, _ string) ([]model.FleetGroup, error) {
 	return nil, nil
 }
+func (m *mockStorage) GetPolicy(_ context.Context, _ string) (*model.Policy, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListPolicies(_ context.Context, _ model.PolicyFilter) ([]model.Policy, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetPolicyRevision(_ context.Context, _ string, _ int) (*model.PolicyRevision, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListPolicyRevisions(_ context.Context, _ string) ([]model.PolicyRevision, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetPolicyAssignment(_ context.Context, _ string) (*model.PolicyAssignment, error) {
+	return nil, nil
+}
+func (m *mockStorage) ListPolicyAssignments(_ context.Context, _ model.PolicyAssignmentFilter) ([]model.PolicyAssignment, error) {
+	return nil, nil
+}
+func (m *mockStorage) GetAssignmentsForTargets(_ context.Context, _ string, _ model.PolicyTargetType, _ []string) ([]model.PolicyAssignment, error) {
+	return nil, nil
+}
 
 func TestIntelligenceService_EvaluateNodeHealth(t *testing.T) {
 	ctx := context.Background()

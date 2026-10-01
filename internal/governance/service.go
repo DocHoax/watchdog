@@ -11,7 +11,7 @@ import (
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
-// ReadOnlyGovernanceService defines the read-only contract for organizations, groups, and node metadata.
+// ReadOnlyGovernanceService defines the read-only contract for organizations, groups, node metadata, and policies.
 type ReadOnlyGovernanceService interface {
 	GetOrganization(ctx context.Context, id string) (*model.Organization, error)
 	ListOrganizations(ctx context.Context) ([]model.Organization, error)
@@ -22,6 +22,18 @@ type ReadOnlyGovernanceService interface {
 	GetNodeGroups(ctx context.Context, nodeID string) ([]model.FleetGroup, error)
 	GetSubtreeNodes(ctx context.Context, groupID string) ([]string, error)
 	GetNodeOwnership(ctx context.Context, nodeID string) (*model.NodeOwnershipMetadata, error)
+
+	// Policy Queries & Resolution
+	GetPolicy(ctx context.Context, id string) (*model.Policy, error)
+	ListPolicies(ctx context.Context, filter model.PolicyFilter) ([]model.Policy, error)
+	GetPolicyRevision(ctx context.Context, policyID string, revision int) (*model.PolicyRevision, error)
+	ListPolicyRevisions(ctx context.Context, policyID string) ([]model.PolicyRevision, error)
+	GetAssignment(ctx context.Context, id string) (*model.PolicyAssignment, error)
+	ListAssignments(ctx context.Context, filter model.PolicyAssignmentFilter) ([]model.PolicyAssignment, error)
+	ResolveNodePolicies(ctx context.Context, nodeID string) (*ResolvedPolicySet, error)
+	EvaluateNodeCompliance(ctx context.Context, nodeID string) (*NodeComplianceReport, error)
+	ExplainResolution(ctx context.Context, nodeID string) (*ResolutionExplanation, error)
+	DetectPolicyConflicts(ctx context.Context, policyIDA string, revA int, policyIDB string, revB int) ([]PolicyConflict, error)
 }
 
 // GovernanceService defines the full administrative and query interface for fleet governance.
@@ -45,17 +57,34 @@ type GovernanceService interface {
 
 	// Node Ownership & Lifecycle Metadata
 	SetNodeOwnership(ctx context.Context, nodeID string, meta *model.NodeOwnershipMetadata) error
+
+	// Policy Lifecycle Management
+	CreatePolicy(ctx context.Context, policy *model.Policy) error
+	UpdatePolicy(ctx context.Context, policy *model.Policy) error
+	DeletePolicy(ctx context.Context, id string) error
+	SetPolicyStatus(ctx context.Context, id string, status model.PolicyStatus) error
+	SetActiveRevision(ctx context.Context, id string, revision int) error
+
+	// Policy Revisions
+	PublishRevision(ctx context.Context, rev *model.PolicyRevision) error
+
+	// Policy Assignments
+	CreateAssignment(ctx context.Context, asgn *model.PolicyAssignment) error
+	DeleteAssignment(ctx context.Context, id string) error
+	SetAssignmentEnabled(ctx context.Context, id string, enabled bool) error
 }
 
 type governanceService struct {
-	store storage.Storage
-	mu    sync.RWMutex
+	store    storage.Storage
+	resolver *PolicyResolver
+	mu       sync.RWMutex
 }
 
 // NewGovernanceService constructs an instance of GovernanceService backed by storage.
 func NewGovernanceService(store storage.Storage) GovernanceService {
 	return &governanceService{
-		store: store,
+		store:    store,
+		resolver: NewPolicyResolver(store),
 	}
 }
 
@@ -465,4 +494,411 @@ func (s *governanceService) GetNodeOwnership(ctx context.Context, nodeID string)
 	}
 
 	return model.NodeOwnershipFromMetadata(node.Metadata), nil
+}
+
+// CreatePolicy validates and persists a new policy definition.
+func (s *governanceService) CreatePolicy(ctx context.Context, policy *model.Policy) error {
+	if policy == nil {
+		return fmt.Errorf("%w: nil policy", ErrInvalidInput)
+	}
+	if err := policy.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Verify organization exists
+	if _, err := s.store.GetOrganization(ctx, policy.OrgID); err != nil {
+		return fmt.Errorf("%w: org_id %q does not exist", ErrOrganizationNotFound, policy.OrgID)
+	}
+
+	// Verify existing policy ID not duplicated
+	if existing, _ := s.store.GetPolicy(ctx, policy.ID); existing != nil {
+		return fmt.Errorf("%w: policy %q", ErrPolicyExists, policy.ID)
+	}
+
+	if policy.Status == "" {
+		policy.Status = model.PolicyStatusDraft
+	}
+	if policy.CreatedAt.IsZero() {
+		policy.CreatedAt = time.Now().UTC()
+	}
+	policy.UpdatedAt = policy.CreatedAt
+
+	return s.store.SavePolicy(ctx, policy)
+}
+
+// GetPolicy retrieves a policy by ID.
+func (s *governanceService) GetPolicy(ctx context.Context, id string) (*model.Policy, error) {
+	if id == "" {
+		return nil, fmt.Errorf("%w: empty policy id", ErrInvalidIdentifier)
+	}
+
+	policy, err := s.store.GetPolicy(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrPolicyNotFound, err)
+	}
+	return policy, nil
+}
+
+// ListPolicies lists policies matching the given filter.
+func (s *governanceService) ListPolicies(ctx context.Context, filter model.PolicyFilter) ([]model.Policy, error) {
+	return s.store.ListPolicies(ctx, filter)
+}
+
+// UpdatePolicy validates and updates mutable policy attributes with lifecycle transition validation.
+func (s *governanceService) UpdatePolicy(ctx context.Context, policy *model.Policy) error {
+	if policy == nil {
+		return fmt.Errorf("%w: nil policy", ErrInvalidInput)
+	}
+	if err := policy.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.store.GetPolicy(ctx, policy.ID)
+	if err != nil || existing == nil {
+		return fmt.Errorf("%w: policy %s", ErrPolicyNotFound, policy.ID)
+	}
+
+	// Validate lifecycle transition if status is changing
+	if policy.Status != existing.Status {
+		if !existing.CanTransitionTo(policy.Status) {
+			return fmt.Errorf("%w: cannot transition from %s to %s", ErrInvalidLifecycleTransition, existing.Status, policy.Status)
+		}
+	}
+
+	policy.CreatedAt = existing.CreatedAt
+	policy.UpdatedAt = time.Now().UTC()
+
+	return s.store.SavePolicy(ctx, policy)
+}
+
+// DeletePolicy removes a policy and cascades to its revisions and assignments.
+func (s *governanceService) DeletePolicy(ctx context.Context, id string) error {
+	if id == "" {
+		return fmt.Errorf("%w: empty policy id", ErrInvalidIdentifier)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, err := s.store.GetPolicy(ctx, id); err != nil {
+		return fmt.Errorf("%w: policy %s", ErrPolicyNotFound, id)
+	}
+
+	return s.store.DeletePolicy(ctx, id)
+}
+
+// SetPolicyStatus applies a validated lifecycle status transition to a policy.
+func (s *governanceService) SetPolicyStatus(ctx context.Context, id string, status model.PolicyStatus) error {
+	if id == "" {
+		return fmt.Errorf("%w: empty policy id", ErrInvalidIdentifier)
+	}
+	if !status.IsValid() {
+		return fmt.Errorf("%w: invalid status %q", ErrInvalidInput, status)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.store.GetPolicy(ctx, id)
+	if err != nil || existing == nil {
+		return fmt.Errorf("%w: policy %s", ErrPolicyNotFound, id)
+	}
+
+	if existing.Status != status {
+		if !existing.CanTransitionTo(status) {
+			return fmt.Errorf("%w: cannot transition from %s to %s", ErrInvalidLifecycleTransition, existing.Status, status)
+		}
+		existing.Status = status
+		existing.UpdatedAt = time.Now().UTC()
+		return s.store.SavePolicy(ctx, existing)
+	}
+
+	return nil
+}
+
+// SetActiveRevision updates the active revision pointer for a policy after verifying the revision exists.
+func (s *governanceService) SetActiveRevision(ctx context.Context, id string, revision int) error {
+	if id == "" {
+		return fmt.Errorf("%w: empty policy id", ErrInvalidIdentifier)
+	}
+	if revision < 1 {
+		return fmt.Errorf("%w: revision must be >= 1", ErrInvalidInput)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.store.GetPolicy(ctx, id)
+	if err != nil || existing == nil {
+		return fmt.Errorf("%w: policy %s", ErrPolicyNotFound, id)
+	}
+
+	// Verify revision exists
+	if _, err := s.store.GetPolicyRevision(ctx, id, revision); err != nil {
+		return fmt.Errorf("%w: policy %s revision %d", ErrPolicyRevisionNotFound, id, revision)
+	}
+
+	existing.ActiveRevision = revision
+	existing.UpdatedAt = time.Now().UTC()
+
+	return s.store.SavePolicy(ctx, existing)
+}
+
+// PublishRevision creates an immutable versioned revision with verified SHA-256 digest and selector validation.
+func (s *governanceService) PublishRevision(ctx context.Context, rev *model.PolicyRevision) error {
+	if rev == nil {
+		return fmt.Errorf("%w: nil revision", ErrInvalidInput)
+	}
+	if rev.PolicyID == "" {
+		return fmt.Errorf("%w: empty policy_id", ErrInvalidIdentifier)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Verify parent policy exists
+	if _, err := s.store.GetPolicy(ctx, rev.PolicyID); err != nil {
+		return fmt.Errorf("%w: policy %s", ErrPolicyNotFound, rev.PolicyID)
+	}
+
+	// Auto-assign revision number if not specified
+	if rev.Revision <= 0 {
+		revisions, err := s.store.ListPolicyRevisions(ctx, rev.PolicyID)
+		if err != nil {
+			return fmt.Errorf("failed to list revisions for auto-increment: %w", err)
+		}
+		nextRev := 1
+		for _, r := range revisions {
+			if r.Revision >= nextRev {
+				nextRev = r.Revision + 1
+			}
+		}
+		rev.Revision = nextRev
+	}
+
+	// Validate selector expression syntax if provided
+	if rev.Selector != "" {
+		if _, err := ParseSelector(rev.Selector); err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidSelector, err)
+		}
+	}
+
+	// Compute and verify content digest
+	computedDigest := rev.ComputeDigest()
+	if rev.ContentDigest != "" && rev.ContentDigest != computedDigest {
+		return fmt.Errorf("%w: provided %q, computed %q", ErrPolicyRevisionDigestMismatch, rev.ContentDigest, computedDigest)
+	}
+	rev.ContentDigest = computedDigest
+
+	if err := rev.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	if rev.CreatedAt.IsZero() {
+		rev.CreatedAt = time.Now().UTC()
+	}
+
+	return s.store.SavePolicyRevision(ctx, rev)
+}
+
+// GetPolicyRevision retrieves an immutable revision of a policy.
+func (s *governanceService) GetPolicyRevision(ctx context.Context, policyID string, revision int) (*model.PolicyRevision, error) {
+	if policyID == "" {
+		return nil, fmt.Errorf("%w: empty policy_id", ErrInvalidIdentifier)
+	}
+	if revision < 1 {
+		return nil, fmt.Errorf("%w: revision must be >= 1", ErrInvalidInput)
+	}
+
+	rev, err := s.store.GetPolicyRevision(ctx, policyID, revision)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrPolicyRevisionNotFound, err)
+	}
+	return rev, nil
+}
+
+// ListPolicyRevisions lists all published revisions for a given policy in ascending order.
+func (s *governanceService) ListPolicyRevisions(ctx context.Context, policyID string) ([]model.PolicyRevision, error) {
+	if policyID == "" {
+		return nil, fmt.Errorf("%w: empty policy_id", ErrInvalidIdentifier)
+	}
+
+	if _, err := s.store.GetPolicy(ctx, policyID); err != nil {
+		return nil, fmt.Errorf("%w: policy %s", ErrPolicyNotFound, policyID)
+	}
+
+	return s.store.ListPolicyRevisions(ctx, policyID)
+}
+
+// CreateAssignment assigns a policy to an organization, fleet group, or direct node with tenant validation.
+func (s *governanceService) CreateAssignment(ctx context.Context, asgn *model.PolicyAssignment) error {
+	if asgn == nil {
+		return fmt.Errorf("%w: nil assignment", ErrInvalidInput)
+	}
+	if err := asgn.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Verify organization exists
+	if _, err := s.store.GetOrganization(ctx, asgn.OrgID); err != nil {
+		return fmt.Errorf("%w: org_id %q does not exist", ErrOrganizationNotFound, asgn.OrgID)
+	}
+
+	// Verify policy exists and belongs to same organization
+	policy, err := s.store.GetPolicy(ctx, asgn.PolicyID)
+	if err != nil || policy == nil {
+		return fmt.Errorf("%w: policy %s", ErrPolicyNotFound, asgn.PolicyID)
+	}
+	if policy.OrgID != asgn.OrgID {
+		return fmt.Errorf("%w: policy org %q != assignment org %q", ErrCrossOrgAssignment, policy.OrgID, asgn.OrgID)
+	}
+
+	// Validate target scope exists and belongs to same organization
+	switch asgn.TargetType {
+	case model.TargetTypeOrganization:
+		if asgn.TargetID != asgn.OrgID {
+			return fmt.Errorf("%w: target_id %q must match org_id %q for organization assignment", ErrInvalidInput, asgn.TargetID, asgn.OrgID)
+		}
+	case model.TargetTypeFleetGroup:
+		grp, err := s.store.GetFleetGroup(ctx, asgn.TargetID)
+		if err != nil || grp == nil {
+			return fmt.Errorf("%w: fleet group %s", ErrFleetGroupNotFound, asgn.TargetID)
+		}
+		if grp.OrgID != asgn.OrgID {
+			return fmt.Errorf("%w: fleet group org %q != assignment org %q", ErrCrossOrgAssignment, grp.OrgID, asgn.OrgID)
+		}
+	case model.TargetTypeNode:
+			node, err := s.store.GetFleetNode(ctx, asgn.TargetID)
+			if err != nil || node == nil {
+				return fmt.Errorf("%w: fleet node %s", ErrNodeNotFound, asgn.TargetID)
+			}
+			nodeOrg := model.DefaultOrganizationID
+			if node.Metadata != nil {
+				if val, ok := node.Metadata["org_id"]; ok && val != "" {
+					nodeOrg = val
+				} else if val, ok := node.Metadata["organization_id"]; ok && val != "" {
+					nodeOrg = val
+				}
+			}
+			if asgn.OrgID != model.DefaultOrganizationID && nodeOrg != asgn.OrgID {
+				return fmt.Errorf("%w: node org %q != assignment org %q", ErrCrossOrgAssignment, nodeOrg, asgn.OrgID)
+			}
+	}
+
+	// Verify assignment ID not duplicated
+	if existing, _ := s.store.GetPolicyAssignment(ctx, asgn.ID); existing != nil {
+		return fmt.Errorf("%w: assignment %q", ErrPolicyAssignmentExists, asgn.ID)
+	}
+
+	if asgn.AssignedAt.IsZero() {
+		asgn.AssignedAt = time.Now().UTC()
+	}
+
+	return s.store.SavePolicyAssignment(ctx, asgn)
+}
+
+// GetAssignment retrieves a single policy assignment by ID.
+func (s *governanceService) GetAssignment(ctx context.Context, id string) (*model.PolicyAssignment, error) {
+	if id == "" {
+		return nil, fmt.Errorf("%w: empty assignment id", ErrInvalidIdentifier)
+	}
+
+	asgn, err := s.store.GetPolicyAssignment(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrPolicyAssignmentNotFound, err)
+	}
+	return asgn, nil
+}
+
+// ListAssignments queries policy assignments according to filter criteria.
+func (s *governanceService) ListAssignments(ctx context.Context, filter model.PolicyAssignmentFilter) ([]model.PolicyAssignment, error) {
+	return s.store.ListPolicyAssignments(ctx, filter)
+}
+
+// DeleteAssignment removes a policy assignment by ID.
+func (s *governanceService) DeleteAssignment(ctx context.Context, id string) error {
+	if id == "" {
+		return fmt.Errorf("%w: empty assignment id", ErrInvalidIdentifier)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, err := s.store.GetPolicyAssignment(ctx, id); err != nil {
+		return fmt.Errorf("%w: assignment %s", ErrPolicyAssignmentNotFound, id)
+	}
+
+	return s.store.DeletePolicyAssignment(ctx, id)
+}
+
+// SetAssignmentEnabled updates the active state of an assignment.
+func (s *governanceService) SetAssignmentEnabled(ctx context.Context, id string, enabled bool) error {
+	if id == "" {
+		return fmt.Errorf("%w: empty assignment id", ErrInvalidIdentifier)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.store.GetPolicyAssignment(ctx, id)
+	if err != nil || existing == nil {
+		return fmt.Errorf("%w: assignment %s", ErrPolicyAssignmentNotFound, id)
+	}
+
+	existing.Enabled = enabled
+	return s.store.SavePolicyAssignment(ctx, existing)
+}
+
+// ResolveNodePolicies resolves all effective policies for a node according to hierarchical precedence and inheritance.
+func (s *governanceService) ResolveNodePolicies(ctx context.Context, nodeID string) (*ResolvedPolicySet, error) {
+	if nodeID == "" {
+		return nil, fmt.Errorf("%w: empty node_id", ErrInvalidIdentifier)
+	}
+	return s.resolver.ResolveNodePolicies(ctx, nodeID)
+}
+
+// EvaluateNodeCompliance evaluates the compliance posture of a node against its effective policies.
+func (s *governanceService) EvaluateNodeCompliance(ctx context.Context, nodeID string) (*NodeComplianceReport, error) {
+	if nodeID == "" {
+		return nil, fmt.Errorf("%w: empty node_id", ErrInvalidIdentifier)
+	}
+	return s.resolver.EvaluateNodeCompliance(ctx, nodeID)
+}
+
+// ExplainResolution produces a step-by-step diagnostic breakdown of policy resolution for a node.
+func (s *governanceService) ExplainResolution(ctx context.Context, nodeID string) (*ResolutionExplanation, error) {
+	if nodeID == "" {
+		return nil, fmt.Errorf("%w: empty node_id", ErrInvalidIdentifier)
+	}
+	return s.resolver.ExplainResolution(ctx, nodeID)
+}
+
+// DetectPolicyConflicts checks for potential conflicts and divergent configurations between two policy revisions.
+func (s *governanceService) DetectPolicyConflicts(ctx context.Context, policyIDA string, revA int, policyIDB string, revB int) ([]PolicyConflict, error) {
+	if policyIDA == "" || policyIDB == "" {
+		return nil, fmt.Errorf("%w: empty policy identifier", ErrInvalidIdentifier)
+	}
+	if revA < 1 || revB < 1 {
+		return nil, fmt.Errorf("%w: revision numbers must be >= 1", ErrInvalidInput)
+	}
+
+	rA, err := s.store.GetPolicyRevision(ctx, policyIDA, revA)
+	if err != nil {
+		return nil, fmt.Errorf("%w: policy %s revision %d", ErrPolicyRevisionNotFound, policyIDA, revA)
+	}
+	rB, err := s.store.GetPolicyRevision(ctx, policyIDB, revB)
+	if err != nil {
+		return nil, fmt.Errorf("%w: policy %s revision %d", ErrPolicyRevisionNotFound, policyIDB, revB)
+	}
+
+	return DetectPolicyPairConflicts(rA, rB), nil
 }
