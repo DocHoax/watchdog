@@ -375,8 +375,76 @@ func (s *SQLiteStorage) migrate(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_compliance_findings_policy_rule ON compliance_findings(policy_id, rule_id);
 	CREATE INDEX IF NOT EXISTS idx_compliance_findings_last_seen ON compliance_findings(last_seen_at DESC);
 
+	CREATE TABLE IF NOT EXISTS governance_maintenance_windows (
+		id TEXT PRIMARY KEY,
+		org_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT,
+		status TEXT NOT NULL,
+		target_scope TEXT NOT NULL,
+		target_id TEXT,
+		target_selector TEXT,
+		category_restrictions_json TEXT,
+		severity_threshold TEXT,
+		start_time INTEGER NOT NULL,
+		end_time INTEGER NOT NULL,
+		time_zone TEXT,
+		recurrence_json TEXT,
+		suppress_alerts INTEGER NOT NULL,
+		suppress_findings INTEGER NOT NULL,
+		allow_critical_alerts INTEGER NOT NULL,
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL,
+		created_by TEXT,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_maint_windows_org_status ON governance_maintenance_windows(org_id, status);
+	CREATE INDEX IF NOT EXISTS idx_maint_windows_time ON governance_maintenance_windows(start_time, end_time);
+	CREATE INDEX IF NOT EXISTS idx_maint_windows_target ON governance_maintenance_windows(target_scope, target_id);
+
+	CREATE TABLE IF NOT EXISTS governance_escalation_policies (
+		id TEXT PRIMARY KEY,
+		org_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT,
+		enabled INTEGER NOT NULL,
+		severity_levels_json TEXT NOT NULL,
+		stages_json TEXT NOT NULL,
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_escalation_policies_org ON governance_escalation_policies(org_id);
+	CREATE INDEX IF NOT EXISTS idx_escalation_policies_enabled ON governance_escalation_policies(org_id, enabled);
+
+	CREATE TABLE IF NOT EXISTS governance_suppression_decisions (
+		id TEXT PRIMARY KEY,
+		org_id TEXT NOT NULL,
+		alert_id TEXT,
+		incident_id TEXT,
+		node_id TEXT,
+		window_id TEXT,
+		rule_id TEXT,
+		rule_name TEXT,
+		category TEXT,
+		severity TEXT NOT NULL,
+		outcome TEXT NOT NULL,
+		reason TEXT NOT NULL,
+		message TEXT,
+		evaluated_at INTEGER NOT NULL,
+		details_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_suppression_decisions_org_time ON governance_suppression_decisions(org_id, evaluated_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_suppression_decisions_node ON governance_suppression_decisions(node_id);
+	CREATE INDEX IF NOT EXISTS idx_suppression_decisions_window ON governance_suppression_decisions(window_id);
+	CREATE INDEX IF NOT EXISTS idx_suppression_decisions_alert ON governance_suppression_decisions(alert_id);
+	CREATE INDEX IF NOT EXISTS idx_suppression_decisions_outcome ON governance_suppression_decisions(outcome);
+
 	INSERT OR IGNORE INTO organizations (id, name, display_name, description, status, created_at, updated_at, metadata_json)
-	VALUES ('default', 'Default Organization', 'Default Organization', 'Built-in single-tenant organization boundary', 'active', 0, 0, '{}');
+	VALUES ('default', 'Default Organization', 'Default Organization', 'Built-in single-tenant organization boundary', 0, 0, '{}');
 	`
 
 	_, err := s.db.ExecContext(ctx, schema)
