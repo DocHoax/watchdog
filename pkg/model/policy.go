@@ -575,3 +575,23 @@ func (a *PolicyAssignment) Validate() error {
 	}
 	return nil
 }
+
+// PolicyFilter defines query parameters for filtering policies.
+type PolicyFilter struct {
+	OrgID    string         `json:"org_id,omitempty"`
+	Category PolicyCategory `json:"category,omitempty"`
+	Status   PolicyStatus   `json:"status,omitempty"`
+	Search   string         `json:"search,omitempty"`
+	Limit    int            `json:"limit,omitempty"`
+	Offset   int            `json:"offset,omitempty"`
+}
+
+// PolicyAssignmentFilter defines query parameters for filtering policy assignments.
+type PolicyAssignmentFilter struct {
+	OrgID       string           `json:"org_id,omitempty"`
+	PolicyID    string           `json:"policy_id,omitempty"`
+	TargetType  PolicyTargetType `json:"target_type,omitempty"`
+	TargetID    string           `json:"target_id,omitempty"`
+	EnabledOnly bool             `json:"enabled_only,omitempty"`
+}
+
