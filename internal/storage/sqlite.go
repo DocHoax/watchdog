@@ -331,6 +331,50 @@ func (s *SQLiteStorage) migrate(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_policy_assignments_org ON policy_assignments(org_id);
 	CREATE INDEX IF NOT EXISTS idx_policy_assignments_target ON policy_assignments(target_type, target_id);
 
+	CREATE TABLE IF NOT EXISTS policy_evaluations (
+		id TEXT PRIMARY KEY,
+		org_id TEXT NOT NULL,
+		target_node_id TEXT NOT NULL,
+		trigger_type TEXT NOT NULL,
+		evaluated_at INTEGER NOT NULL,
+		duration_ns INTEGER NOT NULL,
+		status TEXT NOT NULL,
+		results_json TEXT NOT NULL,
+		summary_json TEXT NOT NULL,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_policy_evaluations_org_time ON policy_evaluations(org_id, evaluated_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_policy_evaluations_node_time ON policy_evaluations(target_node_id, evaluated_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_policy_evaluations_status ON policy_evaluations(status);
+
+	CREATE TABLE IF NOT EXISTS compliance_findings (
+		id TEXT PRIMARY KEY,
+		org_id TEXT NOT NULL,
+		target_node_id TEXT NOT NULL,
+		policy_id TEXT NOT NULL,
+		policy_revision INTEGER NOT NULL,
+		rule_id TEXT NOT NULL,
+		rule_name TEXT,
+		category TEXT NOT NULL,
+		severity TEXT NOT NULL,
+		enforcement_mode TEXT NOT NULL,
+		status TEXT NOT NULL,
+		first_seen_at INTEGER NOT NULL,
+		last_seen_at INTEGER NOT NULL,
+		resolved_at INTEGER,
+		occurrence_count INTEGER NOT NULL DEFAULT 1,
+		message TEXT,
+		observed_value TEXT,
+		expected_value TEXT,
+		context_data_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_compliance_findings_org_status ON compliance_findings(org_id, status);
+	CREATE INDEX IF NOT EXISTS idx_compliance_findings_node ON compliance_findings(target_node_id);
+	CREATE INDEX IF NOT EXISTS idx_compliance_findings_policy_rule ON compliance_findings(policy_id, rule_id);
+	CREATE INDEX IF NOT EXISTS idx_compliance_findings_last_seen ON compliance_findings(last_seen_at DESC);
+
 	INSERT OR IGNORE INTO organizations (id, name, display_name, description, status, created_at, updated_at, metadata_json)
 	VALUES ('default', 'Default Organization', 'Default Organization', 'Built-in single-tenant organization boundary', 'active', 0, 0, '{}');
 	`
