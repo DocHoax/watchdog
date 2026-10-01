@@ -103,6 +103,14 @@ type ReadOnlyStorage interface {
 	ListEvaluationExecutions(ctx context.Context, filter model.EvaluationFilter) ([]model.EvaluationExecution, error)
 	GetComplianceFinding(ctx context.Context, id string) (*model.ComplianceFinding, error)
 	ListComplianceFindings(ctx context.Context, filter model.FindingFilter) ([]model.ComplianceFinding, error)
+
+	// Operational Governance (Read-Only)
+	GetMaintenanceWindow(ctx context.Context, id string) (*model.MaintenanceWindow, error)
+	ListMaintenanceWindows(ctx context.Context, filter model.MaintenanceWindowFilter) ([]model.MaintenanceWindow, error)
+	GetEscalationPolicy(ctx context.Context, id string) (*model.EscalationPolicy, error)
+	ListEscalationPolicies(ctx context.Context, filter model.EscalationPolicyFilter) ([]model.EscalationPolicy, error)
+	GetSuppressionDecision(ctx context.Context, id string) (*model.SuppressionDecision, error)
+	ListSuppressionDecisions(ctx context.Context, filter model.SuppressionFilter) ([]model.SuppressionDecision, error)
 }
 
 // Storage defines the contract for storing and querying system metrics, alerts, diagnostics, and audit events.
@@ -167,4 +175,13 @@ type Storage interface {
 	SaveComplianceFindings(ctx context.Context, findings []model.ComplianceFinding) error
 	DeleteComplianceFinding(ctx context.Context, id string) error
 	PruneEvaluationExecutions(ctx context.Context, retention time.Duration) (int64, error)
+
+	// Operational Governance
+	SaveMaintenanceWindow(ctx context.Context, window *model.MaintenanceWindow) error
+	DeleteMaintenanceWindow(ctx context.Context, id string) error
+	SaveEscalationPolicy(ctx context.Context, policy *model.EscalationPolicy) error
+	DeleteEscalationPolicy(ctx context.Context, id string) error
+	SaveSuppressionDecision(ctx context.Context, decision *model.SuppressionDecision) error
+	SaveSuppressionDecisions(ctx context.Context, decisions []model.SuppressionDecision) error
+	PruneSuppressionDecisions(ctx context.Context, retention time.Duration) (int64, error)
 }
