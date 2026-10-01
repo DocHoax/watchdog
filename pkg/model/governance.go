@@ -274,6 +274,110 @@ func (o *NodeOwnershipMetadata) Validate() error {
 	return nil
 }
 
+// Prefix constants for node ownership metadata serialization.
+const (
+	MetaPrefixGovernance   = "governance."
+	MetaKeyOwnerTeam       = "governance.owner_team"
+	MetaKeyContactEmail    = "governance.contact_email"
+	MetaKeyContactChannel  = "governance.contact_channel"
+	MetaKeyEnvironment     = "governance.environment"
+	MetaKeyRegion          = "governance.region"
+	MetaKeyClassification  = "governance.data_classification"
+	MetaKeyCostCenter      = "governance.cost_center"
+	MetaKeyCriticality     = "governance.business_criticality"
+	MetaKeyLifecycle       = "governance.lifecycle"
+	MetaPrefixCustom       = "governance.custom."
+)
+
+// ToMetadata converts the structured ownership attributes into standard string key-values.
+func (o *NodeOwnershipMetadata) ToMetadata() map[string]string {
+	if o == nil {
+		return nil
+	}
+	m := make(map[string]string)
+	if o.OwnerTeam != "" {
+		m[MetaKeyOwnerTeam] = o.OwnerTeam
+	}
+	if o.ContactEmail != "" {
+		m[MetaKeyContactEmail] = o.ContactEmail
+	}
+	if o.ContactChannel != "" {
+		m[MetaKeyContactChannel] = o.ContactChannel
+	}
+	if o.Environment != "" {
+		m[MetaKeyEnvironment] = o.Environment
+	}
+	if o.Region != "" {
+		m[MetaKeyRegion] = o.Region
+	}
+	if o.DataClassification != "" {
+		m[MetaKeyClassification] = o.DataClassification
+	}
+	if o.CostCenter != "" {
+		m[MetaKeyCostCenter] = o.CostCenter
+	}
+	if o.BusinessCriticality != "" {
+		m[MetaKeyCriticality] = string(o.BusinessCriticality)
+	}
+	if o.Lifecycle != "" {
+		m[MetaKeyLifecycle] = string(o.Lifecycle)
+	}
+	for k, v := range o.CustomProperties {
+		m[MetaPrefixCustom+k] = v
+	}
+	return m
+}
+
+// MergeIntoMetadata overlays ownership properties into a destination metadata map.
+func (o *NodeOwnershipMetadata) MergeIntoMetadata(target map[string]string) map[string]string {
+	if target == nil {
+		target = make(map[string]string)
+	}
+	if o == nil {
+		return target
+	}
+	for k, v := range o.ToMetadata() {
+		target[k] = v
+	}
+	return target
+}
+
+// NodeOwnershipFromMetadata extracts structured ownership metadata from a generic string map.
+func NodeOwnershipFromMetadata(meta map[string]string) *NodeOwnershipMetadata {
+	if meta == nil {
+		return nil
+	}
+	res := &NodeOwnershipMetadata{
+		OwnerTeam:           meta[MetaKeyOwnerTeam],
+		ContactEmail:        meta[MetaKeyContactEmail],
+		ContactChannel:      meta[MetaKeyContactChannel],
+		Environment:         meta[MetaKeyEnvironment],
+		Region:              meta[MetaKeyRegion],
+		DataClassification:  meta[MetaKeyClassification],
+		CostCenter:          meta[MetaKeyCostCenter],
+		BusinessCriticality: BusinessCriticality(meta[MetaKeyCriticality]),
+		Lifecycle:           NodeLifecycleStatus(meta[MetaKeyLifecycle]),
+		CustomProperties:    make(map[string]string),
+	}
+
+	for k, v := range meta {
+		if strings.HasPrefix(k, MetaPrefixCustom) {
+			customKey := strings.TrimPrefix(k, MetaPrefixCustom)
+			res.CustomProperties[customKey] = v
+		}
+	}
+
+	// If empty, return nil or basic struct
+	if res.OwnerTeam == "" && res.ContactEmail == "" && res.ContactChannel == "" &&
+		res.Environment == "" && res.Region == "" && res.DataClassification == "" &&
+		res.CostCenter == "" && res.BusinessCriticality == "" && res.Lifecycle == "" &&
+		len(res.CustomProperties) == 0 {
+		return nil
+	}
+
+	return res
+}
+
 // FleetGroupHierarchyNode represents a node in a group hierarchy tree.
 type FleetGroupHierarchyNode struct {
 	Group          FleetGroup                 `json:"group"`
