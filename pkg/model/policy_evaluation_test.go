@@ -151,3 +151,63 @@ func TestCalculateSummary(t *testing.T) {
 		t.Errorf("expected CoverageRatio=%f, got %f", expectedCoverage, summary.CoverageRatio)
 	}
 }
+
+func TestSimulationRequest_Validate(t *testing.T) {
+	req := &SimulationRequest{
+		OrgID: "org-acme",
+		ProposedPolicies: []Policy{
+			{
+				ID:             "pol-01",
+				Name:           "Test Policy",
+				OrgID:          "org-acme",
+				Category:       PolicyCategoryResourceThresholds,
+				Status:         PolicyStatusActive,
+				ActiveRevision: 1,
+			},
+		},
+		ProposedRevisions: []PolicyRevision{
+			{
+				PolicyID:        "pol-01",
+				Revision:        1,
+				InheritanceMode: InheritanceModeInheritAndOverride,
+				EnforcementMode: EnforcementModeEnforce,
+				Rules: []PolicyRule{
+					{
+						ID:       "rule-01",
+						Name:     "CPU Limit",
+						Type:     RuleTypeResourceThreshold,
+						Severity: SeverityCritical,
+						Enabled:  true,
+						ResourceThreshold: &ResourceThresholdRuleConfig{
+							Metric:            "cpu_usage_pct",
+							WarningThreshold:  70,
+							CriticalThreshold: 90,
+						},
+					},
+				},
+			},
+		},
+		ProposedAssignments: []PolicyAssignment{
+			{
+				ID:         "asgn-01",
+				OrgID:      "org-acme",
+				PolicyID:   "pol-01",
+				TargetType: TargetTypeOrganization,
+				TargetID:   "org-acme",
+				Enabled:    true,
+			},
+		},
+	}
+
+	if err := req.Validate(); err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
+	}
+
+	if !RuleDiffTypeAdded.IsValid() || !RuleDiffTypeRemoved.IsValid() || !RuleDiffTypeModified.IsValid() || !RuleDiffTypeUnchanged.IsValid() {
+		t.Errorf("expected valid rule diff types")
+	}
+	if RuleDiffType("unknown").IsValid() {
+		t.Errorf("expected invalid rule diff type")
+	}
+}
+
