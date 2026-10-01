@@ -1296,7 +1296,11 @@ func (s *governanceService) GetMaintenanceWindow(ctx context.Context, id string)
 	if strings.TrimSpace(id) == "" {
 		return nil, fmt.Errorf("%w: empty maintenance window id", ErrInvalidIdentifier)
 	}
-	return s.store.GetMaintenanceWindow(ctx, id)
+	win, err := s.store.GetMaintenanceWindow(ctx, id)
+	if err != nil || win == nil {
+		return nil, fmt.Errorf("%w: %v", ErrMaintenanceWindowNotFound, err)
+	}
+	return win, nil
 }
 
 // ListMaintenanceWindows queries maintenance windows according to filter criteria.
@@ -1502,7 +1506,11 @@ func (s *governanceService) GetEscalationPolicy(ctx context.Context, id string) 
 	if strings.TrimSpace(id) == "" {
 		return nil, fmt.Errorf("%w: empty escalation policy id", ErrInvalidIdentifier)
 	}
-	return s.store.GetEscalationPolicy(ctx, id)
+	policy, err := s.store.GetEscalationPolicy(ctx, id)
+	if err != nil || policy == nil {
+		return nil, fmt.Errorf("%w: %v", ErrEscalationPolicyNotFound, err)
+	}
+	return policy, nil
 }
 
 // ListEscalationPolicies queries escalation policies matching filter criteria.
@@ -1610,7 +1618,11 @@ func (s *governanceService) GetSuppressionDecision(ctx context.Context, id strin
 	if strings.TrimSpace(id) == "" {
 		return nil, fmt.Errorf("%w: empty suppression decision id", ErrInvalidIdentifier)
 	}
-	return s.store.GetSuppressionDecision(ctx, id)
+	decision, err := s.store.GetSuppressionDecision(ctx, id)
+	if err != nil || decision == nil {
+		return nil, fmt.Errorf("%w: %v", ErrSuppressionDecisionNotFound, err)
+	}
+	return decision, nil
 }
 
 // ListSuppressionDecisions queries suppression decisions matching filter criteria.
