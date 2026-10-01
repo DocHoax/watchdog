@@ -423,9 +423,16 @@ func (c *NodeEvaluationContext) GetProperty(field string) (any, bool) {
 		return c.GroupPaths, len(c.GroupPaths) > 0
 	}
 
-	// Tags prefix: tags.key
+	// Tags prefix: tags.key or tag.key
 	if strings.HasPrefix(lower, "tags.") {
 		key := field[5:]
+		if val, ok := c.Tags[key]; ok {
+			return val, true
+		}
+		return nil, false
+	}
+	if strings.HasPrefix(lower, "tag.") {
+		key := field[4:]
 		if val, ok := c.Tags[key]; ok {
 			return val, true
 		}

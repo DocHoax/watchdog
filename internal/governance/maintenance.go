@@ -51,7 +51,6 @@ func (e *MaintenanceEngine) IsWindowActive(w *model.MaintenanceWindow, t time.Ti
 
 	tInLoc := t.In(loc)
 	startInLoc := w.Schedule.StartTime.In(loc)
-	endInLoc := w.Schedule.EndTime.In(loc)
 
 	// Non-recurring window
 	if w.Schedule.Recurrence == nil {
@@ -82,22 +81,19 @@ func (e *MaintenanceEngine) IsWindowActive(w *model.MaintenanceWindow, t time.Ti
 
 	switch rec.Frequency {
 	case model.RecurrenceFrequencyDaily:
-		return isDailyRecurrenceActive(startInLoc, endInLoc, tInLoc, rec, duration, loc)
+		return isDailyRecurrenceActive(startInLoc, tInLoc, rec, duration, loc)
 	case model.RecurrenceFrequencyWeekly:
-		return isWeeklyRecurrenceActive(startInLoc, endInLoc, tInLoc, rec, duration, loc)
+		return isWeeklyRecurrenceActive(startInLoc, tInLoc, rec, duration, loc)
 	case model.RecurrenceFrequencyMonthly:
-		return isMonthlyRecurrenceActive(startInLoc, endInLoc, tInLoc, rec, duration, loc)
+		return isMonthlyRecurrenceActive(startInLoc, tInLoc, rec, duration, loc)
 	default:
 		return false, fmt.Errorf("unsupported recurrence frequency: %s", rec.Frequency)
 	}
 }
 
 // isDailyRecurrenceActive checks if t falls within any daily recurrence occurrence.
-func isDailyRecurrenceActive(start, end, t time.Time, rec *model.RecurrenceSchedule, duration time.Duration, loc *time.Location) (bool, error) {
-	interval := rec.Interval
-	if interval < 1 {
-		interval = 1
-	}
+func isDailyRecurrenceActive(start, t time.Time, rec *model.RecurrenceSchedule, duration time.Duration, loc *time.Location) (bool, error) {
+	interval := max(rec.Interval, 1)
 
 	// Start date in location
 	startDate := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, loc)
@@ -139,11 +135,8 @@ func isDailyRecurrenceActive(start, end, t time.Time, rec *model.RecurrenceSched
 }
 
 // isWeeklyRecurrenceActive checks if t falls within any weekly recurrence occurrence.
-func isWeeklyRecurrenceActive(start, end, t time.Time, rec *model.RecurrenceSchedule, duration time.Duration, loc *time.Location) (bool, error) {
-	interval := rec.Interval
-	if interval < 1 {
-		interval = 1
-	}
+func isWeeklyRecurrenceActive(start, t time.Time, rec *model.RecurrenceSchedule, duration time.Duration, loc *time.Location) (bool, error) {
+	interval := max(rec.Interval, 1)
 
 	// Start week normalized to Sunday
 	startDayOffset := int(start.Weekday())
@@ -235,11 +228,8 @@ func countWeeklyOccurrencesBefore(start, target time.Time, rec *model.Recurrence
 }
 
 // isMonthlyRecurrenceActive checks if t falls within a monthly recurrence occurrence with day-of-month clamping.
-func isMonthlyRecurrenceActive(start, end, t time.Time, rec *model.RecurrenceSchedule, duration time.Duration, loc *time.Location) (bool, error) {
-	interval := rec.Interval
-	if interval < 1 {
-		interval = 1
-	}
+func isMonthlyRecurrenceActive(start, t time.Time, rec *model.RecurrenceSchedule, duration time.Duration, loc *time.Location) (bool, error) {
+	interval := max(rec.Interval, 1)
 
 	targetDay := rec.DayOfMonth
 	if targetDay < 1 {
@@ -274,10 +264,7 @@ func isMonthlyRecurrenceActive(start, end, t time.Time, rec *model.RecurrenceSch
 
 			// Clamp day to max days in candMonth
 			maxDays := daysInMonth(candYear, candMonth, loc)
-			clampedDay := targetDay
-			if clampedDay > maxDays {
-				clampedDay = maxDays
-			}
+			clampedDay := min(targetDay, maxDays)
 
 			candStart := time.Date(
 				candYear, candMonth, clampedDay,
@@ -469,10 +456,7 @@ func (e *MaintenanceEngine) ComputeNextOccurrences(w *model.MaintenanceWindow, f
 	}
 
 	start := w.Schedule.StartTime.In(loc)
-	interval := rec.Interval
-	if interval < 1 {
-		interval = 1
-	}
+	interval := max(rec.Interval, 1)
 
 	switch rec.Frequency {
 	case model.RecurrenceFrequencyDaily:
@@ -547,10 +531,7 @@ func (e *MaintenanceEngine) ComputeNextOccurrences(w *model.MaintenanceWindow, f
 			candMonth := time.Month((totalMonths % 12) + 1)
 
 			maxDays := daysInMonth(candYear, candMonth, loc)
-			clampedDay := targetDay
-			if clampedDay > maxDays {
-				clampedDay = maxDays
-			}
+			clampedDay := min(targetDay, maxDays)
 
 			candStart := time.Date(
 				candYear, candMonth, clampedDay,

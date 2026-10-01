@@ -791,3 +791,28 @@ func (s *simulationOverlayStore) GetComplianceFinding(ctx context.Context, id st
 func (s *simulationOverlayStore) ListComplianceFindings(ctx context.Context, filter model.FindingFilter) ([]model.ComplianceFinding, error) {
 	return s.base.ListComplianceFindings(ctx, filter)
 }
+
+func (s *simulationOverlayStore) GetMaintenanceWindow(ctx context.Context, id string) (*model.MaintenanceWindow, error) {
+	return s.base.GetMaintenanceWindow(ctx, id)
+}
+
+func (s *simulationOverlayStore) ListMaintenanceWindows(ctx context.Context, filter model.MaintenanceWindowFilter) ([]model.MaintenanceWindow, error) {
+	return s.base.ListMaintenanceWindows(ctx, filter)
+}
+
+func (s *simulationOverlayStore) GetEscalationPolicy(ctx context.Context, id string) (*model.EscalationPolicy, error) {
+	return s.base.GetEscalationPolicy(ctx, id)
+}
+
+func (s *simulationOverlayStore) ListEscalationPolicies(ctx context.Context, filter model.EscalationPolicyFilter) ([]model.EscalationPolicy, error) {
+	return s.base.ListEscalationPolicies(ctx, filter)
+}
+
+func (s *simulationOverlayStore) GetSuppressionDecision(ctx context.Context, id string) (*model.SuppressionDecision, error) {
+	return s.base.GetSuppressionDecision(ctx, id)
+}
+
+func (s *simulationOverlayStore) ListSuppressionDecisions(ctx context.Context, filter model.SuppressionFilter) ([]model.SuppressionDecision, error) {
+	return s.base.ListSuppressionDecisions(ctx, filter)
+}
+
