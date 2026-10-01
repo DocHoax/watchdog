@@ -309,6 +309,10 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("/api/v1/topology", s.authMiddleware(http.HandlerFunc(s.handleTopologyRoute)))
 	mux.Handle("/api/v1/topology/", s.authMiddleware(http.HandlerFunc(s.handleTopologyRoute)))
 
+	// Governance API routes
+	mux.Handle("/api/v1/governance", s.authMiddleware(http.HandlerFunc(s.handleGovernanceRoute)))
+	mux.Handle("/api/v1/governance/", s.authMiddleware(http.HandlerFunc(s.handleGovernanceRoute)))
+
 	// Diagnostic Profiling (pprof)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
