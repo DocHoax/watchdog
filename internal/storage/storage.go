@@ -87,6 +87,15 @@ type ReadOnlyStorage interface {
 	ListFleetGroups(ctx context.Context, orgID string) ([]model.FleetGroup, error)
 	GetGroupMembers(ctx context.Context, groupID string) ([]model.FleetGroupMember, error)
 	GetNodeGroups(ctx context.Context, nodeID string) ([]model.FleetGroup, error)
+
+	// Policies & Compliance (Read-Only)
+	GetPolicy(ctx context.Context, id string) (*model.Policy, error)
+	ListPolicies(ctx context.Context, filter model.PolicyFilter) ([]model.Policy, error)
+	GetPolicyRevision(ctx context.Context, policyID string, revision int) (*model.PolicyRevision, error)
+	ListPolicyRevisions(ctx context.Context, policyID string) ([]model.PolicyRevision, error)
+	GetPolicyAssignment(ctx context.Context, id string) (*model.PolicyAssignment, error)
+	ListPolicyAssignments(ctx context.Context, filter model.PolicyAssignmentFilter) ([]model.PolicyAssignment, error)
+	GetAssignmentsForTargets(ctx context.Context, orgID string, targetType model.PolicyTargetType, targetIDs []string) ([]model.PolicyAssignment, error)
 }
 
 // Storage defines the contract for storing and querying system metrics, alerts, diagnostics, and audit events.
@@ -137,4 +146,11 @@ type Storage interface {
 	AddGroupMember(ctx context.Context, member *model.FleetGroupMember) error
 	RemoveGroupMember(ctx context.Context, groupID string, nodeID string) error
 	SetGroupMembers(ctx context.Context, groupID string, nodeIDs []string) error
+
+	// Policies & Compliance
+	SavePolicy(ctx context.Context, policy *model.Policy) error
+	DeletePolicy(ctx context.Context, id string) error
+	SavePolicyRevision(ctx context.Context, rev *model.PolicyRevision) error
+	SavePolicyAssignment(ctx context.Context, asgn *model.PolicyAssignment) error
+	DeletePolicyAssignment(ctx context.Context, id string) error
 }

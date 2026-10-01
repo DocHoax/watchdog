@@ -278,6 +278,59 @@ func (s *SQLiteStorage) migrate(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_fleet_group_members_node ON fleet_group_members(node_id);
 	CREATE INDEX IF NOT EXISTS idx_fleet_group_members_group ON fleet_group_members(group_id);
 
+	CREATE TABLE IF NOT EXISTS policies (
+		id TEXT PRIMARY KEY,
+		org_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		display_name TEXT,
+		description TEXT,
+		category TEXT NOT NULL,
+		status TEXT NOT NULL,
+		active_revision INTEGER NOT NULL DEFAULT 0,
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_policies_org ON policies(org_id);
+	CREATE INDEX IF NOT EXISTS idx_policies_category ON policies(category);
+	CREATE INDEX IF NOT EXISTS idx_policies_status ON policies(status);
+
+	CREATE TABLE IF NOT EXISTS policy_revisions (
+		policy_id TEXT NOT NULL,
+		revision INTEGER NOT NULL,
+		created_at INTEGER NOT NULL,
+		created_by TEXT NOT NULL,
+		change_summary TEXT,
+		target_selector TEXT,
+		priority INTEGER NOT NULL,
+		inheritance_mode TEXT NOT NULL,
+		enforcement_mode TEXT NOT NULL,
+		rules_json TEXT NOT NULL,
+		metadata_json TEXT,
+		content_digest TEXT NOT NULL,
+		PRIMARY KEY (policy_id, revision)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_policy_revisions_created_at ON policy_revisions(created_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_policy_revisions_digest ON policy_revisions(content_digest);
+
+	CREATE TABLE IF NOT EXISTS policy_assignments (
+		id TEXT PRIMARY KEY,
+		policy_id TEXT NOT NULL,
+		org_id TEXT NOT NULL,
+		target_type TEXT NOT NULL,
+		target_id TEXT NOT NULL,
+		assigned_at INTEGER NOT NULL,
+		assigned_by TEXT,
+		enabled INTEGER NOT NULL,
+		metadata_json TEXT
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_policy_assignments_policy ON policy_assignments(policy_id);
+	CREATE INDEX IF NOT EXISTS idx_policy_assignments_org ON policy_assignments(org_id);
+	CREATE INDEX IF NOT EXISTS idx_policy_assignments_target ON policy_assignments(target_type, target_id);
+
 	INSERT OR IGNORE INTO organizations (id, name, display_name, description, status, created_at, updated_at, metadata_json)
 	VALUES ('default', 'Default Organization', 'Default Organization', 'Built-in single-tenant organization boundary', 'active', 0, 0, '{}');
 	`
