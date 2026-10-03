@@ -69,11 +69,14 @@ func (c *GovernanceClient) Endpoint() string {
 // ListOrganizations queries all registered organizations.
 func (c *GovernanceClient) ListOrganizations(ctx context.Context) ([]model.Organization, error) {
 	reqURL := fmt.Sprintf("%s/api/v1/governance/orgs", c.endpoint)
-	var resp []model.Organization
+	var resp struct {
+		Organizations []model.Organization `json:"organizations"`
+		Count         int                  `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Organizations, nil
 }
 
 // CreateOrganization registers a new organization.
@@ -122,11 +125,14 @@ func (c *GovernanceClient) ListFleetGroups(ctx context.Context, orgID string) ([
 	if orgID != "" {
 		reqURL += "?org_id=" + url.QueryEscape(orgID)
 	}
-	var resp []model.FleetGroup
+	var resp struct {
+		Groups []model.FleetGroup `json:"groups"`
+		Count  int                `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Groups, nil
 }
 
 // CreateFleetGroup creates a new fleet group.
@@ -168,11 +174,24 @@ func (c *GovernanceClient) DeleteFleetGroup(ctx context.Context, id string) erro
 // GetGroupMembers retrieves members of a fleet group.
 func (c *GovernanceClient) GetGroupMembers(ctx context.Context, groupID string) ([]model.FleetGroupMember, error) {
 	reqURL := fmt.Sprintf("%s/api/v1/governance/groups/%s/members", c.endpoint, url.PathEscape(groupID))
-	var resp []model.FleetGroupMember
+	var resp struct {
+		Members []model.FleetGroupMember `json:"members"`
+		Count   int                      `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Members, nil
+}
+
+// AddMember adds a node member to a fleet group.
+func (c *GovernanceClient) AddMember(ctx context.Context, groupID string, nodeID string) error {
+	reqURL := fmt.Sprintf("%s/api/v1/governance/groups/%s/members", c.endpoint, url.PathEscape(groupID))
+	payload := model.FleetGroupMember{
+		GroupID: groupID,
+		NodeID:  nodeID,
+	}
+	return c.doJSON(ctx, http.MethodPost, reqURL, payload, nil)
 }
 
 // AddGroupMember adds a node member to a fleet group.
@@ -181,20 +200,29 @@ func (c *GovernanceClient) AddGroupMember(ctx context.Context, groupID string, m
 	return c.doJSON(ctx, http.MethodPost, reqURL, member, nil)
 }
 
-// RemoveGroupMember removes a node from a fleet group.
-func (c *GovernanceClient) RemoveGroupMember(ctx context.Context, groupID string, nodeID string) error {
+// RemoveMember removes a node from a fleet group.
+func (c *GovernanceClient) RemoveMember(ctx context.Context, groupID string, nodeID string) error {
 	reqURL := fmt.Sprintf("%s/api/v1/governance/groups/%s/members/%s", c.endpoint, url.PathEscape(groupID), url.PathEscape(nodeID))
 	return c.doJSON(ctx, http.MethodDelete, reqURL, nil, nil)
+}
+
+// RemoveGroupMember removes a node from a fleet group.
+func (c *GovernanceClient) RemoveGroupMember(ctx context.Context, groupID string, nodeID string) error {
+	return c.RemoveMember(ctx, groupID, nodeID)
 }
 
 // GetSubtreeNodes returns all node IDs in a group's entire hierarchy subtree.
 func (c *GovernanceClient) GetSubtreeNodes(ctx context.Context, groupID string) ([]string, error) {
 	reqURL := fmt.Sprintf("%s/api/v1/governance/groups/%s/subtree", c.endpoint, url.PathEscape(groupID))
 	var resp struct {
+		Nodes   []string `json:"nodes"`
 		NodeIDs []string `json:"node_ids"`
 	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
+	}
+	if len(resp.Nodes) > 0 {
+		return resp.Nodes, nil
 	}
 	return resp.NodeIDs, nil
 }
@@ -205,11 +233,14 @@ func (c *GovernanceClient) GetHierarchy(ctx context.Context, orgID string) ([]*m
 	if orgID != "" {
 		reqURL += "?org_id=" + url.QueryEscape(orgID)
 	}
-	var resp []*model.FleetGroupHierarchyNode
+	var resp struct {
+		Hierarchy []*model.FleetGroupHierarchyNode `json:"hierarchy"`
+		Count     int                              `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Hierarchy, nil
 }
 
 // ============================================================================
@@ -245,11 +276,14 @@ func (c *GovernanceClient) ResolveNodeOwnership(ctx context.Context, nodeID stri
 // GetNodeGroups retrieves all fleet groups a node belongs to.
 func (c *GovernanceClient) GetNodeGroups(ctx context.Context, nodeID string) ([]model.FleetGroup, error) {
 	reqURL := fmt.Sprintf("%s/api/v1/governance/nodes/%s/groups", c.endpoint, url.PathEscape(nodeID))
-	var resp []model.FleetGroup
+	var resp struct {
+		Groups []model.FleetGroup `json:"groups"`
+		Count  int                `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Groups, nil
 }
 
 // ResolveNodePolicies resolves all effective policies assigned to a node.
@@ -313,11 +347,14 @@ func (c *GovernanceClient) ListPolicies(ctx context.Context, filter model.Policy
 		reqURL += "?" + params.Encode()
 	}
 
-	var resp []model.Policy
+	var resp struct {
+		Policies []model.Policy `json:"policies"`
+		Count    int            `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Policies, nil
 }
 
 // CreatePolicy creates a new governance policy.
@@ -359,11 +396,14 @@ func (c *GovernanceClient) DeletePolicy(ctx context.Context, id string) error {
 // ListPolicyRevisions lists all revisions of a policy.
 func (c *GovernanceClient) ListPolicyRevisions(ctx context.Context, policyID string) ([]model.PolicyRevision, error) {
 	reqURL := fmt.Sprintf("%s/api/v1/governance/policies/%s/revisions", c.endpoint, url.PathEscape(policyID))
-	var resp []model.PolicyRevision
+	var resp struct {
+		Revisions []model.PolicyRevision `json:"revisions"`
+		Count     int                    `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Revisions, nil
 }
 
 // PublishRevision publishes an immutable revision of a policy.
@@ -405,15 +445,18 @@ func (c *GovernanceClient) DetectPolicyConflicts(ctx context.Context, policyIDA 
 	reqURL := fmt.Sprintf("%s/api/v1/governance/policies/conflicts", c.endpoint)
 	payload := map[string]any{
 		"policy_id_a": policyIDA,
-		"revision_a":  revA,
+		"rev_a":       revA,
 		"policy_id_b": policyIDB,
-		"revision_b":  revB,
+		"rev_b":       revB,
 	}
-	var resp []PolicyConflict
+	var resp struct {
+		Conflicts []PolicyConflict `json:"conflicts"`
+		Count     int              `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodPost, reqURL, payload, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Conflicts, nil
 }
 
 // ============================================================================
@@ -444,11 +487,14 @@ func (c *GovernanceClient) ListAssignments(ctx context.Context, filter model.Pol
 		reqURL += "?" + params.Encode()
 	}
 
-	var resp []model.PolicyAssignment
+	var resp struct {
+		Assignments []model.PolicyAssignment `json:"assignments"`
+		Count       int                      `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Assignments, nil
 }
 
 // CreateAssignment assigns a policy to an organization, fleet group, or node.
@@ -507,22 +553,30 @@ func (c *GovernanceClient) EvaluateFleetGroup(ctx context.Context, groupID strin
 		"include_subgroups": includeSubgroups,
 		"trigger":           string(trigger),
 	}
-	var resp []*model.EvaluationExecution
+	var resp struct {
+		GroupID     string                     `json:"group_id"`
+		Evaluations []*model.EvaluationExecution `json:"evaluations"`
+		Count       int                        `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodPost, reqURL, payload, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Evaluations, nil
 }
 
 // EvaluateOrganization executes policy evaluation across all nodes in an entire organization.
 func (c *GovernanceClient) EvaluateOrganization(ctx context.Context, orgID string, trigger model.EvaluationTriggerType) ([]*model.EvaluationExecution, error) {
 	reqURL := fmt.Sprintf("%s/api/v1/governance/evaluations/org/%s", c.endpoint, url.PathEscape(orgID))
 	payload := map[string]string{"trigger": string(trigger)}
-	var resp []*model.EvaluationExecution
+	var resp struct {
+		OrgID       string                     `json:"org_id"`
+		Evaluations []*model.EvaluationExecution `json:"evaluations"`
+		Count       int                        `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodPost, reqURL, payload, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Evaluations, nil
 }
 
 // ListEvaluationExecutions queries evaluation history matching the filter.
@@ -558,11 +612,14 @@ func (c *GovernanceClient) ListEvaluationExecutions(ctx context.Context, filter 
 		reqURL += "?" + params.Encode()
 	}
 
-	var resp []model.EvaluationExecution
+	var resp struct {
+		Evaluations []model.EvaluationExecution `json:"evaluations"`
+		Count       int                         `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Evaluations, nil
 }
 
 // GetEvaluationExecution retrieves an evaluation execution record by ID.
@@ -618,11 +675,14 @@ func (c *GovernanceClient) ListComplianceFindings(ctx context.Context, filter mo
 		reqURL += "?" + params.Encode()
 	}
 
-	var resp []model.ComplianceFinding
+	var resp struct {
+		Findings []model.ComplianceFinding `json:"findings"`
+		Count    int                       `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.Findings, nil
 }
 
 // GetComplianceFinding retrieves a compliance finding by ID.
@@ -741,11 +801,14 @@ func (c *GovernanceClient) ListMaintenanceWindows(ctx context.Context, filter mo
 		reqURL += "?" + params.Encode()
 	}
 
-	var resp []model.MaintenanceWindow
+	var resp struct {
+		MaintenanceWindows []model.MaintenanceWindow `json:"maintenance_windows"`
+		Count              int                      `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.MaintenanceWindows, nil
 }
 
 // CreateMaintenanceWindow schedules a new maintenance window.
@@ -806,11 +869,16 @@ func (c *GovernanceClient) EvaluateMaintenanceWindows(ctx context.Context, orgID
 		reqURL += "?" + params.Encode()
 	}
 
-	var resp []model.MaintenanceWindow
+	var resp struct {
+		OrgID         string                   `json:"org_id"`
+		ActiveWindows []model.MaintenanceWindow `json:"active_windows"`
+		Count         int                      `json:"count"`
+		EvalTime      time.Time                `json:"eval_time"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.ActiveWindows, nil
 }
 
 // ============================================================================
@@ -841,11 +909,14 @@ func (c *GovernanceClient) ListEscalationPolicies(ctx context.Context, filter mo
 		reqURL += "?" + params.Encode()
 	}
 
-	var resp []model.EscalationPolicy
+	var resp struct {
+		EscalationPolicies []model.EscalationPolicy `json:"escalation_policies"`
+		Count              int                      `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.EscalationPolicies, nil
 }
 
 // CreateEscalationPolicy creates a new incident escalation policy.
@@ -940,11 +1011,14 @@ func (c *GovernanceClient) ListSuppressionDecisions(ctx context.Context, filter 
 		reqURL += "?" + params.Encode()
 	}
 
-	var resp []model.SuppressionDecision
+	var resp struct {
+		SuppressionDecisions []model.SuppressionDecision `json:"suppression_decisions"`
+		Count                int                         `json:"count"`
+	}
 	if err := c.doJSON(ctx, http.MethodGet, reqURL, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return resp.SuppressionDecisions, nil
 }
 
 // GetSuppressionDecision retrieves a specific suppression decision by ID.
