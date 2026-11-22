@@ -2,8 +2,8 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,7 +58,7 @@ func (c *PortCollector) GetListeningPorts(ctx context.Context) ([]model.PortInfo
 			proto = "UDP"
 		}
 
-		key := fmt.Sprintf("%s:%s:%d", proto, conn.Laddr.IP, conn.Laddr.Port)
+		key := proto + ":" + conn.Laddr.IP + ":" + strconv.Itoa(int(conn.Laddr.Port))
 		if seen[key] {
 			continue
 		}
