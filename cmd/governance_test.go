@@ -861,15 +861,18 @@ func TestCmd_Gov_Org_List_JSON(t *testing.T) {
 		t.Fatalf("org list JSON failed: %v", err)
 	}
 
-	var orgs []model.Organization
-	if err := json.Unmarshal([]byte(out), &orgs); err != nil {
+	var resp struct {
+		Organizations []model.Organization `json:"organizations"`
+		Count         int                  `json:"count"`
+	}
+	if err := json.Unmarshal([]byte(out), &resp); err != nil {
 		t.Fatalf("failed to decode org list JSON: %v\nOutput: %s", err, out)
 	}
-	if len(orgs) != 1 {
-		t.Errorf("expected 1 org, got len=%d", len(orgs))
+	if resp.Count != 1 || len(resp.Organizations) != 1 {
+		t.Errorf("expected 1 org, got count=%d len=%d", resp.Count, len(resp.Organizations))
 	}
-	if orgs[0].ID != "org-prod-01" {
-		t.Errorf("unexpected org ID: %s", orgs[0].ID)
+	if resp.Organizations[0].ID != "org-prod-01" {
+		t.Errorf("unexpected org ID: %s", resp.Organizations[0].ID)
 	}
 }
 
@@ -1528,15 +1531,12 @@ func TestCmd_Gov_Findings_List_JSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("findings list JSON failed: %v", err)
 	}
-	var resp struct {
-		Findings []model.ComplianceFinding `json:"findings"`
-		Count    int                       `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+	var findings []model.ComplianceFinding
+	if err := json.Unmarshal([]byte(out), &findings); err != nil {
 		t.Fatalf("failed to decode findings JSON: %v\nOutput: %s", err, out)
 	}
-	if resp.Count != 1 || resp.Findings[0].ID != "fnd-cpu-node01" {
-		t.Errorf("unexpected findings decoded: %+v", resp)
+	if len(findings) != 1 || findings[0].ID != "fnd-cpu-node01" {
+		t.Errorf("unexpected findings decoded: %+v", findings)
 	}
 }
 
@@ -1738,15 +1738,12 @@ func TestCmd_Gov_Maintenance_List_JSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("maintenance list JSON failed: %v", err)
 	}
-	var resp struct {
-		MaintenanceWindows []model.MaintenanceWindow `json:"maintenance_windows"`
-		Count              int                       `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+	var windows []model.MaintenanceWindow
+	if err := json.Unmarshal([]byte(out), &windows); err != nil {
 		t.Fatalf("failed to decode maintenance JSON: %v\nOutput: %s", err, out)
 	}
-	if resp.Count != 1 || resp.MaintenanceWindows[0].ID != "mw-prod-patch-01" {
-		t.Errorf("unexpected maintenance windows decoded: %+v", resp)
+	if len(windows) != 1 || windows[0].ID != "mw-prod-patch-01" {
+		t.Errorf("unexpected maintenance windows decoded: %+v", windows)
 	}
 }
 
@@ -2028,15 +2025,12 @@ func TestCmd_Gov_Suppression_List_JSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("suppression list JSON failed: %v", err)
 	}
-	var resp struct {
-		SuppressionDecisions []model.SuppressionDecision `json:"suppression_decisions"`
-		Count                int                         `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+	var decisions []model.SuppressionDecision
+	if err := json.Unmarshal([]byte(out), &decisions); err != nil {
 		t.Fatalf("failed to decode suppression list JSON: %v\nOutput: %s", err, out)
 	}
-	if resp.Count != 1 || resp.SuppressionDecisions[0].ID != "supp-dec-01" {
-		t.Errorf("unexpected suppression decisions decoded: %+v", resp)
+	if len(decisions) != 1 || decisions[0].ID != "supp-dec-01" {
+		t.Errorf("unexpected suppression decisions decoded: %+v", decisions)
 	}
 }
 
@@ -2150,18 +2144,15 @@ func TestCmd_Gov_Audit_Query_JSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("audit query JSON failed: %v", err)
 	}
-	var resp struct {
-		AuditEvents []model.AuditEvent `json:"audit_events"`
-		Count       int                `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+	var events []model.AuditEvent
+	if err := json.Unmarshal([]byte(out), &events); err != nil {
 		t.Fatalf("failed to decode audit JSON: %v\nOutput: %s", err, out)
 	}
-	if resp.Count != 1 || resp.AuditEvents[0].ID != "audit-gov-001" {
-		t.Errorf("unexpected audit events decoded: %+v", resp)
+	if len(events) != 1 || events[0].ID != "audit-gov-001" {
+		t.Errorf("unexpected audit events decoded: %+v", events)
 	}
-	if resp.AuditEvents[0].Actor.Identity != "operator-01" {
-		t.Errorf("expected actor identity operator-01, got: %s", resp.AuditEvents[0].Actor.Identity)
+	if events[0].Actor.Identity != "operator-01" {
+		t.Errorf("expected actor identity operator-01, got: %s", events[0].Actor.Identity)
 	}
 }
 
@@ -2390,31 +2381,5 @@ func TestCmd_Gov_EmptyList_Message(t *testing.T) {
 	}
 	if !strings.Contains(out, "No organizations found") {
 		t.Errorf("expected empty list message 'No organizations found', got: %s", out)
-	}
-}
-
-func TestCmd_Gov_Org_List_JSON_Wrapped(t *testing.T) {
-	resetGovFlags()
-	ts := setupGovernanceMockServer(t)
-	defer ts.Close()
-
-	govServerURL = ts.URL
-	govFormat = "json"
-	out, err := captureStdout(func() error {
-		return orgListCmd.RunE(orgListCmd, nil)
-	})
-	if err != nil {
-		t.Fatalf("org list JSON failed: %v", err)
-	}
-
-	var resp struct {
-		Organizations []model.Organization `json:"organizations"`
-		Count         int                  `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
-		t.Fatalf("failed to decode org list JSON wrapped: %v\nOutput: %s", err, out)
-	}
-	if resp.Count != 1 || len(resp.Organizations) != 1 {
-		t.Errorf("expected 1 org in wrapped JSON, got count=%d len=%d", resp.Count, len(resp.Organizations))
 	}
 }
