@@ -31,11 +31,11 @@ func TestSQLiteStorage_Memory_SingleConnectionIsolation(t *testing.T) {
 
 	// 2. Multiple repository operations using the same in-memory storage instance see the same data
 	testOrg := &model.Organization{
-		ID:          "org-test-mem",
-		Name:        "Memory Test Org",
-		Status:      model.OrgStatusActive,
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
+		ID:        "org-test-mem",
+		Name:      "Memory Test Org",
+		Status:    model.OrgStatusActive,
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
 	}
 	if err := store.SaveOrganization(ctx, testOrg); err != nil {
 		t.Fatalf("failed to save organization: %v", err)
@@ -92,11 +92,11 @@ func TestSQLiteStorage_Memory_SeparateInstancesIsolated(t *testing.T) {
 	ctx := context.Background()
 
 	org1 := &model.Organization{
-		ID:          "org-instance-1",
-		Name:        "Instance 1 Org",
-		Status:      model.OrgStatusActive,
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
+		ID:        "org-instance-1",
+		Name:      "Instance 1 Org",
+		Status:    model.OrgStatusActive,
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
 	}
 	if err := store1.SaveOrganization(ctx, org1); err != nil {
 		t.Fatalf("failed to save org1 in store1: %v", err)
