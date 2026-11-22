@@ -2824,13 +2824,13 @@ var suppListCmd = &cobra.Command{
 			}
 		}
 		filter := model.SuppressionFilter{
-			OrgID:      orgID,
-			NodeID:     govNodeID,
-			AlertID:    govAlertID,
-			WindowID:   govTargetID,
-			Outcome:    suppOutcome,
-			Limit:      govLimit,
-			Offset:     govOffset,
+			OrgID:    orgID,
+			NodeID:   govNodeID,
+			AlertID:  govAlertID,
+			WindowID: govTargetID,
+			Outcome:  suppOutcome,
+			Limit:    govLimit,
+			Offset:   govOffset,
 		}
 		decs, err := client.ListSuppressionDecisions(ctx, filter)
 		if err != nil {
