@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/DocHoax/watchdog/internal/governance"
+	"github.com/DocHoax/watchdog/internal/incidents"
 	"github.com/DocHoax/watchdog/pkg/model"
 	"github.com/DocHoax/watchdog/pkg/util"
 	"github.com/spf13/cobra"
@@ -38,6 +39,10 @@ var (
 	govNodeID    string
 	govGroupID   string
 	govPolicyID  string
+	govPolicyA   string
+	govPolicyB   string
+	govRevA      int
+	govRevB      int
 	govTargetTyp string
 	govTargetID  string
 	govStartTime string
@@ -49,7 +54,7 @@ var (
 	// Specific flags
 	govName           string
 	govDescription    string
-	govTags           []string
+	govMetadata       string
 	govParentID       string
 	govAssignedBy     string
 	govAuthor         string
@@ -59,25 +64,40 @@ var (
 	govPoliciesFile   string
 	govSourceFile     string
 	govRevisionNum    int
-	govSchemaVersion  string
+	govPriority       int
+	govSelector       string
+	govInheritMode    string
+	govEnforceMode    string
 	govScopeFilter    string
 	govTriggerType    string
 	govRuleID         string
 	govDiffOnly       bool
 	govTargetScope    string
-	govWindowType     string
+	govTargetSelector string
 	govWindowStart    string
 	govWindowEnd      string
-	govDailyStart     string
-	govDailyEnd       string
-	govDaysOfWeek     []int
-	govDayOfMonth     int
 	govTimezone       string
-	govAllowDisrupt   bool
+	govSeverityThr    string
+	govCatRestrict    []string
+	govSuppressAlerts bool
+	govSuppressFind   bool
+	govAllowCritical  bool
+	govRecurrenceFreq string
+	govRecurrenceInt  int
+	govRecurDays      []int
+	govRecurDayMonth  int
+	govRecurMaxOcc    int
+	govRecurUntil     string
+	govRecurDuration  time.Duration
 	govCreatedBy      string
 	govIncludeExpired bool
-	govDuration       time.Duration
-	govAcknowledged   bool
+	govIncludeSubgrp  bool
+	govIncidentID     string
+	govIncidentTitle  string
+	govIncidentSev    string
+	govIncidentStart  string
+	govIncidentAck    bool
+	govIncidentNodes  []string
 	govAlertID        string
 	govAlertName      string
 	govEventType      string
@@ -85,24 +105,40 @@ var (
 	govActorType      string
 	govActorID        string
 	govAction         string
-	govResourceType   string
-	govResourceID     string
 	govMessage        string
 	govPolicyIDs      []string
 	govNodeIDs        []string
 	govGroupIDs       []string
+	govDuration       time.Duration
+	govAcknowledged   bool
+	govResourceType   string
+	govResourceID     string
+	govTags           []string
+	govSchemaVersion  string
+	govWindowType     string
+	govDailyStart     string
+	govDailyEnd       string
+	govDaysOfWeek     []int
+	govDayOfMonth     int
+	govAllowDisrupt   bool
+	govOwnerService   string
+	govOwnerLead      string
+	govOwnerSlack     string
+	govOwnerPager     string
+	govOwnerEscTier   string
+	govOwnerLifeStg   string
 
 	// Ownership flags
-	govOwnerTeam    string
-	govOwnerService string
-	govOwnerEmail   string
-	govOwnerSlack   string
-	govOwnerPager   string
-	govOwnerEscTier string
-	govOwnerLifeStg string
-	govOwnerCostCtr string
-	govOwnerEnv     string
-	govOwnerLead    string
+	govOwnerTeam      string
+	govOwnerContactCh string
+	govOwnerEmail     string
+	govOwnerRegion    string
+	govOwnerDataClass string
+	govOwnerCostCtr   string
+	govOwnerCritical  string
+	govOwnerLifecycle string
+	govOwnerEnv       string
+	govCustomProps    string
 )
 
 // governanceCmd represents the base command for governance operations.
@@ -214,6 +250,129 @@ func isGovFormatted() bool {
 	return f == "json" || f == "yaml" || f == "yml"
 }
 
+// parseGovMetadata parses an optional JSON object string into a string map.
+func parseGovMetadata(raw string) (map[string]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	var m map[string]string
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// formatGovMetadata renders a string map as deterministic "k=v" pairs.
+func formatGovMetadata(m map[string]string) string {
+	if len(m) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, k+"="+m[k])
+	}
+	return strings.Join(parts, ", ")
+}
+
+// printGovSummary prints an evaluation summary block.
+func printGovSummary(s model.EvaluationSummary) {
+	fmt.Printf("Total Rules:      %d\n", s.TotalRules)
+	fmt.Printf("Compliant:        %d\n", s.CompliantRules)
+	fmt.Printf("Non-Compliant:    %d\n", s.NonCompliantRules)
+	fmt.Printf("Warning:          %d\n", s.WarningRules)
+	fmt.Printf("Not Applicable:   %d\n", s.NotApplicableRules)
+	fmt.Printf("Insufficient Data:%d\n", s.InsufficientDataRules)
+	fmt.Printf("Error:            %d\n", s.ErrorRules)
+	fmt.Printf("Compliance Ratio: %.1f%%\n", s.ComplianceRatio*100)
+	fmt.Printf("Coverage Ratio:   %.1f%%\n", s.CoverageRatio*100)
+}
+
+// govScheduleLabel renders a human-readable schedule label for a maintenance window.
+func govScheduleLabel(w model.MaintenanceWindow) string {
+	if w.Schedule.Recurrence != nil {
+		return fmt.Sprintf("%s (every %d)", string(w.Schedule.Recurrence.Frequency), w.Schedule.Recurrence.Interval)
+	}
+	return "one_time"
+}
+
+// formatSeverityLevels renders a slice of severity levels as a comma-separated string.
+func formatSeverityLevels(levels []model.Severity) string {
+	if len(levels) == 0 {
+		return "-"
+	}
+	parts := make([]string, 0, len(levels))
+	for _, l := range levels {
+		parts = append(parts, string(l))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// formatEscalationTarget renders a single escalation target as "type:id" or "-" if nil.
+func formatEscalationTarget(t *model.EscalationTarget) string {
+	if t == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%s:%s", string(t.TargetType), t.TargetID)
+}
+
+// formatEscalationTargets renders a slice of escalation targets as a comma-separated string.
+func formatEscalationTargets(targets []model.EscalationTarget) string {
+	if len(targets) == 0 {
+		return "-"
+	}
+	parts := make([]string, 0, len(targets))
+	for _, t := range targets {
+		parts = append(parts, fmt.Sprintf("%s:%s", string(t.TargetType), t.TargetID))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// printGovRollup prints an aggregated compliance rollup summary.
+func printGovRollup(title string, s *model.ComplianceRollupSummary) {
+	fmt.Printf("📊 %s\n", title)
+	fmt.Printf("Scope:            %s (%s)\n", string(s.ScopeLevel), s.ScopeID)
+	fmt.Printf("Org ID:           %s\n", s.OrgID)
+	fmt.Printf("Evaluated At:     %s\n", s.EvaluatedAt.Format(time.RFC3339))
+	fmt.Printf("Total Nodes:      %d (Compliant: %d, Non-Compliant: %d, Warning: %d)\n",
+		s.TotalNodes, s.CompliantNodes, s.NonCompliantNodes, s.WarningNodes)
+	fmt.Printf("Rules Evaluated:  %d\n", s.TotalRulesEvaluated)
+	fmt.Printf("Open Findings:    %d\n", s.TotalFindingsOpen)
+	fmt.Printf("Compliance Ratio: %.1f%%\n", s.ComplianceRatio*100)
+	fmt.Printf("Coverage Ratio:   %.1f%%\n", s.CoverageRatio*100)
+	if len(s.BreakdownBySeverity) > 0 {
+		sevKeys := make([]string, 0, len(s.BreakdownBySeverity))
+		for k := range s.BreakdownBySeverity {
+			sevKeys = append(sevKeys, string(k))
+		}
+		sort.Strings(sevKeys)
+		fmt.Print("By Severity:      ")
+		for i, k := range sevKeys {
+			if i > 0 {
+				fmt.Print(", ")
+			}
+			fmt.Printf("%s=%d", k, s.BreakdownBySeverity[model.Severity(k)])
+		}
+		fmt.Println()
+	}
+	if len(s.BreakdownByCategory) > 0 {
+		catKeys := make([]string, 0, len(s.BreakdownByCategory))
+		for k := range s.BreakdownByCategory {
+			catKeys = append(catKeys, string(k))
+		}
+		sort.Strings(catKeys)
+		for _, k := range catKeys {
+			c := s.BreakdownByCategory[model.PolicyCategory(k)]
+			fmt.Printf("  • [%s] rules=%d compliant=%d violations=%d warnings=%d (%.1f%%)\n",
+				k, c.TotalRules, c.CompliantRules, c.Violations, c.Warnings, c.ComplianceRatio*100)
+		}
+	}
+}
+
 // -----------------------------------------------------------------------------
 // 1. Organization Subcommands
 // -----------------------------------------------------------------------------
@@ -276,11 +435,13 @@ var orgGetCmd = &cobra.Command{
 			return outputGovernanceFormatted(org)
 		}
 		fmt.Printf("🏢 Organization: %s (%s)\n", org.Name, org.ID)
-		fmt.Printf("Description: %s\n", org.Description)
-		fmt.Printf("Created At:  %s\n", org.CreatedAt.Format(time.RFC3339))
-		fmt.Printf("Updated At:  %s\n", org.UpdatedAt.Format(time.RFC3339))
-		if len(org.Tags) > 0 {
-			fmt.Printf("Tags:        %s\n", strings.Join(org.Tags, ", "))
+		fmt.Printf("Display Name:  %s\n", org.DisplayName)
+		fmt.Printf("Status:        %s\n", string(org.Status))
+		fmt.Printf("Description:   %s\n", org.Description)
+		fmt.Printf("Created At:    %s\n", org.CreatedAt.Format(time.RFC3339))
+		fmt.Printf("Updated At:    %s\n", org.UpdatedAt.Format(time.RFC3339))
+		if len(org.Metadata) > 0 {
+			fmt.Printf("Metadata:      %s\n", formatGovMetadata(org.Metadata))
 		}
 		return nil
 	},
@@ -298,11 +459,15 @@ var orgCreateCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		req := model.Organization{
+		metadata, err := parseGovMetadata(govMetadata)
+		if err != nil {
+			return NewExitError(ExitUsageError, "invalid metadata: %w", err)
+		}
+		req := &model.Organization{
 			ID:          args[0],
 			Name:        args[1],
 			Description: govDescription,
-			Tags:        govTags,
+			Metadata:    metadata,
 		}
 		org, err := client.CreateOrganization(ctx, req)
 		if err != nil {
@@ -328,10 +493,14 @@ var orgUpdateCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		req := model.Organization{
+		metadata, err := parseGovMetadata(govMetadata)
+		if err != nil {
+			return NewExitError(ExitUsageError, "invalid metadata: %w", err)
+		}
+		req := &model.Organization{
 			Name:        govName,
 			Description: govDescription,
-			Tags:        govTags,
+			Metadata:    metadata,
 		}
 		org, err := client.UpdateOrganization(ctx, args[0], req)
 		if err != nil {
@@ -392,9 +561,18 @@ var groupListCmd = &cobra.Command{
 		if orgID == "" {
 			orgID = model.DefaultOrganizationID
 		}
-		groups, err := client.ListFleetGroups(ctx, orgID, govParentID)
+		groups, err := client.ListFleetGroups(ctx, orgID)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to list fleet groups: %w", err)
+		}
+		if govParentID != "" {
+			filtered := groups[:0]
+			for _, g := range groups {
+				if g.ParentGroupID == govParentID {
+					filtered = append(filtered, g)
+				}
+			}
+			groups = filtered
 		}
 		if isGovFormatted() {
 			return outputGovernanceFormatted(groups)
@@ -403,13 +581,13 @@ var groupListCmd = &cobra.Command{
 			fmt.Println("No fleet groups found.")
 			return nil
 		}
-		tw := util.NewTableWriter("Group ID", "Name", "Parent ID", "Org ID", "Description")
+		tw := util.NewTableWriter("Group ID", "Name", "Parent ID", "Org ID", "Type", "Description")
 		for _, g := range groups {
 			parent := g.ParentGroupID
 			if parent == "" {
 				parent = "<root>"
 			}
-			tw.Append(g.ID, g.Name, parent, g.OrgID, g.Description)
+			tw.Append(g.ID, g.Name, parent, g.OrgID, string(g.Type), g.Description)
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -440,10 +618,12 @@ var groupGetCmd = &cobra.Command{
 		if g.ParentGroupID != "" {
 			fmt.Printf("Parent ID:   %s\n", g.ParentGroupID)
 		}
+		fmt.Printf("Type:        %s\n", string(g.Type))
+		fmt.Printf("Path:        %s\n", g.Path)
 		fmt.Printf("Description: %s\n", g.Description)
 		fmt.Printf("Created At:  %s\n", g.CreatedAt.Format(time.RFC3339))
-		if len(g.Tags) > 0 {
-			fmt.Printf("Tags:        %s\n", strings.Join(g.Tags, ", "))
+		if len(g.Metadata) > 0 {
+			fmt.Printf("Metadata:    %s\n", formatGovMetadata(g.Metadata))
 		}
 		return nil
 	},
@@ -465,13 +645,17 @@ var groupCreateCmd = &cobra.Command{
 		if orgID == "" {
 			orgID = model.DefaultOrganizationID
 		}
-		req := model.FleetGroup{
+		metadata, err := parseGovMetadata(govMetadata)
+		if err != nil {
+			return NewExitError(ExitUsageError, "invalid metadata: %w", err)
+		}
+		req := &model.FleetGroup{
 			ID:            args[0],
 			OrgID:         orgID,
 			Name:          args[1],
 			ParentGroupID: govParentID,
 			Description:   govDescription,
-			Tags:          govTags,
+			Metadata:      metadata,
 		}
 		g, err := client.CreateFleetGroup(ctx, req)
 		if err != nil {
@@ -497,11 +681,15 @@ var groupUpdateCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		req := model.FleetGroup{
+		metadata, err := parseGovMetadata(govMetadata)
+		if err != nil {
+			return NewExitError(ExitUsageError, "invalid metadata: %w", err)
+		}
+		req := &model.FleetGroup{
 			Name:          govName,
 			ParentGroupID: govParentID,
 			Description:   govDescription,
-			Tags:          govTags,
+			Metadata:      metadata,
 		}
 		g, err := client.UpdateFleetGroup(ctx, args[0], req)
 		if err != nil {
@@ -568,12 +756,12 @@ var groupHierarchyCmd = &cobra.Command{
 	},
 }
 
-func printHierarchyTree(nodes []model.GroupHierarchyNode, indent int) {
+func printHierarchyTree(nodes []*model.FleetGroupHierarchyNode, indent int) {
 	for _, n := range nodes {
 		prefix := strings.Repeat("  ", indent)
 		fmt.Printf("%s└─ 📁 %s (%s) [Nodes: %d, Subgroups: %d]\n",
-			prefix, n.Group.Name, n.Group.ID, len(n.DirectNodes), len(n.Children))
-		for _, nodeID := range n.DirectNodes {
+			prefix, n.Group.Name, n.Group.ID, n.TotalNodeCount, n.SubgroupCount)
+		for _, nodeID := range n.DirectMembers {
 			fmt.Printf("%s   ├─ 🖥️ %s\n", prefix, nodeID)
 		}
 		if len(n.Children) > 0 {
@@ -602,9 +790,11 @@ var groupMembersCmd = &cobra.Command{
 			return outputGovernanceFormatted(members)
 		}
 		fmt.Printf("Members of Group %s (%d nodes):\n", args[0], len(members))
+		tw := util.NewTableWriter("Node ID", "Role", "Added By", "Added At")
 		for _, m := range members {
-			fmt.Printf("  • %s\n", m)
+			tw.Append(m.NodeID, string(m.Role), m.AddedBy, m.AddedAt.Format(time.RFC3339))
 		}
+		tw.Render(os.Stdout)
 		return nil
 	},
 }
@@ -706,16 +896,18 @@ var ownershipGetCmd = &cobra.Command{
 			return outputGovernanceFormatted(own)
 		}
 		fmt.Printf("👤 Node Ownership: %s\n", args[0])
-		fmt.Printf("Service:         %s\n", own.Service)
-		fmt.Printf("Team:            %s\n", own.Team)
-		fmt.Printf("Lead / Owner:    %s\n", own.Owner)
-		fmt.Printf("Contact Email:   %s\n", own.ContactEmail)
-		fmt.Printf("Slack Channel:   %s\n", own.SlackChannel)
-		fmt.Printf("PagerDuty:       %s\n", own.PagerDutyService)
-		fmt.Printf("Escalation Tier: %s\n", own.EscalationTier)
-		fmt.Printf("Lifecycle Stage: %s\n", own.LifecycleStage)
-		fmt.Printf("Cost Center:     %s\n", own.CostCenter)
-		fmt.Printf("Environment:     %s\n", own.Environment)
+		fmt.Printf("Owner Team:          %s\n", own.OwnerTeam)
+		fmt.Printf("Contact Email:       %s\n", own.ContactEmail)
+		fmt.Printf("Contact Channel:     %s\n", own.ContactChannel)
+		fmt.Printf("Environment:         %s\n", own.Environment)
+		fmt.Printf("Region:              %s\n", own.Region)
+		fmt.Printf("Data Classification: %s\n", own.DataClassification)
+		fmt.Printf("Cost Center:         %s\n", own.CostCenter)
+		fmt.Printf("Business Criticality:%s\n", string(own.BusinessCriticality))
+		fmt.Printf("Lifecycle:           %s\n", string(own.Lifecycle))
+		if len(own.CustomProperties) > 0 {
+			fmt.Printf("Custom Properties:   %s\n", formatGovMetadata(own.CustomProperties))
+		}
 		return nil
 	},
 }
@@ -732,17 +924,21 @@ var ownershipSetCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		req := model.NodeOwnership{
-			Service:          govOwnerService,
-			Team:             govOwnerTeam,
-			Owner:            govOwnerLead,
-			ContactEmail:     govOwnerEmail,
-			SlackChannel:     govOwnerSlack,
-			PagerDutyService: govOwnerPager,
-			EscalationTier:   govOwnerEscTier,
-			LifecycleStage:   govOwnerLifeStg,
-			CostCenter:       govOwnerCostCtr,
-			Environment:      govOwnerEnv,
+		customProps, err := parseGovMetadata(govCustomProps)
+		if err != nil {
+			return NewExitError(ExitUsageError, "invalid custom properties JSON: %w", err)
+		}
+		req := &model.NodeOwnershipMetadata{
+			OwnerTeam:           govOwnerTeam,
+			ContactEmail:        govOwnerEmail,
+			ContactChannel:      govOwnerContactCh,
+			Environment:         govOwnerEnv,
+			Region:              govOwnerRegion,
+			DataClassification:  govOwnerDataClass,
+			CostCenter:          govOwnerCostCtr,
+			BusinessCriticality: model.BusinessCriticality(govOwnerCritical),
+			Lifecycle:           model.NodeLifecycleStatus(govOwnerLifecycle),
+			CustomProperties:    customProps,
 		}
 		if err := client.SetNodeOwnership(ctx, args[0], req); err != nil {
 			return NewExitError(ExitNetworkError, "failed to set node ownership: %w", err)
@@ -772,21 +968,20 @@ var ownershipResolveCmd = &cobra.Command{
 			return outputGovernanceFormatted(res)
 		}
 		fmt.Printf("👤 Resolved Hierarchical Ownership for Node: %s\n", args[0])
-		fmt.Printf("Service:         %s\n", res.Ownership.Service)
-		fmt.Printf("Team:            %s\n", res.Ownership.Team)
-		fmt.Printf("Lead / Owner:    %s\n", res.Ownership.Owner)
-		fmt.Printf("Contact Email:   %s\n", res.Ownership.ContactEmail)
-		fmt.Printf("Slack Channel:   %s\n", res.Ownership.SlackChannel)
-		fmt.Printf("PagerDuty:       %s\n", res.Ownership.PagerDutyService)
-		fmt.Printf("Escalation Tier: %s\n", res.Ownership.EscalationTier)
-		fmt.Printf("Lifecycle Stage: %s\n", res.Ownership.LifecycleStage)
-		fmt.Printf("Cost Center:     %s\n", res.Ownership.CostCenter)
-		fmt.Printf("Environment:     %s\n", res.Ownership.Environment)
-		if len(res.SourceLineage) > 0 {
-			fmt.Printf("\nResolution Lineage Sources:\n")
-			for k, src := range res.SourceLineage {
-				fmt.Printf("  • %-16s -> %s\n", k, src)
-			}
+		fmt.Printf("Org ID:               %s\n", res.OrgID)
+		fmt.Printf("Owner Team:           %s\n", res.OwnerTeam)
+		fmt.Printf("Contact Email:        %s\n", res.ContactEmail)
+		fmt.Printf("Contact Channel:      %s\n", res.ContactChannel)
+		fmt.Printf("Environment:          %s\n", res.Environment)
+		fmt.Printf("Region:               %s\n", res.Region)
+		fmt.Printf("Data Classification:  %s\n", res.DataClassification)
+		fmt.Printf("Cost Center:          %s\n", res.CostCenter)
+		fmt.Printf("Business Criticality: %s\n", string(res.BusinessCriticality))
+		fmt.Printf("Lifecycle:            %s\n", string(res.Lifecycle))
+		fmt.Printf("Resolved From:        %s (%s)\n", string(res.SourceLevel), res.SourceID)
+		fmt.Printf("Hierarchy Path:       %s\n", res.HierarchyPath)
+		if len(res.CustomProperties) > 0 {
+			fmt.Printf("Custom Properties:    %s\n", formatGovMetadata(res.CustomProperties))
 		}
 		return nil
 	},
@@ -820,9 +1015,11 @@ var policyListCmd = &cobra.Command{
 		}
 		filter := model.PolicyFilter{
 			OrgID:    orgID,
-			Category: govCategory,
+			Category: model.PolicyCategory(govCategory),
 			Status:   model.PolicyStatus(govStatus),
 			Search:   govSearch,
+			Limit:    govLimit,
+			Offset:   govOffset,
 		}
 		policies, err := client.ListPolicies(ctx, filter)
 		if err != nil {
@@ -835,9 +1032,9 @@ var policyListCmd = &cobra.Command{
 			fmt.Println("No policies found.")
 			return nil
 		}
-		tw := util.NewTableWriter("Policy ID", "Name", "Category", "Severity", "Status", "Active Rev")
+		tw := util.NewTableWriter("Policy ID", "Name", "Category", "Status", "Active Rev")
 		for _, p := range policies {
-			tw.Append(p.ID, p.Name, p.Category, string(p.Severity), string(p.Status), strconv.Itoa(p.ActiveRevision))
+			tw.Append(p.ID, p.Name, string(p.Category), string(p.Status), strconv.Itoa(p.ActiveRevision))
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -865,13 +1062,15 @@ var policyGetCmd = &cobra.Command{
 		}
 		fmt.Printf("📜 Policy: %s (%s)\n", p.Name, p.ID)
 		fmt.Printf("Org ID:          %s\n", p.OrgID)
-		fmt.Printf("Category:        %s\n", p.Category)
-		fmt.Printf("Severity:        %s\n", p.Severity)
-		fmt.Printf("Status:          %s\n", p.Status)
+		fmt.Printf("Category:        %s\n", string(p.Category))
+		fmt.Printf("Status:          %s\n", string(p.Status))
 		fmt.Printf("Active Revision: %d\n", p.ActiveRevision)
 		fmt.Printf("Description:     %s\n", p.Description)
 		fmt.Printf("Created At:      %s\n", p.CreatedAt.Format(time.RFC3339))
 		fmt.Printf("Updated At:      %s\n", p.UpdatedAt.Format(time.RFC3339))
+		if len(p.Metadata) > 0 {
+			fmt.Printf("Metadata:        %s\n", formatGovMetadata(p.Metadata))
+		}
 		return nil
 	},
 }
@@ -892,17 +1091,17 @@ var policyCreateCmd = &cobra.Command{
 		if orgID == "" {
 			orgID = model.DefaultOrganizationID
 		}
-		req := model.Policy{
-			ID:            args[0],
-			OrgID:         orgID,
-			Name:          args[1],
-			Category:      govCategory,
-			Severity:      model.SeverityLevel(govSeverity),
-			Description:   govDescription,
-			SchemaVersion: govSchemaVersion,
+		metadata, err := parseGovMetadata(govMetadata)
+		if err != nil {
+			return NewExitError(ExitUsageError, "invalid metadata: %w", err)
 		}
-		if req.Severity == "" {
-			req.Severity = model.SeverityWarning
+		req := &model.Policy{
+			ID:          args[0],
+			OrgID:       orgID,
+			Name:        args[1],
+			Category:    model.PolicyCategory(govCategory),
+			Description: govDescription,
+			Metadata:    metadata,
 		}
 		p, err := client.CreatePolicy(ctx, req)
 		if err != nil {
@@ -928,12 +1127,16 @@ var policyUpdateCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		req := model.Policy{
+		metadata, err := parseGovMetadata(govMetadata)
+		if err != nil {
+			return NewExitError(ExitUsageError, "invalid metadata: %w", err)
+		}
+		req := &model.Policy{
 			Name:        govName,
-			Category:    govCategory,
-			Severity:    model.SeverityLevel(govSeverity),
+			Category:    model.PolicyCategory(govCategory),
 			Description: govDescription,
 			Status:      model.PolicyStatus(govStatus),
+			Metadata:    metadata,
 		}
 		p, err := client.UpdatePolicy(ctx, args[0], req)
 		if err != nil {
@@ -991,13 +1194,13 @@ var policyRevisionsCmd = &cobra.Command{
 			fmt.Printf("No revisions found for policy %s.\n", args[0])
 			return nil
 		}
-		tw := util.NewTableWriter("Rev #", "SHA-256 Hash", "Rules", "Author", "Created At", "Changelog")
+		tw := util.NewTableWriter("Rev #", "Content Digest", "Rules", "Author", "Created At", "Change Summary")
 		for _, r := range revs {
-			hashShort := r.ContentHash
+			hashShort := r.ContentDigest
 			if len(hashShort) > 12 {
 				hashShort = hashShort[:12]
 			}
-			tw.Append(strconv.Itoa(r.Revision), hashShort, strconv.Itoa(len(r.Rules)), r.Author, r.CreatedAt.Format(time.RFC3339), r.Changelog)
+			tw.Append(strconv.Itoa(r.Revision), hashShort, strconv.Itoa(len(r.Rules)), r.CreatedBy, r.CreatedAt.Format(time.RFC3339), r.ChangeSummary)
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -1026,16 +1229,34 @@ var policyPublishRevCmd = &cobra.Command{
 				return NewExitError(ExitUsageError, "failed to parse rules JSON: %w", err)
 			}
 		}
+		metadata, err := parseGovMetadata(govMetadata)
+		if err != nil {
+			return NewExitError(ExitUsageError, "invalid metadata: %w", err)
+		}
 
-		rev, err := client.PublishRevision(ctx, args[0], rules, govAuthor, govChangelog)
+		rev := &model.PolicyRevision{
+			PolicyID:        args[0],
+			Rules:           rules,
+			CreatedBy:       govAuthor,
+			ChangeSummary:   govChangelog,
+			Selector:        govSelector,
+			Priority:        govPriority,
+			InheritanceMode: model.InheritanceMode(govInheritMode),
+			EnforcementMode: model.EnforcementMode(govEnforceMode),
+			Metadata:        metadata,
+		}
+		if err := rev.Validate(); err != nil {
+			return NewExitError(ExitUsageError, "invalid policy revision: %w", err)
+		}
+		published, err := client.PublishRevision(ctx, args[0], rev)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to publish revision: %w", err)
 		}
 		if isGovFormatted() {
-			return outputGovernanceFormatted(rev)
+			return outputGovernanceFormatted(published)
 		}
-		fmt.Printf("✓ Published revision %d for policy %s (SHA-256: %s, Rules: %d)\n",
-			rev.Revision, rev.PolicyID, rev.ContentHash, len(rev.Rules))
+		fmt.Printf("✓ Published revision %d for policy %s (Digest: %s, Rules: %d)\n",
+			published.Revision, published.PolicyID, published.ContentDigest, len(published.Rules))
 		return nil
 	},
 }
@@ -1095,11 +1316,10 @@ var policyConflictsCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		orgID := govOrgID
-		if orgID == "" {
-			orgID = model.DefaultOrganizationID
+		if govPolicyA == "" || govPolicyB == "" {
+			return NewExitError(ExitUsageError, "both --policy-a and --policy-b are required")
 		}
-		conflicts, err := client.DetectPolicyConflicts(ctx, orgID, govPolicyIDs)
+		conflicts, err := client.DetectPolicyConflicts(ctx, govPolicyA, govRevA, govPolicyB, govRevB)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to detect policy conflicts: %w", err)
 		}
@@ -1111,9 +1331,9 @@ var policyConflictsCmd = &cobra.Command{
 			return nil
 		}
 		fmt.Printf("⚠️ Detected %d Policy Conflicts:\n\n", len(conflicts))
-		tw := util.NewTableWriter("Type", "Severity", "Policy A", "Policy B", "Rule / Field", "Description")
+		tw := util.NewTableWriter("Severity", "Category", "Metric", "Policy A", "Rev A", "Rule A", "Policy B", "Rev B", "Rule B", "Reason")
 		for _, c := range conflicts {
-			tw.Append(string(c.ConflictType), string(c.Severity), c.PolicyA, c.PolicyB, c.RuleOrField, c.Description)
+			tw.Append(string(c.Severity), string(c.Category), c.Metric, c.PolicyA, strconv.Itoa(c.RevisionA), c.RuleA, c.PolicyB, strconv.Itoa(c.RevisionB), c.RuleB, c.Reason)
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -1153,12 +1373,12 @@ var assignmentListCmd = &cobra.Command{
 				enabledPtr = &b
 			}
 		}
-		filter := model.AssignmentFilter{
-			OrgID:      orgID,
-			PolicyID:   govPolicyID,
-			TargetType: model.AssignmentTargetType(govTargetTyp),
-			TargetID:   govTargetID,
-			Enabled:    enabledPtr,
+		filter := model.PolicyAssignmentFilter{
+			OrgID:       orgID,
+			PolicyID:    govPolicyID,
+			TargetType:  model.PolicyTargetType(govTargetTyp),
+			TargetID:    govTargetID,
+			EnabledOnly: enabledPtr != nil && *enabledPtr,
 		}
 		assignments, err := client.ListAssignments(ctx, filter)
 		if err != nil {
@@ -1205,7 +1425,10 @@ var assignmentGetCmd = &cobra.Command{
 		fmt.Printf("Target ID:    %s\n", a.TargetID)
 		fmt.Printf("Enabled:      %v\n", a.Enabled)
 		fmt.Printf("Assigned By:  %s\n", a.AssignedBy)
-		fmt.Printf("Created At:   %s\n", a.CreatedAt.Format(time.RFC3339))
+		fmt.Printf("Assigned At:  %s\n", a.AssignedAt.Format(time.RFC3339))
+		if len(a.Metadata) > 0 {
+			fmt.Printf("Metadata:     %s\n", formatGovMetadata(a.Metadata))
+		}
 		return nil
 	},
 }
@@ -1226,15 +1449,19 @@ var assignmentCreateCmd = &cobra.Command{
 		if orgID == "" {
 			orgID = model.DefaultOrganizationID
 		}
-		req := model.PolicyAssignment{
-			ID:          args[0],
-			OrgID:       orgID,
-			PolicyID:    args[1],
-			TargetType:  model.AssignmentTargetType(args[2]),
-			TargetID:    args[3],
-			Enabled:     true,
-			AssignedBy:  govAssignedBy,
-			ScopeFilter: govScopeFilter,
+		metadata, err := parseGovMetadata(govMetadata)
+		if err != nil {
+			return NewExitError(ExitUsageError, "invalid metadata: %w", err)
+		}
+		req := &model.PolicyAssignment{
+			ID:         args[0],
+			OrgID:      orgID,
+			PolicyID:   args[1],
+			TargetType: model.PolicyTargetType(args[2]),
+			TargetID:   args[3],
+			Enabled:    true,
+			AssignedBy: govAssignedBy,
+			Metadata:   metadata,
 		}
 		a, err := client.CreateAssignment(ctx, req)
 		if err != nil {
@@ -1318,7 +1545,7 @@ var evalNodeCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		trigger := model.TriggerManual
+		trigger := model.EvaluationTriggerOnDemand
 		if govTriggerType != "" {
 			trigger = model.EvaluationTriggerType(govTriggerType)
 		}
@@ -1330,12 +1557,12 @@ var evalNodeCmd = &cobra.Command{
 			return outputGovernanceFormatted(exec)
 		}
 		fmt.Printf("⚡ Evaluation Complete for Node %s (Execution ID: %s)\n", args[0], exec.ID)
-		fmt.Printf("Status:             %s\n", exec.Status)
-		fmt.Printf("Compliance Score:   %.1f%%\n", exec.ComplianceScore)
-		fmt.Printf("Evaluated Policies: %d\n", exec.TotalPolicies)
-		fmt.Printf("Passed Rules:       %d\n", exec.PassedRules)
-		fmt.Printf("Failed Rules:       %d\n", exec.FailedRules)
-		fmt.Printf("Findings Created:   %d\n", exec.FindingsCreated)
+		fmt.Printf("Status:        %s\n", string(exec.Status))
+		fmt.Printf("Trigger:       %s\n", string(exec.TriggerType))
+		fmt.Printf("Evaluated At:  %s\n", exec.EvaluatedAt.Format(time.RFC3339))
+		fmt.Printf("Duration:      %s\n", time.Duration(exec.DurationNs).String())
+		fmt.Println("Summary:")
+		printGovSummary(exec.Summary)
 		return nil
 	},
 }
@@ -1352,11 +1579,15 @@ var evalGroupCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		trigger := model.TriggerManual
+		orgID := govOrgID
+		if orgID == "" {
+			orgID = model.DefaultOrganizationID
+		}
+		trigger := model.EvaluationTriggerOnDemand
 		if govTriggerType != "" {
 			trigger = model.EvaluationTriggerType(govTriggerType)
 		}
-		execs, err := client.EvaluateFleetGroup(ctx, args[0], trigger)
+		execs, err := client.EvaluateFleetGroup(ctx, args[0], orgID, govIncludeSubgrp, trigger)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to evaluate fleet group: %w", err)
 		}
@@ -1364,10 +1595,10 @@ var evalGroupCmd = &cobra.Command{
 			return outputGovernanceFormatted(execs)
 		}
 		fmt.Printf("⚡ Group Evaluation Complete (%d nodes evaluated):\n", len(execs))
-		tw := util.NewTableWriter("Execution ID", "Node ID", "Status", "Score", "Policies", "Passed", "Failed")
+		tw := util.NewTableWriter("Execution ID", "Node ID", "Status", "Compliance", "Evaluated At")
 		for _, e := range execs {
-			tw.Append(e.ID, e.TargetID, string(e.Status), fmt.Sprintf("%.1f%%", e.ComplianceScore),
-				strconv.Itoa(e.TotalPolicies), strconv.Itoa(e.PassedRules), strconv.Itoa(e.FailedRules))
+			tw.Append(e.ID, e.TargetNodeID, string(e.Status), fmt.Sprintf("%.1f%%", e.Summary.ComplianceRatio*100),
+				e.EvaluatedAt.Format(time.RFC3339))
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -1386,7 +1617,7 @@ var evalOrgCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		trigger := model.TriggerManual
+		trigger := model.EvaluationTriggerOnDemand
 		if govTriggerType != "" {
 			trigger = model.EvaluationTriggerType(govTriggerType)
 		}
@@ -1398,10 +1629,10 @@ var evalOrgCmd = &cobra.Command{
 			return outputGovernanceFormatted(execs)
 		}
 		fmt.Printf("⚡ Org Evaluation Complete (%d nodes evaluated):\n", len(execs))
-		tw := util.NewTableWriter("Execution ID", "Node ID", "Status", "Score", "Policies", "Passed", "Failed")
+		tw := util.NewTableWriter("Execution ID", "Node ID", "Status", "Compliance", "Evaluated At")
 		for _, e := range execs {
-			tw.Append(e.ID, e.TargetID, string(e.Status), fmt.Sprintf("%.1f%%", e.ComplianceScore),
-				strconv.Itoa(e.TotalPolicies), strconv.Itoa(e.PassedRules), strconv.Itoa(e.FailedRules))
+			tw.Append(e.ID, e.TargetNodeID, string(e.Status), fmt.Sprintf("%.1f%%", e.Summary.ComplianceRatio*100),
+				e.EvaluatedAt.Format(time.RFC3339))
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -1425,12 +1656,22 @@ var evalListCmd = &cobra.Command{
 			orgID = model.DefaultOrganizationID
 		}
 		filter := model.EvaluationFilter{
-			OrgID:       orgID,
-			TargetType:  model.AssignmentTargetType(govTargetTyp),
-			TargetID:    govTargetID,
-			TriggerType: model.EvaluationTriggerType(govTriggerType),
-			Limit:       govLimit,
-			Offset:      govOffset,
+			OrgID:        orgID,
+			TargetNodeID: govTargetID,
+			TriggerType:  model.EvaluationTriggerType(govTriggerType),
+			Status:       model.EvaluationStatus(govStatus),
+			Limit:        govLimit,
+			Offset:       govOffset,
+		}
+		if govStartTime != "" {
+			if st, err := time.Parse(time.RFC3339, govStartTime); err == nil {
+				filter.Since = st
+			}
+		}
+		if govEndTime != "" {
+			if et, err := time.Parse(time.RFC3339, govEndTime); err == nil {
+				filter.Until = et
+			}
 		}
 		execs, err := client.ListEvaluationExecutions(ctx, filter)
 		if err != nil {
@@ -1443,11 +1684,10 @@ var evalListCmd = &cobra.Command{
 			fmt.Println("No evaluation execution history found.")
 			return nil
 		}
-		tw := util.NewTableWriter("Execution ID", "Target ID", "Trigger", "Status", "Score", "Passed", "Failed", "Started At")
+		tw := util.NewTableWriter("Execution ID", "Target Node", "Trigger", "Status", "Compliance", "Evaluated At")
 		for _, e := range execs {
-			tw.Append(e.ID, e.TargetID, string(e.TriggerType), string(e.Status),
-				fmt.Sprintf("%.1f%%", e.ComplianceScore), strconv.Itoa(e.PassedRules),
-				strconv.Itoa(e.FailedRules), e.StartedAt.Format(time.RFC3339))
+			tw.Append(e.ID, e.TargetNodeID, string(e.TriggerType), string(e.Status),
+				fmt.Sprintf("%.1f%%", e.Summary.ComplianceRatio*100), e.EvaluatedAt.Format(time.RFC3339))
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -1474,20 +1714,18 @@ var evalGetCmd = &cobra.Command{
 			return outputGovernanceFormatted(exec)
 		}
 		fmt.Printf("⚡ Evaluation Execution: %s\n", exec.ID)
-		fmt.Printf("Target:           %s (%s)\n", exec.TargetID, exec.TargetType)
-		fmt.Printf("Trigger:          %s\n", exec.TriggerType)
-		fmt.Printf("Status:           %s\n", exec.Status)
-		fmt.Printf("Score:            %.1f%%\n", exec.ComplianceScore)
-		fmt.Printf("Passed / Failed:  %d / %d\n", exec.PassedRules, exec.FailedRules)
-		fmt.Printf("Findings Created: %d (Resolved: %d)\n", exec.FindingsCreated, exec.FindingsResolved)
-		fmt.Printf("Started At:       %s\n", exec.StartedAt.Format(time.RFC3339))
-		if exec.CompletedAt != nil {
-			fmt.Printf("Completed At:     %s (Duration: %s)\n", exec.CompletedAt.Format(time.RFC3339), exec.Duration)
-		}
-		if len(exec.RuleResults) > 0 {
-			fmt.Printf("\nRule Evaluation Results (%d):\n", len(exec.RuleResults))
+		fmt.Printf("Target Node:    %s\n", exec.TargetNodeID)
+		fmt.Printf("Org ID:         %s\n", exec.OrgID)
+		fmt.Printf("Trigger:        %s\n", string(exec.TriggerType))
+		fmt.Printf("Status:         %s\n", string(exec.Status))
+		fmt.Printf("Evaluated At:   %s\n", exec.EvaluatedAt.Format(time.RFC3339))
+		fmt.Printf("Duration:       %s\n", time.Duration(exec.DurationNs).String())
+		fmt.Println("Summary:")
+		printGovSummary(exec.Summary)
+		if len(exec.Results) > 0 {
+			fmt.Printf("\nRule Evaluation Results (%d):\n", len(exec.Results))
 			tw := util.NewTableWriter("Rule ID", "Policy ID", "Status", "Severity", "Message")
-			for _, r := range exec.RuleResults {
+			for _, r := range exec.Results {
 				tw.Append(r.RuleID, r.PolicyID, string(r.Status), string(r.Severity), r.Message)
 			}
 			tw.Render(os.Stdout)
@@ -1508,7 +1746,11 @@ var evalLatestCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		exec, err := client.GetLatestNodeEvaluation(ctx, args[0])
+		orgID := govOrgID
+		if orgID == "" {
+			orgID = model.DefaultOrganizationID
+		}
+		exec, err := client.GetLatestNodeEvaluation(ctx, args[0], orgID)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to get latest evaluation for node %s: %w", args[0], err)
 		}
@@ -1516,10 +1758,9 @@ var evalLatestCmd = &cobra.Command{
 			return outputGovernanceFormatted(exec)
 		}
 		fmt.Printf("⚡ Latest Evaluation for Node %s (Execution ID: %s)\n", args[0], exec.ID)
-		fmt.Printf("Status:           %s\n", exec.Status)
-		fmt.Printf("Compliance Score: %.1f%%\n", exec.ComplianceScore)
-		fmt.Printf("Passed / Failed:  %d / %d\n", exec.PassedRules, exec.FailedRules)
-		fmt.Printf("Started At:       %s\n", exec.StartedAt.Format(time.RFC3339))
+		fmt.Printf("Status:         %s\n", string(exec.Status))
+		fmt.Printf("Evaluated At:   %s\n", exec.EvaluatedAt.Format(time.RFC3339))
+		fmt.Printf("Compliance:     %.1f%%\n", exec.Summary.ComplianceRatio*100)
 		return nil
 	},
 }
@@ -1551,15 +1792,25 @@ var findingsListCmd = &cobra.Command{
 			orgID = model.DefaultOrganizationID
 		}
 		filter := model.FindingFilter{
-			OrgID:    orgID,
-			NodeID:   govNodeID,
-			PolicyID: govPolicyID,
-			RuleID:   govRuleID,
-			Severity: model.SeverityLevel(govSeverity),
-			Status:   model.FindingStatus(govStatus),
-			Search:   govSearch,
-			Limit:    govLimit,
-			Offset:   govOffset,
+			OrgID:        orgID,
+			TargetNodeID: govNodeID,
+			PolicyID:     govPolicyID,
+			RuleID:       govRuleID,
+			Category:     model.PolicyCategory(govCategory),
+			Severity:     model.Severity(govSeverity),
+			Status:       model.FindingStatus(govStatus),
+			Limit:        govLimit,
+			Offset:       govOffset,
+		}
+		if govStartTime != "" {
+			if st, err := time.Parse(time.RFC3339, govStartTime); err == nil {
+				filter.Since = st
+			}
+		}
+		if govEndTime != "" {
+			if et, err := time.Parse(time.RFC3339, govEndTime); err == nil {
+				filter.Until = et
+			}
 		}
 		findings, err := client.ListComplianceFindings(ctx, filter)
 		if err != nil {
@@ -1578,7 +1829,7 @@ var findingsListCmd = &cobra.Command{
 			if len(msgShort) > 35 {
 				msgShort = msgShort[:32] + "..."
 			}
-			tw.Append(f.ID, f.NodeID, f.PolicyID, f.RuleID, string(f.Severity), string(f.Status), f.FirstSeenAt.Format("01/02 15:04"), msgShort)
+			tw.Append(f.ID, f.TargetNodeID, f.PolicyID, f.RuleID, string(f.Severity), string(f.Status), f.FirstSeenAt.Format("01/02 15:04"), msgShort)
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -1605,19 +1856,23 @@ var findingsGetCmd = &cobra.Command{
 			return outputGovernanceFormatted(f)
 		}
 		fmt.Printf("🔍 Compliance Finding: %s\n", f.ID)
-		fmt.Printf("Node ID:       %s\n", f.NodeID)
+		fmt.Printf("Node ID:       %s\n", f.TargetNodeID)
 		fmt.Printf("Policy ID:     %s\n", f.PolicyID)
+		fmt.Printf("Policy Rev:    %d\n", f.PolicyRevision)
 		fmt.Printf("Rule ID:       %s\n", f.RuleID)
-		fmt.Printf("Severity:      %s\n", f.Severity)
-		fmt.Printf("Status:        %s\n", f.Status)
+		fmt.Printf("Rule Name:     %s\n", f.RuleName)
+		fmt.Printf("Category:      %s\n", string(f.Category))
+		fmt.Printf("Severity:      %s\n", string(f.Severity))
+		fmt.Printf("Status:        %s\n", string(f.Status))
+		fmt.Printf("Occurrences:   %d\n", f.OccurrenceCount)
 		fmt.Printf("Message:       %s\n", f.Message)
 		fmt.Printf("First Seen At: %s\n", f.FirstSeenAt.Format(time.RFC3339))
 		fmt.Printf("Last Seen At:  %s\n", f.LastSeenAt.Format(time.RFC3339))
 		if f.ResolvedAt != nil {
 			fmt.Printf("Resolved At:   %s\n", f.ResolvedAt.Format(time.RFC3339))
 		}
-		if f.RemediationAdvice != "" {
-			fmt.Printf("\n💡 Remediation Advice:\n  %s\n", f.RemediationAdvice)
+		if len(f.ContextData) > 0 {
+			fmt.Printf("Context Data:  %s\n", formatGovMetadata(f.ContextData))
 		}
 		return nil
 	},
@@ -1645,19 +1900,18 @@ var compNodeCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		summary, err := client.GetNodeComplianceSummary(ctx, args[0])
+		orgID := govOrgID
+		if orgID == "" {
+			orgID = model.DefaultOrganizationID
+		}
+		summary, err := client.GetNodeComplianceSummary(ctx, args[0], orgID)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to get node compliance summary: %w", err)
 		}
 		if isGovFormatted() {
 			return outputGovernanceFormatted(summary)
 		}
-		fmt.Printf("📊 Node Compliance Summary: %s\n", args[0])
-		fmt.Printf("Overall Score:       %.1f%%\n", summary.OverallScore)
-		fmt.Printf("Total Rules:         %d\n", summary.TotalRules)
-		fmt.Printf("Passed / Failed:     %d / %d\n", summary.PassedRules, summary.FailedRules)
-		fmt.Printf("Active Findings:     %d (Critical: %d, High: %d, Medium: %d, Low: %d)\n",
-			summary.ActiveFindings, summary.CriticalFindings, summary.HighFindings, summary.MediumFindings, summary.LowFindings)
+		printGovRollup(fmt.Sprintf("Node Compliance Summary: %s", args[0]), summary)
 		return nil
 	},
 }
@@ -1674,19 +1928,18 @@ var compGroupCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		summary, err := client.GetGroupComplianceSummary(ctx, args[0])
+		orgID := govOrgID
+		if orgID == "" {
+			orgID = model.DefaultOrganizationID
+		}
+		summary, err := client.GetGroupComplianceSummary(ctx, args[0], orgID, govIncludeSubgrp)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to get group compliance summary: %w", err)
 		}
 		if isGovFormatted() {
 			return outputGovernanceFormatted(summary)
 		}
-		fmt.Printf("📊 Fleet Group Compliance Summary: %s\n", args[0])
-		fmt.Printf("Overall Score:       %.1f%%\n", summary.OverallScore)
-		fmt.Printf("Total Nodes:         %d (Compliant: %d, Non-Compliant: %d)\n",
-			summary.TotalNodes, summary.CompliantNodes, summary.NonCompliantNodes)
-		fmt.Printf("Active Findings:     %d (Critical: %d, High: %d, Medium: %d, Low: %d)\n",
-			summary.ActiveFindings, summary.CriticalFindings, summary.HighFindings, summary.MediumFindings, summary.LowFindings)
+		printGovRollup(fmt.Sprintf("Fleet Group Compliance Summary: %s", args[0]), summary)
 		return nil
 	},
 }
@@ -1717,14 +1970,7 @@ var compOrgCmd = &cobra.Command{
 		if isGovFormatted() {
 			return outputGovernanceFormatted(summary)
 		}
-		fmt.Printf("📊 Organization Compliance Summary: %s\n", orgID)
-		fmt.Printf("Overall Score:       %.1f%%\n", summary.OverallScore)
-		fmt.Printf("Total Nodes:         %d (Compliant: %d, Non-Compliant: %d)\n",
-			summary.TotalNodes, summary.CompliantNodes, summary.NonCompliantNodes)
-		fmt.Printf("Total Groups:        %d\n", summary.TotalGroups)
-		fmt.Printf("Total Policies:      %d\n", summary.TotalPolicies)
-		fmt.Printf("Active Findings:     %d (Critical: %d, High: %d, Medium: %d, Low: %d)\n",
-			summary.ActiveFindings, summary.CriticalFindings, summary.HighFindings, summary.MediumFindings, summary.LowFindings)
+		printGovRollup(fmt.Sprintf("Organization Compliance Summary: %s", orgID), summary)
 		return nil
 	},
 }
@@ -1741,19 +1987,40 @@ var compResolvePoliciesCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		policies, err := client.ResolveNodePolicies(ctx, args[0])
+		resolved, err := client.ResolveNodePolicies(ctx, args[0])
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to resolve policies for node %s: %w", args[0], err)
 		}
 		if isGovFormatted() {
-			return outputGovernanceFormatted(policies)
+			return outputGovernanceFormatted(resolved)
 		}
-		fmt.Printf("📜 Resolved Policies for Node %s (%d policies):\n", args[0], len(policies))
-		tw := util.NewTableWriter("Policy ID", "Name", "Category", "Severity", "Active Rev")
-		for _, p := range policies {
-			tw.Append(p.ID, p.Name, p.Category, string(p.Severity), strconv.Itoa(p.ActiveRevision))
+		fmt.Printf("📜 Resolved Policies for Node %s (Org: %s, Resolved At: %s)\n", args[0], resolved.OrgID, resolved.ResolvedAt.Format(time.RFC3339))
+		fmt.Printf("Effective Rules: %d, Applied Policies: %d, Conflicts: %d\n",
+			len(resolved.EffectiveRules), len(resolved.AppliedPolicies), len(resolved.Conflicts))
+		if len(resolved.AppliedPolicies) > 0 {
+			fmt.Println("\nApplied Policies:")
+			tw := util.NewTableWriter("Policy ID", "Name", "Category", "Revision", "Priority", "Inheritance", "Enforcement", "Selector Matched")
+			for _, p := range resolved.AppliedPolicies {
+				tw.Append(p.PolicyID, p.PolicyName, string(p.Category), strconv.Itoa(p.Revision), strconv.Itoa(p.Priority),
+					string(p.InheritanceMode), string(p.EnforcementMode), strconv.FormatBool(p.SelectorMatched))
+			}
+			tw.Render(os.Stdout)
 		}
-		tw.Render(os.Stdout)
+		if len(resolved.EffectiveRules) > 0 {
+			fmt.Println("\nEffective Rules:")
+			tw := util.NewTableWriter("Rule ID", "Rule Name", "Category", "Source Policy", "Source Rev", "Level", "Priority", "Enforcement")
+			for _, r := range resolved.EffectiveRules {
+				tw.Append(r.Rule.ID, r.Rule.Name, string(r.Category), r.SourcePolicyID, strconv.Itoa(r.SourceRevision),
+					strconv.Itoa(r.HierarchyLevel), strconv.Itoa(r.Priority), string(r.EnforcementMode))
+			}
+			tw.Render(os.Stdout)
+		}
+		if len(resolved.Conflicts) > 0 {
+			fmt.Println("\nConflicts:")
+			for _, c := range resolved.Conflicts {
+				fmt.Printf("  ⚠️ [%s] %s: %s\n", string(c.Severity), c.Metric, c.Reason)
+			}
+		}
 		return nil
 	},
 }
@@ -1777,18 +2044,28 @@ var compExplainCmd = &cobra.Command{
 		if isGovFormatted() {
 			return outputGovernanceFormatted(expl)
 		}
-		fmt.Printf("💡 Resolution Explanation for Node: %s\n", args[0])
-		fmt.Printf("Organization: %s\n", expl.OrgID)
-		if len(expl.GroupLineage) > 0 {
-			fmt.Printf("Group Hierarchy Lineage: %s\n", strings.Join(expl.GroupLineage, " -> "))
-		}
-		if len(expl.AssignedPolicies) > 0 {
-			fmt.Printf("\nAssigned Policies Lineage (%d):\n", len(expl.AssignedPolicies))
-			tw := util.NewTableWriter("Policy ID", "Scope Source", "Inherited From")
-			for _, ap := range expl.AssignedPolicies {
-				tw.Append(ap.PolicyID, ap.SourceScope, ap.InheritedFrom)
+		fmt.Printf("💡 Resolution Explanation for Node: %s (Resolved At: %s)\n", args[0], expl.ResolvedAt.Format(time.RFC3339))
+		if len(expl.HierarchyPath) > 0 {
+			fmt.Println("\nHierarchy Path:")
+			tw := util.NewTableWriter("Level", "Type", "ID", "Name", "Applied Policies")
+			for _, h := range expl.HierarchyPath {
+				tw.Append(strconv.Itoa(h.Level), string(h.Type), h.ID, h.Name, strconv.Itoa(h.AppliedPoliciesCount))
 			}
 			tw.Render(os.Stdout)
+		}
+		if len(expl.EffectiveRules) > 0 {
+			fmt.Printf("\nEffective Rules (%d):\n", len(expl.EffectiveRules))
+			tw := util.NewTableWriter("Rule ID", "Rule Name", "Category", "Source Policy", "Source Rev")
+			for _, r := range expl.EffectiveRules {
+				tw.Append(r.Rule.ID, r.Rule.Name, string(r.Category), r.SourcePolicyID, strconv.Itoa(r.SourceRevision))
+			}
+			tw.Render(os.Stdout)
+		}
+		if len(expl.AuditTrail) > 0 {
+			fmt.Printf("\nResolution Audit Trail (%d steps):\n", len(expl.AuditTrail))
+			for _, step := range expl.AuditTrail {
+				fmt.Printf("  %d. [%s] %s\n", step.Step, step.Action, step.Details)
+			}
 		}
 		return nil
 	},
@@ -1830,12 +2107,12 @@ var simulateRunCmd = &cobra.Command{
 			}
 		}
 
-		req := model.SimulationRequest{
-			OrgID:             orgID,
-			NodeIDs:           govNodeIDs,
-			GroupIDs:          govGroupIDs,
-			CandidatePolicies: candidatePolicies,
-			DiffOnly:          govDiffOnly,
+		req := &model.SimulationRequest{
+			OrgID:            orgID,
+			TargetNodeIDs:    govNodeIDs,
+			TargetGroupID:    govGroupID,
+			IncludeSubgroups: govIncludeSubgrp,
+			ProposedPolicies: candidatePolicies,
 		}
 		result, err := client.SimulatePolicyChanges(ctx, req)
 		if err != nil {
@@ -1845,17 +2122,35 @@ var simulateRunCmd = &cobra.Command{
 			return outputGovernanceFormatted(result)
 		}
 		fmt.Println("🧪 What-If Policy Simulation Results:")
-		fmt.Printf("Nodes Evaluated:     %d\n", result.NodesEvaluated)
-		fmt.Printf("Baseline Score:      %.1f%%\n", result.BaselineScore)
-		fmt.Printf("Simulated Score:     %.1f%%\n", result.SimulatedScore)
-		fmt.Printf("Score Delta:         %+.1f%%\n", result.ScoreDelta)
-		fmt.Printf("New Violations:      %d\n", result.NewViolations)
-		fmt.Printf("Resolved Violations: %d\n", result.ResolvedViolations)
-		if len(result.FindingsDiff) > 0 {
-			fmt.Printf("\nFindings Impact Diff (%d changes):\n", len(result.FindingsDiff))
-			tw := util.NewTableWriter("Diff Type", "Node ID", "Policy ID", "Rule ID", "Severity", "Message")
-			for _, d := range result.FindingsDiff {
-				tw.Append(string(d.DiffType), d.NodeID, d.PolicyID, d.RuleID, string(d.Severity), d.Message)
+		fmt.Printf("Nodes Evaluated:     %d\n", result.EvaluatedNodes)
+		fmt.Printf("Baseline Compliance: %.1f%%\n", result.BaselineComplianceRatio*100)
+		fmt.Printf("Proposed Compliance: %.1f%%\n", result.ProposedComplianceRatio*100)
+		fmt.Printf("Compliance Delta:    %+.1f%%\n", result.ComplianceRatioDelta*100)
+		fmt.Printf("New Findings:        %d\n", len(result.NewFindings))
+		fmt.Printf("Resolved Findings:   %d\n", len(result.ResolvedFindings))
+		fmt.Printf("Unchanged Findings:  %d\n", len(result.UnchangedFindings))
+		if len(result.NewFindings) > 0 {
+			fmt.Println("\nNew Findings:")
+			tw := util.NewTableWriter("Finding ID", "Node ID", "Policy ID", "Rule ID", "Severity", "Status")
+			for _, f := range result.NewFindings {
+				tw.Append(f.ID, f.TargetNodeID, f.PolicyID, f.RuleID, string(f.Severity), string(f.Status))
+			}
+			tw.Render(os.Stdout)
+		}
+		if len(result.ResolvedFindings) > 0 {
+			fmt.Println("\nResolved Findings:")
+			tw := util.NewTableWriter("Finding ID", "Node ID", "Policy ID", "Rule ID", "Severity", "Status")
+			for _, f := range result.ResolvedFindings {
+				tw.Append(f.ID, f.TargetNodeID, f.PolicyID, f.RuleID, string(f.Severity), string(f.Status))
+			}
+			tw.Render(os.Stdout)
+		}
+		if len(result.NodeImpacts) > 0 {
+			fmt.Println("\nNode Impacts:")
+			tw := util.NewTableWriter("Node ID", "Baseline", "Proposed", "New Findings", "Resolved Findings")
+			for _, ni := range result.NodeImpacts {
+				tw.Append(ni.NodeID, string(ni.BaselineStatus), string(ni.ProposedStatus),
+					strconv.Itoa(ni.NewFindingsCount), strconv.Itoa(ni.ResolvedFindingsCount))
 			}
 			tw.Render(os.Stdout)
 		}
@@ -1892,11 +2187,16 @@ var maintListCmd = &cobra.Command{
 		filter := model.MaintenanceWindowFilter{
 			OrgID:          orgID,
 			Status:         model.MaintenanceStatus(govStatus),
-			TargetScope:    model.MaintenanceScope(govTargetScope),
+			TargetScope:    model.MaintenanceTargetScope(govTargetScope),
 			TargetID:       govTargetID,
 			IncludeExpired: govIncludeExpired,
 			Limit:          govLimit,
 			Offset:         govOffset,
+		}
+		if govAtTime != "" {
+			if at, err := time.Parse(time.RFC3339, govAtTime); err == nil {
+				filter.ActiveAt = &at
+			}
 		}
 		windows, err := client.ListMaintenanceWindows(ctx, filter)
 		if err != nil {
@@ -1909,9 +2209,9 @@ var maintListCmd = &cobra.Command{
 			fmt.Println("No maintenance windows found.")
 			return nil
 		}
-		tw := util.NewTableWriter("Window ID", "Name", "Scope", "Target ID", "Status", "Schedule Type", "Start Time", "End Time")
+		tw := util.NewTableWriter("Window ID", "Name", "Scope", "Target ID", "Status", "Schedule", "Start Time", "End Time")
 		for _, w := range windows {
-			tw.Append(w.ID, w.Name, string(w.Scope), w.TargetID, string(w.Status), string(w.Schedule.Type),
+			tw.Append(w.ID, w.Name, string(w.TargetScope), w.TargetID, string(w.Status), govScheduleLabel(w),
 				w.Schedule.StartTime.Format(time.RFC3339), w.Schedule.EndTime.Format(time.RFC3339))
 		}
 		tw.Render(os.Stdout)
@@ -1940,17 +2240,32 @@ var maintGetCmd = &cobra.Command{
 		}
 		fmt.Printf("🛠️ Maintenance Window: %s (%s)\n", w.Name, w.ID)
 		fmt.Printf("Org ID:          %s\n", w.OrgID)
-		fmt.Printf("Scope / Target:  %s / %s\n", w.Scope, w.TargetID)
-		fmt.Printf("Status:          %s\n", w.Status)
-		fmt.Printf("Schedule Type:   %s\n", w.Schedule.Type)
-		fmt.Printf("Start / End:     %s -> %s\n", w.Schedule.StartTime.Format(time.RFC3339), w.Schedule.EndTime.Format(time.RFC3339))
-		if w.Schedule.Timezone != "" {
-			fmt.Printf("Timezone:        %s\n", w.Schedule.Timezone)
+		fmt.Printf("Scope / Target:  %s / %s\n", string(w.TargetScope), w.TargetID)
+		if w.TargetSelector != "" {
+			fmt.Printf("Target Selector: %s\n", w.TargetSelector)
 		}
-		fmt.Printf("Allow Disrupt:   %v\n", w.AllowDisruptiveOps)
+		fmt.Printf("Status:          %s\n", string(w.Status))
+		fmt.Printf("Schedule:        %s\n", govScheduleLabel(*w))
+		fmt.Printf("Start / End:     %s -> %s\n", w.Schedule.StartTime.Format(time.RFC3339), w.Schedule.EndTime.Format(time.RFC3339))
+		if w.Schedule.TimeZone != "" {
+			fmt.Printf("Timezone:        %s\n", w.Schedule.TimeZone)
+		}
+		fmt.Printf("Suppress Alerts: %v\n", w.SuppressAlerts)
+		fmt.Printf("Suppress Findings: %v\n", w.SuppressFindings)
+		fmt.Printf("Allow Critical Alerts: %v\n", w.AllowCriticalAlerts)
+		if w.SeverityThreshold != "" {
+			fmt.Printf("Severity Threshold: %s\n", string(w.SeverityThreshold))
+		}
+		if len(w.CategoryRestrictions) > 0 {
+			cats := make([]string, 0, len(w.CategoryRestrictions))
+			for _, c := range w.CategoryRestrictions {
+				cats = append(cats, string(c))
+			}
+			fmt.Printf("Category Restrictions: %s\n", strings.Join(cats, ", "))
+		}
 		fmt.Printf("Created By:      %s\n", w.CreatedBy)
-		if len(w.SuppressionRules) > 0 {
-			fmt.Printf("Suppression Rules: %d configured\n", len(w.SuppressionRules))
+		if len(w.Metadata) > 0 {
+			fmt.Printf("Metadata:        %s\n", formatGovMetadata(w.Metadata))
 		}
 		return nil
 	},
@@ -1984,34 +2299,54 @@ var maintCreateCmd = &cobra.Command{
 			et = st.Add(2 * time.Hour)
 		}
 
-		scope := model.MaintenanceScope(govTargetScope)
+		scope := model.MaintenanceTargetScope(govTargetScope)
 		if scope == "" {
-			scope = model.MaintenanceScopeNode
+			scope = model.MaintenanceTargetScopeNode
 		}
-		schedType := model.ScheduleOneTime
-		if govWindowType != "" {
-			schedType = model.ScheduleType(govWindowType)
+		var recur *model.RecurrenceSchedule
+		if govRecurrenceFreq != "" && govRecurrenceFreq != "none" && govRecurrenceFreq != "one_time" {
+			recur = &model.RecurrenceSchedule{
+				Frequency:      model.RecurrenceFrequency(govRecurrenceFreq),
+				Interval:       govRecurrenceInt,
+				DayOfMonth:     govRecurDayMonth,
+				MaxOccurrences: govRecurMaxOcc,
+				Duration:       govRecurDuration,
+			}
+			for _, d := range govRecurDays {
+				recur.DaysOfWeek = append(recur.DaysOfWeek, time.Weekday(d))
+			}
+			if govRecurUntil != "" {
+				if u, err := time.Parse(time.RFC3339, govRecurUntil); err == nil {
+					recur.Until = &u
+				}
+			}
 		}
-
-		req := model.MaintenanceWindow{
-			ID:       args[0],
-			OrgID:    orgID,
-			Name:     args[1],
-			Scope:    scope,
-			TargetID: govTargetID,
-			Status:   model.MaintenanceStatusScheduled,
-			Schedule: model.ScheduleConfig{
-				Type:        schedType,
-				StartTime:   st,
-				EndTime:     et,
-				DailyStart:  govDailyStart,
-				DailyEnd:    govDailyEnd,
-				DaysOfWeek:  govDaysOfWeek,
-				DayOfMonth:  govDayOfMonth,
-				Timezone:    govTimezone,
+		var cats []model.PolicyCategory
+		for _, c := range govCatRestrict {
+			cats = append(cats, model.PolicyCategory(c))
+		}
+		sevThr := model.Severity(govSeverityThr)
+		req := &model.MaintenanceWindow{
+			ID:                   args[0],
+			OrgID:                orgID,
+			Name:                 args[1],
+			Description:          govDescription,
+			Status:               model.MaintenanceStatusScheduled,
+			TargetScope:          scope,
+			TargetID:             govTargetID,
+			TargetSelector:       govTargetSelector,
+			CategoryRestrictions: cats,
+			SeverityThreshold:    sevThr,
+			Schedule: model.MaintenanceSchedule{
+				StartTime:  st,
+				EndTime:    et,
+				TimeZone:   govTimezone,
+				Recurrence: recur,
 			},
-			AllowDisruptiveOps: govAllowDisrupt,
-			CreatedBy:          govCreatedBy,
+			SuppressAlerts:      govSuppressAlerts,
+			SuppressFindings:    govSuppressFind,
+			AllowCriticalAlerts: govAllowCritical,
+			CreatedBy:           govCreatedBy,
 		}
 		w, err := client.CreateMaintenanceWindow(ctx, req)
 		if err != nil {
@@ -2041,7 +2376,7 @@ var maintUpdateCmd = &cobra.Command{
 			Name:   govName,
 			Status: model.MaintenanceStatus(govStatus),
 		}
-		w, err := client.UpdateMaintenanceWindow(ctx, args[0], req)
+		w, err := client.UpdateMaintenanceWindow(ctx, args[0], &req)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to update maintenance window: %w", err)
 		}
@@ -2115,7 +2450,7 @@ var maintEvaluateCmd = &cobra.Command{
 				at = t
 			}
 		}
-		windows, err := client.EvaluateMaintenanceWindows(ctx, orgID, model.MaintenanceScope(govTargetScope), govTargetID, at)
+		windows, err := client.EvaluateMaintenanceWindows(ctx, orgID, at)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to evaluate maintenance windows: %w", err)
 		}
@@ -2129,7 +2464,7 @@ var maintEvaluateCmd = &cobra.Command{
 		fmt.Printf("Active Maintenance Windows at %s (%d):\n", at.Format(time.RFC3339), len(windows))
 		tw := util.NewTableWriter("Window ID", "Name", "Scope", "Target ID", "Status", "End Time")
 		for _, w := range windows {
-			tw.Append(w.ID, w.Name, string(w.Scope), w.TargetID, string(w.Status), w.Schedule.EndTime.Format(time.RFC3339))
+			tw.Append(w.ID, w.Name, string(w.TargetScope), w.TargetID, string(w.Status), w.Schedule.EndTime.Format(time.RFC3339))
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -2171,7 +2506,7 @@ var escListCmd = &cobra.Command{
 		}
 		filter := model.EscalationPolicyFilter{
 			OrgID:    orgID,
-			Severity: model.SeverityLevel(govSeverity),
+			Severity: model.Severity(govSeverity),
 			Enabled:  enabledPtr,
 			Limit:    govLimit,
 			Offset:   govOffset,
@@ -2187,9 +2522,9 @@ var escListCmd = &cobra.Command{
 			fmt.Println("No escalation policies found.")
 			return nil
 		}
-		tw := util.NewTableWriter("Policy ID", "Name", "Severity", "Enabled", "Stages", "Created By")
+		tw := util.NewTableWriter("Policy ID", "Name", "Severity Levels", "Enabled", "Stages", "Created At")
 		for _, p := range policies {
-			tw.Append(p.ID, p.Name, string(p.Severity), strconv.FormatBool(p.Enabled), strconv.Itoa(len(p.Stages)), p.CreatedBy)
+			tw.Append(p.ID, p.Name, formatSeverityLevels(p.SeverityLevels), strconv.FormatBool(p.Enabled), strconv.Itoa(len(p.Stages)), p.CreatedAt.Format("2006-01-02 15:04:05"))
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -2217,16 +2552,15 @@ var escGetCmd = &cobra.Command{
 		}
 		fmt.Printf("🚨 Escalation Policy: %s (%s)\n", p.Name, p.ID)
 		fmt.Printf("Org ID:      %s\n", p.OrgID)
-		fmt.Printf("Severity:    %s\n", p.Severity)
+		fmt.Printf("Severity:    %s\n", formatSeverityLevels(p.SeverityLevels))
 		fmt.Printf("Enabled:     %v\n", p.Enabled)
 		fmt.Printf("Description: %s\n", p.Description)
 		if len(p.Stages) > 0 {
 			fmt.Printf("\nEscalation Stages (%d):\n", len(p.Stages))
-			tw := util.NewTableWriter("Stage #", "Delay", "Channels", "Targets", "Notify Lead")
+			tw := util.NewTableWriter("Stage #", "Delay", "Channel", "Targets", "Fallback")
 			for _, st := range p.Stages {
-				chans := strings.Join(st.Channels, ", ")
-				targets := strings.Join(st.Targets, ", ")
-				tw.Append(strconv.Itoa(st.StageNumber), st.DelayDuration.String(), chans, targets, strconv.FormatBool(st.NotifyOwnerLead))
+				targets := formatEscalationTargets(st.Targets)
+				tw.Append(strconv.Itoa(st.StageNumber), strconv.Itoa(st.DelayMinutes)+"m", string(st.Channel), targets, formatEscalationTarget(st.FallbackTarget))
 			}
 			tw.Render(os.Stdout)
 		}
@@ -2262,16 +2596,15 @@ var escCreateCmd = &cobra.Command{
 		}
 
 		req := model.EscalationPolicy{
-			ID:          args[0],
-			OrgID:       orgID,
-			Name:        args[1],
-			Description: govDescription,
-			Severity:    model.SeverityLevel(govSeverity),
-			Enabled:     true,
-			Stages:      stages,
-			CreatedBy:   govCreatedBy,
+			ID:             args[0],
+			OrgID:          orgID,
+			Name:           args[1],
+			Description:    govDescription,
+			SeverityLevels: []model.Severity{model.Severity(govSeverity)},
+			Enabled:        true,
+			Stages:         stages,
 		}
-		p, err := client.CreateEscalationPolicy(ctx, req)
+		p, err := client.CreateEscalationPolicy(ctx, &req)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to create escalation policy: %w", err)
 		}
@@ -2311,7 +2644,7 @@ var escUpdateCmd = &cobra.Command{
 			Description: govDescription,
 			Stages:      stages,
 		}
-		p, err := client.UpdateEscalationPolicy(ctx, args[0], req)
+		p, err := client.UpdateEscalationPolicy(ctx, args[0], &req)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to update escalation policy: %w", err)
 		}
@@ -2355,22 +2688,46 @@ var escEvaluateCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), govTimeout)
 		defer cancel()
 
-		status, err := client.EvaluateIncidentEscalation(ctx, govPolicyID, govDuration, govAcknowledged)
+		orgID := govOrgID
+		if orgID == "" {
+			orgID = model.DefaultOrganizationID
+		}
+		at := time.Now()
+		if govAtTime != "" {
+			if t, err := time.Parse(time.RFC3339, govAtTime); err == nil {
+				at = t
+			}
+		}
+
+		incident := &incidents.Incident{
+			ID:    govIncidentID,
+			Title: govIncidentTitle,
+		}
+		status, err := client.EvaluateIncidentEscalation(ctx, orgID, incident, at)
 		if err != nil {
 			return NewExitError(ExitNetworkError, "failed to evaluate escalation: %w", err)
 		}
 		if isGovFormatted() {
 			return outputGovernanceFormatted(status)
 		}
-		fmt.Printf("🚨 Incident Escalation Status (Policy: %s):\n", govPolicyID)
-		fmt.Printf("Active Stage:       %d\n", status.ActiveStageNumber)
-		fmt.Printf("Time to Next Stage: %s\n", status.TimeToNextStage)
+		fmt.Printf("🚨 Incident Escalation Status (Policy: %s):\n", status.PolicyName)
+		fmt.Printf("Policy ID:          %s\n", status.PolicyID)
+		fmt.Printf("Current Stage:      %d\n", status.CurrentStage)
+		fmt.Printf("Elapsed (min):      %d\n", status.ElapsedTimeMinutes)
+		if status.NextStageNumber != nil {
+			fmt.Printf("Next Stage:         %d (in %d min)\n", *status.NextStageNumber, *status.MinutesUntilNextStage)
+		} else {
+			fmt.Printf("Next Stage:         none (terminal stage)\n")
+		}
 		if len(status.ActiveTargets) > 0 {
-			fmt.Printf("Active Targets:     %s\n", strings.Join(status.ActiveTargets, ", "))
+			targets := make([]string, 0, len(status.ActiveTargets))
+			for _, t := range status.ActiveTargets {
+				targets = append(targets, fmt.Sprintf("%s:%s", string(t.TargetType), t.TargetID))
+			}
+			fmt.Printf("Active Targets:     %s\n", strings.Join(targets, ", "))
 		}
-		if len(status.ActiveChannels) > 0 {
-			fmt.Printf("Active Channels:    %s\n", strings.Join(status.ActiveChannels, ", "))
-		}
+		fmt.Printf("Channel:            %s\n", string(status.Channel))
+		fmt.Printf("Evaluated At:       %s\n", status.EvaluatedAt.Format(time.RFC3339))
 		return nil
 	},
 }
@@ -2407,15 +2764,15 @@ var suppEvaluateCmd = &cobra.Command{
 			}
 		}
 
-		req := model.SuppressionEvalRequest{
-			OrgID:         orgID,
-			NodeID:        govNodeID,
-			FleetGroupID:  govGroupID,
-			AlertID:       govAlertID,
-			AlertName:     govAlertName,
-			AlertCategory: govCategory,
-			Severity:      model.SeverityLevel(govSeverity),
-			Timestamp:     at,
+		req := governance.SuppressionEvaluationRequest{
+			OrgID:     orgID,
+			NodeID:    govNodeID,
+			GroupIDs:  []string{govGroupID},
+			AlertID:   govAlertID,
+			RuleName:  govAlertName,
+			Category:  govCategory,
+			Severity:  model.Severity(govSeverity),
+			Timestamp: at,
 		}
 		dec, err := client.EvaluateSuppression(ctx, req)
 		if err != nil {
@@ -2454,21 +2811,25 @@ var suppListCmd = &cobra.Command{
 		if orgID == "" {
 			orgID = model.DefaultOrganizationID
 		}
-		var suppPtr *bool
+		var suppOutcome string
 		if govEnabled != "" {
 			b, err := strconv.ParseBool(govEnabled)
 			if err == nil {
-				suppPtr = &b
+				if b {
+					suppOutcome = string(model.SuppressionOutcomeSuppressed)
+				} else {
+					suppOutcome = string(model.SuppressionOutcomeNotSuppressed)
+				}
 			}
 		}
 		filter := model.SuppressionFilter{
-			OrgID:              orgID,
-			NodeID:             govNodeID,
-			AlertID:            govAlertID,
-			MatchingWindowID:   govTargetID,
-			SuppressedOnly:     suppPtr,
-			Limit:              govLimit,
-			Offset:             govOffset,
+			OrgID:      orgID,
+			NodeID:     govNodeID,
+			AlertID:    govAlertID,
+			WindowID:   govTargetID,
+			Outcome:    suppOutcome,
+			Limit:      govLimit,
+			Offset:     govOffset,
 		}
 		decs, err := client.ListSuppressionDecisions(ctx, filter)
 		if err != nil {
@@ -2481,9 +2842,9 @@ var suppListCmd = &cobra.Command{
 			fmt.Println("No suppression decisions recorded.")
 			return nil
 		}
-		tw := util.NewTableWriter("Decision ID", "Node ID", "Alert Name", "Suppressed", "Window ID", "Reason", "Timestamp")
+		tw := util.NewTableWriter("Decision ID", "Node ID", "Rule Name", "Outcome", "Window ID", "Reason", "Timestamp")
 		for _, d := range decs {
-			tw.Append(d.ID, d.NodeID, d.AlertName, strconv.FormatBool(d.Suppressed), d.MatchingWindowID, d.Reason, d.Timestamp.Format("01/02 15:04:05"))
+			tw.Append(d.ID, d.NodeID, d.RuleName, string(d.Outcome), d.WindowID, string(d.Reason), d.EvaluatedAt.Format("01/02 15:04:05"))
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -2510,14 +2871,13 @@ var suppGetCmd = &cobra.Command{
 			return outputGovernanceFormatted(d)
 		}
 		fmt.Printf("🛡️ Suppression Decision: %s\n", d.ID)
-		fmt.Printf("Node ID:          %s\n", d.NodeID)
-		fmt.Printf("Alert ID:         %s\n", d.AlertID)
-		fmt.Printf("Alert Name:       %s\n", d.AlertName)
-		fmt.Printf("Suppressed:       %v\n", d.Suppressed)
-		fmt.Printf("Guardrail Hit:    %v\n", d.GuardrailTriggered)
-		fmt.Printf("Matching Window:  %s\n", d.MatchingWindowID)
-		fmt.Printf("Reason:           %s\n", d.Reason)
-		fmt.Printf("Timestamp:        %s\n", d.Timestamp.Format(time.RFC3339))
+		fmt.Printf("Node ID:            %s\n", d.NodeID)
+		fmt.Printf("Alert ID:           %s\n", d.AlertID)
+		fmt.Printf("Rule Name:           %s\n", d.RuleName)
+		fmt.Printf("Outcome:            %s\n", string(d.Outcome))
+		fmt.Printf("Window ID:          %s\n", d.WindowID)
+		fmt.Printf("Reason:             %s\n", string(d.Reason))
+		fmt.Printf("Timestamp:          %s\n", d.EvaluatedAt.Format(time.RFC3339))
 		return nil
 	},
 }
@@ -2552,7 +2912,7 @@ var auditQueryCmd = &cobra.Command{
 			et, _ = time.Parse(time.RFC3339, govEndTime)
 		}
 
-		filter := governance.AuditQueryFilter{
+		filter := storage.AuditFilter{
 			EventType:     govEventType,
 			Severity:      govSeverity,
 			Outcome:       govOutcome,

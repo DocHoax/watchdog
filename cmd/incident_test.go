@@ -117,7 +117,7 @@ func setupIncidentMockServer(t *testing.T) *httptest.Server {
 			TotalFleetNodes:   5,
 			FleetPercentage:   40.0,
 			Subsystems:        []string{"compute", "memory"},
-			Resources:          []string{"cpu", "ram"},
+			Resources:         []string{"cpu", "ram"},
 		},
 		Tags: map[string]string{
 			"cluster": "prod-us-east",
@@ -263,16 +263,16 @@ func setupIncidentMockServer(t *testing.T) *httptest.Server {
 
 		case r.URL.Path == "/api/v1/incidents/summary" && r.Method == http.MethodGet:
 			_ = json.NewEncoder(w).Encode(incidents.IncidentSummary{
-				TotalCount:            10,
-				DetectedCount:         1,
-				AcknowledgedCount:     0,
-				InvestigatingCount:    2,
-				ResolvedCount:         6,
-				SuppressedCount:       1,
-				ReopenedCount:         0,
-				CriticalCount:         2,
-				WarningCount:          5,
-				InfoCount:             3,
+				TotalCount:         10,
+				DetectedCount:      1,
+				AcknowledgedCount:  0,
+				InvestigatingCount: 2,
+				ResolvedCount:      6,
+				SuppressedCount:    1,
+				ReopenedCount:      0,
+				CriticalCount:      2,
+				WarningCount:       5,
+				InfoCount:          3,
 				ScopeDistribution: map[string]int{
 					"fleet":      1,
 					"multi_node": 3,

@@ -137,7 +137,7 @@ var incidentRelatedCmd = &cobra.Command{
 	Long:    "Retrieves correlated root signals, recurrence patterns, and historical matches for an incident.",
 	Args:    cobra.ExactArgs(1),
 	Example: `  watchdog incident related inc-20260927-001`,
-	RunE: runIncidentRelated,
+	RunE:    runIncidentRelated,
 }
 
 var incidentImpactCmd = &cobra.Command{
@@ -147,7 +147,7 @@ var incidentImpactCmd = &cobra.Command{
 	Long:    "Calculates and displays fleet coverage, affected node lists, and subsystem distribution for an incident.",
 	Args:    cobra.ExactArgs(1),
 	Example: `  watchdog incident impact inc-20260927-001`,
-	RunE: runIncidentImpact,
+	RunE:    runIncidentImpact,
 }
 
 var incidentFindingsCmd = &cobra.Command{
@@ -157,7 +157,7 @@ var incidentFindingsCmd = &cobra.Command{
 	Long:    "Retrieves intelligence explanations, risk assessments, and non-invasive operator guidance for an incident.",
 	Args:    cobra.ExactArgs(1),
 	Example: `  watchdog incident findings inc-20260927-001`,
-	RunE: runIncidentFindings,
+	RunE:    runIncidentFindings,
 }
 
 var incidentInvestigateCmd = &cobra.Command{
@@ -193,7 +193,7 @@ var incidentSimilarCmd = &cobra.Command{
 	Long:    "Computes multi-factor Jaccard similarity across symptoms (40%), subsystems (30%), nodes (20%), and severity (10%).",
 	Args:    cobra.ExactArgs(1),
 	Example: `  watchdog incident similar inc-20260927-001 --min-similarity 0.35 --limit 10`,
-	RunE: runIncidentSimilar,
+	RunE:    runIncidentSimilar,
 }
 
 func init() {
