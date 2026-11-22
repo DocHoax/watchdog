@@ -1269,11 +1269,11 @@ func TestCmd_Gov_Policy_Revisions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("policy revisions failed: %v", err)
 	}
-	if !strings.Contains(out, "pol-cpu-threshold") {
-		t.Errorf("expected policy ID in revisions output, got: %s", out)
-	}
 	if !strings.Contains(out, "operator") {
 		t.Errorf("expected author in revisions output, got: %s", out)
+	}
+	if !strings.Contains(out, "Initial revision") {
+		t.Errorf("expected change summary in revisions output, got: %s", out)
 	}
 }
 
@@ -1283,9 +1283,8 @@ func TestCmd_Gov_Policy_SetStatus(t *testing.T) {
 	defer ts.Close()
 
 	govServerURL = ts.URL
-	govStatus = "disabled"
 	out, err := captureStdout(func() error {
-		return policySetStatusCmd.RunE(policySetStatusCmd, []string{"pol-cpu-threshold"})
+		return policySetStatusCmd.RunE(policySetStatusCmd, []string{"pol-cpu-threshold", "disabled"})
 	})
 	if err != nil {
 		t.Fatalf("policy set-status failed: %v", err)
