@@ -2937,8 +2937,7 @@ var auditQueryCmd = &cobra.Command{
 		}
 		tw := util.NewTableWriter("Event ID", "Timestamp", "Event Type", "Actor", "Outcome", "Action", "Resource")
 		for _, e := range events {
-			res := fmt.Sprintf("%s:%s", e.ResourceType, e.ResourceID)
-			tw.Append(e.ID, e.Timestamp.Format("01/02 15:04:05"), string(e.EventType), e.ActorIdentity, string(e.Outcome), e.Action, res)
+			tw.Append(e.ID, e.Timestamp.Format("01/02 15:04:05"), e.EventType, e.Actor.Identity, e.Outcome, e.Action, e.Resource)
 		}
 		tw.Render(os.Stdout)
 		return nil
@@ -2962,22 +2961,23 @@ var auditRecordCmd = &cobra.Command{
 		}
 
 		event := model.AuditEvent{
-			EventType:     model.AuditEventType(govEventType),
-			Severity:      model.SeverityLevel(govSeverity),
-			Outcome:       model.AuditOutcome(govOutcome),
-			ActorType:     govActorType,
-			ActorIdentity: govActorID,
-			Action:        govAction,
-			ResourceType:  govResourceType,
-			ResourceID:    govResourceID,
-			Message:       govMessage,
-			Metadata:      map[string]string{"org_id": orgID},
+			EventType: govEventType,
+			Severity:  govSeverity,
+			Outcome:   govOutcome,
+			Actor: model.AuditActor{
+				Type:     govActorType,
+				Identity: govActorID,
+			},
+			Action:   govAction,
+			Resource: strings.TrimRight(govResourceType+":"+govResourceID, ":"),
+			Message:  govMessage,
+			Metadata: map[string]string{"org_id": orgID},
 		}
 		if event.EventType == "" {
-			event.EventType = model.AuditPolicyCreated
+			event.EventType = model.EventGovernancePolicyCreated
 		}
 		if event.Severity == "" {
-			event.Severity = model.SeverityInfo
+			event.Severity = model.AuditSeverityInfo
 		}
 		if event.Outcome == "" {
 			event.Outcome = model.AuditOutcomeSuccess
