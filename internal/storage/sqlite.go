@@ -56,6 +56,9 @@ func NewSQLiteStorage(cfg Config) (*SQLiteStorage, error) {
 	if maxConns <= 0 {
 		maxConns = 10
 	}
+	if cfg.Path == ":memory:" {
+		maxConns = 1
+	}
 	db.SetMaxOpenConns(maxConns)
 	db.SetMaxIdleConns(maxConns)
 	db.SetConnMaxLifetime(time.Hour)
