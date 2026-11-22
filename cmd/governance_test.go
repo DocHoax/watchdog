@@ -67,7 +67,7 @@ func govFixtureAssignment() model.PolicyAssignment {
 		ID:         "asgn-cpu-prod-01",
 		OrgID:      "org-prod-01",
 		PolicyID:   "pol-cpu-threshold",
-		TargetType: model.PolicyTargetTypeNode,
+		TargetType: model.TargetTypeNode,
 		TargetID:   "node-prod-01",
 		Enabled:    true,
 		AssignedAt: now,
@@ -83,8 +83,7 @@ func govFixtureEvaluation() model.EvaluationExecution {
 		TargetNodeID: "node-prod-01",
 		TriggerType:  model.EvaluationTriggerOnDemand,
 		Status:       model.EvaluationStatusCompliant,
-		StartedAt:    now.Add(-2 * time.Minute),
-		CompletedAt:  &now,
+		EvaluatedAt:  now,
 		Summary: model.EvaluationSummary{
 			TotalRules:     5,
 			CompliantRules: 4,
@@ -98,18 +97,18 @@ func govFixtureEvaluation() model.EvaluationExecution {
 func govFixtureFinding() model.ComplianceFinding {
 	now := govFixtureTime()
 	return model.ComplianceFinding{
-		ID:           "fnd-cpu-node01",
-		OrgID:        "org-prod-01",
-		TargetNodeID: "node-prod-01",
-		PolicyID:     "pol-cpu-threshold",
-		RuleID:       "rule-cpu-pct",
-		RuleName:     "CPU Utilization Threshold",
-		Category:     model.PolicyCategoryResourceThresholds,
-		Severity:     model.SeverityWarning,
-		Status:       model.FindingStatusOpen,
-		FirstSeenAt:  now.Add(-24 * time.Hour),
-		LastSeenAt:   now,
-		Message:      "CPU utilization 87% exceeds 80% threshold",
+		ID:            "fnd-cpu-node01",
+		OrgID:         "org-prod-01",
+		TargetNodeID:  "node-prod-01",
+		PolicyID:      "pol-cpu-threshold",
+		RuleID:        "rule-cpu-pct",
+		RuleName:      "CPU Utilization Threshold",
+		Category:      model.PolicyCategoryResourceThresholds,
+		Severity:      model.SeverityWarning,
+		Status:        model.FindingStatusOpen,
+		FirstSeenAt:   now.Add(-24 * time.Hour),
+		LastSeenAt:    now,
+		Message:       "CPU utilization 87% exceeds 80% threshold",
 		ObservedValue: "87",
 		ExpectedValue: "<=80",
 	}
@@ -118,15 +117,15 @@ func govFixtureFinding() model.ComplianceFinding {
 func govFixtureRollup() model.ComplianceRollupSummary {
 	now := govFixtureTime()
 	return model.ComplianceRollupSummary{
-		OrgID:              "org-prod-01",
-		EvaluatedAt:        now,
-		TotalNodes:         4,
-		CompliantNodes:     3,
-		NonCompliantNodes:  1,
+		OrgID:               "org-prod-01",
+		EvaluatedAt:         now,
+		TotalNodes:          4,
+		CompliantNodes:      3,
+		NonCompliantNodes:   1,
 		TotalRulesEvaluated: 20,
-		TotalFindingsOpen:  2,
-		ComplianceRatio:    0.75,
-		CoverageRatio:      1.0,
+		TotalFindingsOpen:   2,
+		ComplianceRatio:     0.75,
+		CoverageRatio:       1.0,
 	}
 }
 
@@ -144,9 +143,9 @@ func govFixtureMaintenanceWindow() model.MaintenanceWindow {
 		CreatedAt:   now,
 		UpdatedAt:   now,
 		Schedule: model.MaintenanceSchedule{
-			Start:    start,
-			End:      end,
-			Timezone: "UTC",
+			StartTime: start,
+			EndTime:   end,
+			TimeZone:  "UTC",
 		},
 	}
 }
@@ -388,10 +387,8 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 	}
 
 	ownership := model.NodeOwnershipMetadata{
-		NodeID:  "node-prod-01",
-		OrgID:   "org-prod-01",
-		Team:    "platform-team",
-		Contact: "platform@example.com",
+		OwnerTeam:    "platform-team",
+		ContactEmail: "platform@example.com",
 	}
 
 	revision := model.PolicyRevision{
@@ -535,7 +532,6 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 		case path == "/api/v1/governance/nodes/node-prod-01/ownership" && method == http.MethodPut:
 			var o model.NodeOwnershipMetadata
 			_ = json.NewDecoder(r.Body).Decode(&o)
-			o.NodeID = "node-prod-01"
 			encode(o)
 
 		case path == "/api/v1/governance/nodes/node-prod-01/ownership/resolved" && method == http.MethodGet:
@@ -543,10 +539,8 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 				NodeID: "node-prod-01",
 				OrgID:  "org-prod-01",
 				Resolved: &model.NodeOwnershipMetadata{
-					NodeID:  "node-prod-01",
-					OrgID:   "org-prod-01",
-					Team:    "platform-team",
-					Contact: "platform@example.com",
+					OwnerTeam:    "platform-team",
+					ContactEmail: "platform@example.com",
 				},
 			})
 
@@ -777,7 +771,6 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 
 		// ---- suppression ----
 		case path == "/api/v1/governance/suppression/evaluate" && method == http.MethodPost:
-			// Verify required fields arrive in the request body.
 			var req governance.SuppressionEvaluationRequest
 			_ = json.NewDecoder(r.Body).Decode(&req)
 			dec := suppDec
@@ -801,7 +794,6 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 
 		// ---- audit ----
 		case path == "/api/v1/governance/audit" && method == http.MethodGet:
-			// Reflect query params back so parameter tests can verify transmission.
 			et := r.URL.Query().Get("event_type")
 			events := []model.AuditEvent{auditEv}
 			if et != "" && et != auditEv.EventType {
@@ -819,7 +811,6 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 
 		// ---- auth test ----
 		case path == "/api/v1/governance/orgs" && r.Header.Get("Authorization") == "":
-			// Used by auth failure test; server decides to reject unauthenticated.
 			unauthorized()
 
 		default:
@@ -1165,7 +1156,7 @@ func TestCmd_Gov_Ownership_Get_JSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &own); err != nil {
 		t.Fatalf("failed to decode ownership JSON: %v\nOutput: %s", err, out)
 	}
-	if own.NodeID != "node-prod-01" || own.Team != "platform-team" {
+	if own.OwnerTeam != "platform-team" {
 		t.Errorf("unexpected ownership decoded: %+v", own)
 	}
 }
@@ -1491,7 +1482,7 @@ func TestCmd_Gov_Findings_List(t *testing.T) {
 	if !strings.Contains(out, "CPU Utilization Threshold") {
 		t.Errorf("expected rule name in output, got: %s", out)
 	}
-	if !strings.Contains(out, "WARNING") || !strings.Contains(out, "warning") {
+	if !strings.Contains(out, "WARNING") && !strings.Contains(out, "warning") {
 		t.Errorf("expected severity warning in output, got: %s", out)
 	}
 }
@@ -1848,7 +1839,6 @@ func TestCmd_Gov_Escalation_Evaluate(t *testing.T) {
 	if !strings.Contains(out, "Critical On-Call Escalation") {
 		t.Errorf("expected policy name in output, got: %s", out)
 	}
-	// Verify stage information is rendered.
 	if !strings.Contains(out, "1") {
 		t.Errorf("expected stage number 1 in output, got: %s", out)
 	}
@@ -1906,22 +1896,18 @@ func TestCmd_Gov_Suppression_Evaluate_Suppressed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("suppression evaluate failed: %v", err)
 	}
-	// Outcome field: should show true (suppressed).
 	if !strings.Contains(out, "true") {
 		t.Errorf("expected suppressed=true in output, got: %s", out)
 	}
-	// Matching window ID should be rendered.
 	if !strings.Contains(out, "mw-prod-patch-01") {
 		t.Errorf("expected window ID in output, got: %s", out)
 	}
-	// Reason should appear.
 	if !strings.Contains(out, "in_maintenance_window") {
 		t.Errorf("expected reason in_maintenance_window in output, got: %s", out)
 	}
 }
 
 func TestCmd_Gov_Suppression_Evaluate_NodeIDForwarded(t *testing.T) {
-	// Verifies the node_id flag is forwarded in the POST body to the server.
 	resetGovFlags()
 
 	var capturedReq governance.SuppressionEvaluationRequest
@@ -2016,7 +2002,6 @@ func TestCmd_Gov_Suppression_List(t *testing.T) {
 }
 
 func TestCmd_Gov_Suppression_List_FilterBySuppressed(t *testing.T) {
-	// govEnabled="true" should map to Outcome=suppressed in the filter.
 	resetGovFlags()
 	ts := setupGovernanceMockServer(t)
 	defer ts.Close()
@@ -2102,7 +2087,6 @@ func TestCmd_Gov_Suppression_Get_NotFound(t *testing.T) {
 }
 
 func TestCmd_Gov_Suppression_Guardrail_Rendered(t *testing.T) {
-	// When reason == severity_exceeds_threshold, the guardrail warning must appear.
 	resetGovFlags()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2188,7 +2172,6 @@ func TestCmd_Gov_Audit_Query_JSON(t *testing.T) {
 }
 
 func TestCmd_Gov_Audit_Query_EventTypeFilter(t *testing.T) {
-	// Only events matching the event_type filter should be returned.
 	resetGovFlags()
 	ts := setupGovernanceMockServer(t)
 	defer ts.Close()
@@ -2205,7 +2188,6 @@ func TestCmd_Gov_Audit_Query_EventTypeFilter(t *testing.T) {
 		t.Errorf("expected matching event in output, got: %s", out)
 	}
 
-	// Non-matching event type should yield empty results.
 	resetGovFlags()
 	govServerURL = ts.URL
 	govEventType = "auth.failure"
@@ -2249,9 +2231,6 @@ func TestCmd_Gov_Audit_Record(t *testing.T) {
 }
 
 func TestCmd_Gov_Audit_Record_DefaultsApplied(t *testing.T) {
-	// When event_type/severity/outcome are blank, defaults must be filled in
-	// before the POST is sent; the server echoes the posted body back so we can
-	// inspect it.
 	resetGovFlags()
 
 	var capturedEvent model.AuditEvent
@@ -2269,7 +2248,6 @@ func TestCmd_Gov_Audit_Record_DefaultsApplied(t *testing.T) {
 
 	govServerURL = ts.URL
 	govOrgID = "org-prod-01"
-	// All type/severity/outcome left blank → defaults should be applied.
 	govAction = "test_action"
 
 	_, err := captureStdout(func() error {
@@ -2290,7 +2268,6 @@ func TestCmd_Gov_Audit_Record_DefaultsApplied(t *testing.T) {
 }
 
 func TestCmd_Gov_Audit_Record_ResourceCombined(t *testing.T) {
-	// Resource must be stored as "type:id" in the AuditEvent.Resource field.
 	resetGovFlags()
 
 	var capturedEvent model.AuditEvent
@@ -2320,7 +2297,6 @@ func TestCmd_Gov_Audit_Record_ResourceCombined(t *testing.T) {
 }
 
 func TestCmd_Gov_Audit_Record_ActorForwarded(t *testing.T) {
-	// Actor type and identity must land in AuditEvent.Actor sub-struct.
 	resetGovFlags()
 
 	var capturedEvent model.AuditEvent
@@ -2356,7 +2332,6 @@ func TestCmd_Gov_Audit_Record_ActorForwarded(t *testing.T) {
 // -----------------------------------------------------------------------------
 
 func TestCmd_Gov_AuthFailure_PropagatedAsError(t *testing.T) {
-	// A server returning 401 must surface as a CLI error, not silently succeed.
 	resetGovFlags()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2394,19 +2369,15 @@ func TestCmd_Gov_YAML_Output(t *testing.T) {
 	if err != nil {
 		t.Fatalf("org list YAML failed: %v", err)
 	}
-	// YAML output must contain the org ID as a plain YAML value.
 	if !strings.Contains(out, "org-prod-01") {
 		t.Errorf("expected org ID in YAML output, got: %s", out)
 	}
-	// Should not be JSON (no leading brace).
 	if strings.HasPrefix(strings.TrimSpace(out), "{") {
 		t.Errorf("expected YAML output, got JSON-looking output: %s", out)
 	}
 }
 
 func TestCmd_Gov_EmptyList_Message(t *testing.T) {
-	// When server returns an empty list, the CLI must print a human-readable
-	// empty message, not a blank screen or an error.
 	resetGovFlags()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
