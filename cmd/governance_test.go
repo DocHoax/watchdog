@@ -857,18 +857,15 @@ func TestCmd_Gov_Org_List_JSON(t *testing.T) {
 		t.Fatalf("org list JSON failed: %v", err)
 	}
 
-	var resp struct {
-		Organizations []model.Organization `json:"organizations"`
-		Count         int                  `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+	var orgs []model.Organization
+	if err := json.Unmarshal([]byte(out), &orgs); err != nil {
 		t.Fatalf("failed to decode org list JSON: %v\nOutput: %s", err, out)
 	}
-	if resp.Count != 1 || len(resp.Organizations) != 1 {
-		t.Errorf("expected 1 org, got count=%d len=%d", resp.Count, len(resp.Organizations))
+	if len(orgs) != 1 {
+		t.Errorf("expected 1 org, got len=%d", len(orgs))
 	}
-	if resp.Organizations[0].ID != "org-prod-01" {
-		t.Errorf("unexpected org ID: %s", resp.Organizations[0].ID)
+	if orgs[0].ID != "org-prod-01" {
+		t.Errorf("unexpected org ID: %s", orgs[0].ID)
 	}
 }
 
@@ -1049,9 +1046,8 @@ func TestCmd_Gov_Group_AddMember(t *testing.T) {
 	defer ts.Close()
 
 	govServerURL = ts.URL
-	govNodeID = "node-prod-01"
 	out, err := captureStdout(func() error {
-		return groupAddMemberCmd.RunE(groupAddMemberCmd, []string{"grp-prod-db"})
+		return groupAddMemberCmd.RunE(groupAddMemberCmd, []string{"grp-prod-db", "node-prod-01"})
 	})
 	if err != nil {
 		t.Fatalf("group add-member failed: %v", err)
@@ -2380,7 +2376,7 @@ func TestCmd_Gov_EmptyList_Message(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"organizations": []model.Organization{}, "count": 0})
+		_ = json.NewEncoder(w).Encode([]model.Organization{})
 	}))
 	defer ts.Close()
 
@@ -2391,7 +2387,7 @@ func TestCmd_Gov_EmptyList_Message(t *testing.T) {
 	if err != nil {
 		t.Fatalf("empty org list failed: %v", err)
 	}
-	if !strings.Contains(out, "No organization") {
-		t.Errorf("expected empty list message, got: %s", out)
+	if !strings.Contains(out, "No organizations found") {
+		t.Errorf("expected empty list message 'No organizations found', got: %s", out)
 	}
 }
