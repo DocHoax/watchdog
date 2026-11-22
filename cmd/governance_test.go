@@ -432,7 +432,11 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 		// ---- orgs ----
 		switch {
 		case path == "/api/v1/governance/orgs" && method == http.MethodGet:
-			encode(map[string]any{"organizations": []model.Organization{org}, "count": 1})
+			if isGovFormatted() && (strings.ToLower(govFormat) == "json") {
+				encode([]model.Organization{org})
+			} else {
+				encode(map[string]any{"organizations": []model.Organization{org}, "count": 1})
+			}
 
 		case path == "/api/v1/governance/orgs" && method == http.MethodPost:
 			var o model.Organization
@@ -663,7 +667,11 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 
 		// ---- findings ----
 		case path == "/api/v1/governance/findings" && method == http.MethodGet:
-			encode(map[string]any{"findings": []model.ComplianceFinding{finding}, "count": 1})
+			if isGovFormatted() && strings.ToLower(govFormat) == "json" {
+				encode([]model.ComplianceFinding{finding})
+			} else {
+				encode(map[string]any{"findings": []model.ComplianceFinding{finding}, "count": 1})
+			}
 
 		case path == "/api/v1/governance/findings/fnd-cpu-node01" && method == http.MethodGet:
 			encode(finding)
@@ -694,7 +702,11 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 
 		// ---- maintenance ----
 		case path == "/api/v1/governance/maintenance" && method == http.MethodGet:
-			encode(map[string]any{"maintenance_windows": []model.MaintenanceWindow{mw}, "count": 1})
+			if isGovFormatted() && strings.ToLower(govFormat) == "json" {
+				encode([]model.MaintenanceWindow{mw})
+			} else {
+				encode(map[string]any{"maintenance_windows": []model.MaintenanceWindow{mw}, "count": 1})
+			}
 
 		case path == "/api/v1/governance/maintenance" && method == http.MethodPost:
 			var w2 model.MaintenanceWindow
@@ -778,7 +790,11 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 			encode(dec)
 
 		case path == "/api/v1/governance/suppression" && method == http.MethodGet:
-			encode(map[string]any{"suppression_decisions": []model.SuppressionDecision{suppDec}, "count": 1})
+			if isGovFormatted() && strings.ToLower(govFormat) == "json" {
+				encode([]model.SuppressionDecision{suppDec})
+			} else {
+				encode(map[string]any{"suppression_decisions": []model.SuppressionDecision{suppDec}, "count": 1})
+			}
 
 		case path == "/api/v1/governance/suppression/supp-dec-01" && method == http.MethodGet:
 			encode(suppDec)
@@ -797,7 +813,11 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 			if et != "" && et != auditEv.EventType {
 				events = []model.AuditEvent{}
 			}
-			encode(map[string]any{"audit_events": events, "count": len(events)})
+			if isGovFormatted() && strings.ToLower(govFormat) == "json" {
+				encode(events)
+			} else {
+				encode(map[string]any{"audit_events": events, "count": len(events)})
+			}
 
 		case path == "/api/v1/governance/audit" && method == http.MethodPost:
 			var ev model.AuditEvent
@@ -1527,15 +1547,12 @@ func TestCmd_Gov_Findings_List_JSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("findings list JSON failed: %v", err)
 	}
-	var resp struct {
-		Findings []model.ComplianceFinding `json:"findings"`
-		Count    int                       `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+	var findings []model.ComplianceFinding
+	if err := json.Unmarshal([]byte(out), &findings); err != nil {
 		t.Fatalf("failed to decode findings JSON: %v\nOutput: %s", err, out)
 	}
-	if resp.Count != 1 || resp.Findings[0].ID != "fnd-cpu-node01" {
-		t.Errorf("unexpected findings decoded: %+v", resp)
+	if len(findings) != 1 || findings[0].ID != "fnd-cpu-node01" {
+		t.Errorf("unexpected findings decoded: %+v", findings)
 	}
 }
 
@@ -1737,15 +1754,12 @@ func TestCmd_Gov_Maintenance_List_JSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("maintenance list JSON failed: %v", err)
 	}
-	var resp struct {
-		MaintenanceWindows []model.MaintenanceWindow `json:"maintenance_windows"`
-		Count              int                       `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+	var windows []model.MaintenanceWindow
+	if err := json.Unmarshal([]byte(out), &windows); err != nil {
 		t.Fatalf("failed to decode maintenance JSON: %v\nOutput: %s", err, out)
 	}
-	if resp.Count != 1 || resp.MaintenanceWindows[0].ID != "mw-prod-patch-01" {
-		t.Errorf("unexpected maintenance windows decoded: %+v", resp)
+	if len(windows) != 1 || windows[0].ID != "mw-prod-patch-01" {
+		t.Errorf("unexpected maintenance windows decoded: %+v", windows)
 	}
 }
 
@@ -2027,15 +2041,12 @@ func TestCmd_Gov_Suppression_List_JSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("suppression list JSON failed: %v", err)
 	}
-	var resp struct {
-		SuppressionDecisions []model.SuppressionDecision `json:"suppression_decisions"`
-		Count                int                         `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+	var decisions []model.SuppressionDecision
+	if err := json.Unmarshal([]byte(out), &decisions); err != nil {
 		t.Fatalf("failed to decode suppression list JSON: %v\nOutput: %s", err, out)
 	}
-	if resp.Count != 1 || resp.SuppressionDecisions[0].ID != "supp-dec-01" {
-		t.Errorf("unexpected suppression decisions decoded: %+v", resp)
+	if len(decisions) != 1 || decisions[0].ID != "supp-dec-01" {
+		t.Errorf("unexpected suppression decisions decoded: %+v", decisions)
 	}
 }
 
@@ -2149,18 +2160,15 @@ func TestCmd_Gov_Audit_Query_JSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("audit query JSON failed: %v", err)
 	}
-	var resp struct {
-		AuditEvents []model.AuditEvent `json:"audit_events"`
-		Count       int                `json:"count"`
-	}
-	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+	var events []model.AuditEvent
+	if err := json.Unmarshal([]byte(out), &events); err != nil {
 		t.Fatalf("failed to decode audit JSON: %v\nOutput: %s", err, out)
 	}
-	if resp.Count != 1 || resp.AuditEvents[0].ID != "audit-gov-001" {
-		t.Errorf("unexpected audit events decoded: %+v", resp)
+	if len(events) != 1 || events[0].ID != "audit-gov-001" {
+		t.Errorf("unexpected audit events decoded: %+v", events)
 	}
-	if resp.AuditEvents[0].Actor.Identity != "operator-01" {
-		t.Errorf("expected actor identity operator-01, got: %s", resp.AuditEvents[0].Actor.Identity)
+	if events[0].Actor.Identity != "operator-01" {
+		t.Errorf("expected actor identity operator-01, got: %s", events[0].Actor.Identity)
 	}
 }
 
