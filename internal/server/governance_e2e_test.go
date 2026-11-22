@@ -135,12 +135,15 @@ func TestE2E_Governance_NodeOwnershipAndResolution(t *testing.T) {
 	defer store.Close()
 	defer ts.Close()
 
+	ctx := context.Background()
+	nodeID := "node-compute-01"
+	err := store.SaveFleetNode(ctx, &model.FleetNode{ID: nodeID, Hostname: "compute-01"})
+	require.NoError(t, err)
+
 	client := governance.NewGovernanceClient(governance.ClientConfig{
 		Endpoint: ts.URL,
 	})
-	ctx := context.Background()
 
-	nodeID := "node-compute-01"
 	own := &model.NodeOwnershipMetadata{
 		OwnerTeam:          "sre-platform",
 		ContactEmail:       "sre@example.com",
@@ -150,7 +153,7 @@ func TestE2E_Governance_NodeOwnershipAndResolution(t *testing.T) {
 	}
 
 	// Set ownership
-	err := client.SetNodeOwnership(ctx, nodeID, own)
+	err = client.SetNodeOwnership(ctx, nodeID, own)
 	require.NoError(t, err)
 
 	// Get ownership
@@ -171,10 +174,14 @@ func TestE2E_Governance_PoliciesAndAssignments(t *testing.T) {
 	defer store.Close()
 	defer ts.Close()
 
+	ctx := context.Background()
+	nodeID := "node-compute-01"
+	err := store.SaveFleetNode(ctx, &model.FleetNode{ID: nodeID, Hostname: "compute-01"})
+	require.NoError(t, err)
+
 	client := governance.NewGovernanceClient(governance.ClientConfig{
 		Endpoint: ts.URL,
 	})
-	ctx := context.Background()
 
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	policy := &model.Policy{
@@ -198,7 +205,7 @@ func TestE2E_Governance_PoliciesAndAssignments(t *testing.T) {
 		OrgID:      model.DefaultOrganizationID,
 		PolicyID:   "pol-ram-limit",
 		TargetType: model.TargetTypeNode,
-		TargetID:   "node-compute-01",
+		TargetID:   nodeID,
 		Enabled:    true,
 		AssignedAt: now,
 		AssignedBy: "admin",
@@ -212,7 +219,7 @@ func TestE2E_Governance_PoliciesAndAssignments(t *testing.T) {
 	asgns, err := client.ListAssignments(ctx, model.PolicyAssignmentFilter{PolicyID: "pol-ram-limit"})
 	require.NoError(t, err)
 	assert.Len(t, asgns, 1)
-	assert.Equal(t, "node-compute-01", asgns[0].TargetID)
+	assert.Equal(t, nodeID, asgns[0].TargetID)
 }
 
 func TestE2E_Governance_MaintenanceAndSuppression(t *testing.T) {
@@ -220,24 +227,30 @@ func TestE2E_Governance_MaintenanceAndSuppression(t *testing.T) {
 	defer store.Close()
 	defer ts.Close()
 
+	ctx := context.Background()
+	nodeID := "node-db-01"
+	err := store.SaveFleetNode(ctx, &model.FleetNode{ID: nodeID, Hostname: "db-01"})
+	require.NoError(t, err)
+
 	client := governance.NewGovernanceClient(governance.ClientConfig{
 		Endpoint: ts.URL,
 	})
-	ctx := context.Background()
 
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	start := now.Add(-10 * time.Minute)
 	end := now.Add(50 * time.Minute)
 
 	mw := &model.MaintenanceWindow{
-		ID:          "mw-database-upgrade",
-		OrgID:       model.DefaultOrganizationID,
-		Name:        "Database Upgrade Window",
-		Status:      model.MaintenanceStatusActive,
-		TargetScope: model.MaintenanceTargetScopeNode,
-		TargetID:    "node-db-01",
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:               "mw-database-upgrade",
+		OrgID:            model.DefaultOrganizationID,
+		Name:             "Database Upgrade Window",
+		Status:           model.MaintenanceStatusActive,
+		TargetScope:      model.MaintenanceTargetScopeNode,
+		TargetID:         nodeID,
+		SuppressAlerts:   true,
+		SuppressFindings: true,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 		Schedule: model.MaintenanceSchedule{
 			StartTime: start,
 			EndTime:   end,
@@ -252,7 +265,7 @@ func TestE2E_Governance_MaintenanceAndSuppression(t *testing.T) {
 	// Evaluate suppression for an alert on that node during the active maintenance window
 	suppReq := governance.SuppressionEvaluationRequest{
 		OrgID:     model.DefaultOrganizationID,
-		NodeID:    "node-db-01",
+		NodeID:    nodeID,
 		AlertID:   "alert-high-cpu",
 		Category:  "cpu",
 		Severity:  model.SeverityWarning,
