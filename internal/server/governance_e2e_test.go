@@ -137,7 +137,9 @@ func TestE2E_Governance_NodeOwnershipAndResolution(t *testing.T) {
 
 	ctx := context.Background()
 	nodeID := "node-compute-01"
-	err := store.SaveFleetNode(ctx, &model.FleetNode{ID: nodeID, Hostname: "compute-01"})
+	err := store.SaveFleetNode(ctx, &model.FleetNode{
+		Identity: model.NodeIdentity{NodeID: nodeID, Hostname: "compute-01"},
+	})
 	require.NoError(t, err)
 
 	client := governance.NewGovernanceClient(governance.ClientConfig{
@@ -176,7 +178,9 @@ func TestE2E_Governance_PoliciesAndAssignments(t *testing.T) {
 
 	ctx := context.Background()
 	nodeID := "node-compute-01"
-	err := store.SaveFleetNode(ctx, &model.FleetNode{ID: nodeID, Hostname: "compute-01"})
+	err := store.SaveFleetNode(ctx, &model.FleetNode{
+		Identity: model.NodeIdentity{NodeID: nodeID, Hostname: "compute-01"},
+	})
 	require.NoError(t, err)
 
 	client := governance.NewGovernanceClient(governance.ClientConfig{
@@ -229,7 +233,9 @@ func TestE2E_Governance_MaintenanceAndSuppression(t *testing.T) {
 
 	ctx := context.Background()
 	nodeID := "node-db-01"
-	err := store.SaveFleetNode(ctx, &model.FleetNode{ID: nodeID, Hostname: "db-01"})
+	err := store.SaveFleetNode(ctx, &model.FleetNode{
+		Identity: model.NodeIdentity{NodeID: nodeID, Hostname: "db-01"},
+	})
 	require.NoError(t, err)
 
 	client := governance.NewGovernanceClient(governance.ClientConfig{
