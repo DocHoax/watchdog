@@ -13,6 +13,7 @@ import (
 
 	"github.com/DocHoax/watchdog/internal/governance"
 	"github.com/DocHoax/watchdog/internal/incidents"
+	"github.com/DocHoax/watchdog/internal/storage"
 	"github.com/DocHoax/watchdog/pkg/model"
 	"github.com/DocHoax/watchdog/pkg/util"
 	"github.com/spf13/cobra"
@@ -2782,13 +2783,13 @@ var suppEvaluateCmd = &cobra.Command{
 			return outputGovernanceFormatted(dec)
 		}
 		fmt.Printf("🛡️ Alert Suppression Decision:\n")
-		fmt.Printf("Suppressed:       %v\n", dec.Suppressed)
+		fmt.Printf("Suppressed:       %v\n", dec.Outcome == model.SuppressionOutcomeSuppressed)
 		fmt.Printf("Decision ID:      %s\n", dec.ID)
 		fmt.Printf("Reason / Guard:   %s\n", dec.Reason)
-		if dec.MatchingWindowID != "" {
-			fmt.Printf("Matching Window:  %s\n", dec.MatchingWindowID)
+		if dec.WindowID != "" {
+			fmt.Printf("Matching Window:  %s\n", dec.WindowID)
 		}
-		if dec.GuardrailTriggered {
+		if dec.Reason == model.SuppressionReasonSeverityExceedsThreshold {
 			fmt.Printf("⚠️ Guardrail Triggered: Critical alert class cannot be suppressed!\n")
 		}
 		return nil
@@ -2811,14 +2812,14 @@ var suppListCmd = &cobra.Command{
 		if orgID == "" {
 			orgID = model.DefaultOrganizationID
 		}
-		var suppOutcome string
+		var suppOutcome model.SuppressionOutcome
 		if govEnabled != "" {
 			b, err := strconv.ParseBool(govEnabled)
 			if err == nil {
 				if b {
-					suppOutcome = string(model.SuppressionOutcomeSuppressed)
+					suppOutcome = model.SuppressionOutcomeSuppressed
 				} else {
-					suppOutcome = string(model.SuppressionOutcomeNotSuppressed)
+					suppOutcome = model.SuppressionOutcomeNotSuppressed
 				}
 			}
 		}
