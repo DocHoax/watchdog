@@ -1,144 +1,104 @@
-# Watchdog Phase 2F.2.3 — Shared Linux Process Inspection Architecture Design
+# Watchdog Phase 2F.2.3.1 — Shared Linux Inspection Architecture Design Reconciliation
 
-## 1. Current Architecture and Collection Flow
+## 1. Verified Repository Lineage and Base Commit
 
-Watchdog collects system telemetry via `collector.Manager` (`internal/collector/collector.go`), which orchestrates registered collectors in parallel using goroutines synchronized via a `sync.WaitGroup`:
-
-```
-                    ┌────────────────────────┐
-                    │    Manager.CollectAll  │
-                    └───────────┬────────────┘
-                                │
-         ┌──────────────────────┼──────────────────────┐
-         │ (concurrent goroutine)                      │ (concurrent goroutine)
-         ▼                                             ▼
-┌──────────────────┐                         ┌──────────────────┐
-│ ProcessCollector │                         │  PortCollector   │
-│ GetProcesses()   │                         │GetListeningPorts()│
-└────────┬─────────┘                         └────────┬─────────┘
-         │                                             │
-         ▼                                             ▼
- gopsutil: process.Processes()               gopsutil: net.Connections()
-   - Scans /proc                                 - Scans /proc/net/*
-   - Reads status, stat, cmdline                 - Iterates /proc/[pid]/fd
-   - Resolves executable/exe                     - Resolves socket inodes
-```
+- **Repository:** `https://github.com/DocHoax/watchdog`
+- **Baseline Commit:** `f1f651d3f455f809760ec9a39dd8165667558cd0` (Phase 2F.1 Merge Commit)
+- **Current Branch:** `feature/phase-2f3-shared-inspection-design`
+- **Design Commit:** `47d9653a11908b2e5cbe01ef26b7cc0cb4d2c5bd` (to be updated by this reconciliation)
+- **Dependency Version:** `github.com/shirou/gopsutil/v4 v4.25.1`
 
 ---
 
-## 2. Actual Duplicated System Inspection Operations
+## 2. Actual gopsutil Call-Path Investigation
 
-Profiling evidence (`cpu.prof`, `mem.prof`) established that independent collector execution introduces redundant kernel interactions:
-1. **Independent Process Enumeration:** `ProcessCollector` invokes `process.ProcessesWithContext(ctx)`, which reads `/proc` directory entries and opens/reads `/proc/[pid]/...` for every process.
-2. **Independent Socket Inode Correlation:** `PortCollector` invokes `netutil.ConnectionsWithContext(ctx, "all")`, which independently scans `/proc/net/tcp`, `udp`, etc., and then traverses `/proc/[pid]/fd` for *every* process on the system to resolve socket inode-to-PID mappings (`getProcInodesAllWithContext`).
-3. **Redundant Process Metadata Lookups:** When `PortCollector` correlates socket PIDs, it subsequently re-queries `process.NewProcessWithContext` and `p.NameWithContext` to resolve process names for binding ports, duplicating metadata inspection already performed or capable of being shared with `ProcessCollector`.
+Inspection of `github.com/shirou/gopsutil/v4@v4.25.1` source code (`process/process_linux.go`, `net/net_linux.go`, `internal/common/common_linux.go`) reveals the exact execution mechanics for each operation:
 
----
-
-## 3. Proposed Architecture: Cycle-Scoped Shared Inspection Layer
-
-To eliminate redundant `/proc` traversals without compromising collector independence or introducing global mutable state, we propose a **Cycle-Scoped Shared Linux Process Inspection Cache (`LinuxInspectionContext`)**.
-
-### Conceptual Flow:
-```
-                    ┌────────────────────────┐
-                    │    Manager.CollectAll  │
-                    └───────────┬────────────┘
-                                │
-                 (Initialize Cycle Inspection Context)
-                                │
-         ┌──────────────────────┼──────────────────────┐
-         │ (Passed via context or shared manager scope)
-         ▼                                             ▼
-┌──────────────────┐                         ┌──────────────────┐
-│ ProcessCollector │                         │  PortCollector   │
-│ (Reads shared    │                         │ (Reads shared    │
-│  process list)   │                         │  socket/inode map│
-└──────────────────┘                         └──────────────────┘
-```
+1. **`process.ProcessesWithContext(ctx)`:**
+   - Opens `/proc`, reads directory entries (`Readdirnames`), filters numeric directory names corresponding to PIDs.
+   - For each PID, instantiates a lightweight `Process` struct (`&Process{Pid: pid}`). It does **not** read `/proc/[pid]/*` files during `ProcessesWithContext`.
+2. **`net.ConnectionsWithContext(ctx, "all")` (`net_linux.go`):**
+   - Parses `/proc/net/tcp`, `udp`, `tcp6`, `udp6`, etc.
+   - Invokes `getProcInodesAllWithContext`, which scans `/proc` for numeric PID directories, opens `/proc/[pid]/fd`, reads symbolic links (`readlinkat`) for socket inodes (e.g., `socket:[12345]`), and builds a system-wide map of socket inode $\to$ (PID, FD).
+3. **`process.NewProcessWithContext(ctx, pid)` / `Process.NameWithContext`:**
+   - Instantiates a `Process` struct and reads `/proc/[pid]/comm` or `/proc/[pid]/status`.
 
 ---
 
-## 4. Component Responsibilities
+## 3. Evidence-Based Duplication Matrix
 
-1. **`LinuxInspectionContext` (Cycle-Scoped):**
-   - Instantiated at the beginning of a collection cycle when running on Linux.
-   - Executes a single unified scan of `/proc` (or delegates to an optimized single-pass cache).
-   - Provides cached process metadata and socket-to-PID inode maps for the duration of the collection cycle.
-2. **`ProcessCollector`:**
-   - Consumes the shared process snapshot to construct `model.ProcessSummary`.
-3. **`PortCollector`:**
-   - Consumes the shared connection and process/inode correlation maps to build `[]model.PortInfo` without performing secondary `/proc/[pid]/fd` scans.
-
----
-
-## 5. Data Structures and Ownership
-
-- **Lifecycle:** Created at the entry of `CollectAll` (or managed via cycle-scoped context values), and garbage-collected immediately upon completion of `CollectAll`.
-- **Data Structures:**
-  ```go
-  type LinuxInspectionSnapshot struct {
-      Timestamp time.Time
-      Processes map[int32]*cachedProcessData
-      Connections []netutil.ConnectionStat
-      InodeToPID map[uint64]int32
-  }
-  ```
-- **Ownership:** Owned exclusively by the active collection cycle. No cross-cycle retention.
+| Operation | ProcessCollector | PortCollector | Duplicate? | Evidence & Source Path |
+| :--- | :--- | :--- | :--- | :--- |
+| **`/proc` process directory enumeration** | Yes (`process.Processes`) | Yes (`net.Connections` via `getProcInodesAll`) | **Yes** | Both independently read `/proc` directory entries to discover active PIDs (`os.ReadDir` / `Readdirnames`). |
+| **`/proc/[pid]/stat`** | Yes (`fillFromStat`) | No | **No** | Read exclusively by `ProcessCollector`. |
+| **`/proc/[pid]/status`** | Yes (`fillFromStatus`) | No | **No** | Read exclusively by `ProcessCollector`. |
+| **`/proc/[pid]/cmdline`** | Yes (`Cmdline`) | No | **No** | Read exclusively by `ProcessCollector`. |
+| **`/proc/[pid]/exe`** | Yes (`Exe`) | No | **No** | Read exclusively by `ProcessCollector`. |
+| **`/proc/[pid]/fd` traversal** | No | Yes (`getProcInodesAll`) | **Yes (PortCollector only)** | Executed exclusively by `PortCollector` during network socket inode correlation. |
+| **`/proc/net/*` network table reads** | No | Yes (`Connections`) | **Yes (PortCollector only)** | Read exclusively by `PortCollector`. |
+| **Socket inode-to-PID correlation** | No | Yes (`Connections`) | **Yes (PortCollector only)** | Executed exclusively by `PortCollector`. |
+| **Process name resolution** | Yes (`Name`) | Yes (`NameWithContext`) | **Overlapping** | `PortCollector` resolves process names for binding ports independently using `NewProcess` / `NameWithContext`. |
+| **Process handle creation** | Yes (`NewProcess`) | Yes (`NewProcess`) | **Overlapping** | Both instantiate `process.Process` handles for discovered PIDs. |
 
 ---
 
-## 6. Concurrency Model
+## 4. Architectural Alternatives & Trade-Off Evaluation
 
-- Because `ProcessCollector` and `PortCollector` run concurrently in separate goroutines, the inspection snapshot is **immutable** once initialized during the initial synchronous phase of `CollectAll` (or protected by a read-only access pattern).
-- No locks are required during read operations by individual collectors.
+We evaluated four architectural approaches:
 
----
+### A. Eager Immutable Snapshot Built Before Collector Goroutines Start
+- **Pros:** Maximum thread safety; eliminates duplicate `/proc` directory listing.
+- **Cons:** High upfront latency before any collector can start; eagerly collects metrics that certain collectors may not need; complicates modularity.
 
-## 7. PID Reuse Handling
+### B. Cycle-Scoped Concurrency-Safe Lazy Provider with Synchronized Caching
+- **Pros:** On-demand loading; eliminates redundant file reads when shared; preserves collector independence.
+- **Cons:** Requires internal synchronization mutexes; increases implementation complexity.
 
-- **Validation Mechanism:** To prevent stale PID mappings when a PID is recycled mid-cycle, cached process entries store both `PID` and `CreateTime` (boot-relative start time from `/proc/[pid]/stat`).
-- If a PID's start time changes or cannot be validated, the inspection layer invalidates the cache entry.
+### C. Explicit Optional Collector Capability/Interface
+- **Pros:** Clean separation of concerns; zero overhead for independent collectors.
+- **Cons:** Over-engineering for a monolithic agent daemon where collectors execute concurrently.
 
----
+### D. Independent Collectors with Targeted Internal Optimizations
+- **Pros:** Zero cross-package coupling; extremely simple, robust, and safe; avoids locking overhead.
+- **Cons:** Retains independent `/proc` directory enumeration between `ProcessCollector` and `PortCollector`.
 
-## 8. Context and Cancellation Behavior
-
-- All underlying file reads and system inspections respect the caller's `context.Context` timeout and cancellation token. If `ctx.Done()` is closed, the inspection builder aborts immediately.
-
----
-
-## 9. Cross-Platform Strategy
-
-- **Build Constraints:** The shared inspection layer is enclosed behind `//go:build linux` build tags.
-- **Fallbacks:** Non-Linux platforms (Windows, macOS) bypass the shared layer entirely and execute their existing platform-specific `gopsutil` routines without modification.
+**Recommendation:** **Approach D (Independent Collectors with Targeted Internal Optimizations)** combined with localized caching within `PortCollector` is recommended. The profiling evidence (Phase 2F.2.1/2F.2.2) demonstrates that the vast majority of CPU time and allocation pressure in `PortCollector` and `ProcessCollector` stems from kernel syscall execution (`syscall.Syscall6`, `os.Readlink`, `os.ReadFile`), not Go struct allocation overhead. Introducing a complex shared inspection framework would add concurrency and synchronization risks without eliminating the underlying kernel syscall cost.
 
 ---
 
-## 10. Performance Hypotheses
+## 5. PID Identity & PID Reuse Strategy
 
-- **Reduction Target:** Eliminate double-traversal of `/proc/[pid]/fd` and `/proc/[pid]/status`.
-- **Expected Benefit:** Reduce FullCycle allocation volume and CPU time by avoiding duplicate `gopsutil` internal process-listing and file descriptor scans.
-
----
-
-## 11. Benchmark and Test Plan
-
-- **Validation Benchmarks:** `BenchmarkCollector_FullCycle`, `BenchmarkCollector_Process`, `BenchmarkCollector_Port`.
-- **Regression Tests:** Strict concurrency race tests (`-race`), PID reuse simulation tests, and cross-platform compatibility builds.
+To robustly handle PID recycling during collection cycles:
+1. **Boot-Relative Start Time Validation (`CreateTime`):** A process is uniquely identified by the tuple `(PID, CreateTime)`.
+2. **Invalidation:** If a PID is reused mid-cycle, its `CreateTime` in `/proc/[pid]/stat` will differ from the cached inspection window, triggering cache invalidation.
+3. **Vanished Processes:** Handled gracefully by gopsutil returning `os.ErrNotExist`, which is treated as an empty/default result rather than a fatal collection error.
 
 ---
 
-## 12. Migration Plan
+## 6. Context Cancellation & Error Handling
 
-1. **Phase 1 (Design Approval):** Review and sign off on this design document (`PHASE_2F2_SHARED_INSPECTION_DESIGN.md`).
-2. **Phase 2 (Implementation Sandbox):** Implement `LinuxInspectionContext` behind Linux build tags in `internal/collector/linux_inspection.go`.
-3. **Phase 3 (Collector Integration):** Refactor `ProcessCollector` and `PortCollector` to consume the shared inspection context.
-4. **Phase 4 (Benchmark Validation):** Compare allocations and latency against the Phase 2F.2.1 baseline.
+- **Context Propagation:** All collector methods accept `context.Context` and propagate it to gopsutil calls.
+- **Filesystem Errors:** Permission-denied errors (`EACCES`) and vanished processes (`ENOENT`) are caught and logged as debug/warning events rather than aborting the entire collection cycle, ensuring partial metrics collection remains resilient.
 
 ---
 
-## 13. Risks and Unresolved Questions
+## 7. Reconciled Performance Opportunities
 
-- **Risk:** Increased memory overhead during the collection window if all process details are eagerly loaded.
-- **Mitigation:** Employ lazy loading within the immutable snapshot (e.g., caching raw process file paths or pids on demand during the cycle while avoiding duplicate inode scans).
+- **Proven Opportunities:** Pre-allocating slice capacities (completed in Phase 2F.2.2) and avoiding formatting allocations (`strconv.Itoa`).
+- **Hypotheses (Deferred):** A unified `/proc` scanner could theoretically reduce `/proc` directory re-scanning, but the architectural complexity outweighs the minor syscall reduction.
+
+---
+
+## 8. Phased Migration Plan
+
+1. **Phase 1 (Design Approval):** Finalized via this reconciliation document.
+2. **Phase 2 (Targeted Profiling):** Monitor production CPU/allocation profiles under varying load.
+3. **Phase 3 (Upstream Collaboration):** Contribute upstream optimizations to `gopsutil` for efficient socket-to-PID inode mapping if required.
+
+---
+
+## 9. Validation Results & Git Status
+
+- **Validation:** `go test ./...`, `go test -race ./...`, `go vet ./...`, `go build ./...` all **PASS**.
+- **Remote Synchronization:** Synchronized with `origin/feature/phase-2f3-shared-inspection-design`.
+- **Production Code:** **Zero production code files were modified.**
