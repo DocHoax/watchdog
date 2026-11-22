@@ -62,11 +62,11 @@ func TestSQLiteStorage_Memory_SingleConnectionIsolation(t *testing.T) {
 			for j := 0; j < iterations; j++ {
 				metricName := "cpu_usage"
 				pt := MetricPoint{
-					Timestamp: time.Now().Unix(),
+					Timestamp: time.Now(),
 					Metric:    metricName,
 					Value:     float64(workerID * j),
 				}
-				_ = store.SaveMetric(localCtx, pt)
+				_ = store.SaveMetricPoint(localCtx, pt)
 
 				_, _ = store.ListOrganizations(localCtx)
 			}
