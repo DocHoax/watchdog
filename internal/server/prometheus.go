@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DocHoax/watchdog/internal/collector"
 	"github.com/DocHoax/watchdog/internal/incidents"
 	"github.com/DocHoax/watchdog/internal/intelligence"
 	"github.com/DocHoax/watchdog/internal/topology"
@@ -21,6 +22,8 @@ type PrometheusExporter struct {
 	lastDiag     *model.DiagnosticReport
 	activeAlerts []model.AlertEvent
 	anomalies    *model.AnomalyReport
+
+	collectorStatuses []collector.Status
 
 	intelSummary      *intelligence.FleetHealthSummary
 	nodeHealthScores  map[string]float64
@@ -54,6 +57,13 @@ func (e *PrometheusExporter) Update(
 	e.lastDiag = diag
 	e.activeAlerts = alerts
 	e.anomalies = anomalies
+}
+
+// UpdateCollectorStatuses updates the exporter with collector execution statuses.
+func (e *PrometheusExporter) UpdateCollectorStatuses(statuses []collector.Status) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.collectorStatuses = statuses
 }
 
 // UpdateIntelligence updates the exporter with fleet health summary and evaluation duration.
@@ -158,6 +168,46 @@ func (e *PrometheusExporter) RenderMetrics() string {
 	fmt.Fprintf(&sb, "watchdog_health_status{status=\"%s\"} 1\n", status)
 
 	if e.lastSnapshot == nil {
+		// Root Cause Analysis Metrics
+		if len(e.rcaCount) > 0 {
+			sb.WriteString("# HELP watchdog_root_cause_analyses_total Total root cause analyses evaluated by confidence\n")
+			sb.WriteString("# TYPE watchdog_root_cause_analyses_total counter\n")
+			for conf, count := range e.rcaCount {
+				fmt.Fprintf(&sb, "watchdog_root_cause_analyses_total{confidence=\"%s\"} %d\n", conf, count)
+			}
+		}
+
+		// Collector Observability Metrics
+		if len(e.collectorStatuses) > 0 {
+			sb.WriteString("# HELP watchdog_collector_failures_total Total number of failed collection attempts\n")
+			sb.WriteString("# TYPE watchdog_collector_failures_total counter\n")
+			for _, st := range e.collectorStatuses {
+				fmt.Fprintf(&sb, "watchdog_collector_failures_total{collector=\"%s\"} %d\n", st.Name, st.Failures)
+			}
+
+			sb.WriteString("# HELP watchdog_collector_duration_seconds Duration of collection execution in seconds\n")
+			sb.WriteString("# TYPE watchdog_collector_duration_seconds histogram\n")
+			bounds := []string{"0.005", "0.01", "0.025", "0.05", "0.1", "0.25", "0.5", "1.0", "2.5", "5.0", "10.0"}
+			for _, st := range e.collectorStatuses {
+				for i, bound := range bounds {
+					fmt.Fprintf(&sb, "watchdog_collector_duration_seconds_bucket{collector=\"%s\",le=\"%s\"} %d\n", st.Name, bound, st.Buckets[i])
+				}
+				fmt.Fprintf(&sb, "watchdog_collector_duration_seconds_bucket{collector=\"%s\",le=\"+Inf\"} %d\n", st.Name, st.Buckets[11])
+				fmt.Fprintf(&sb, "watchdog_collector_duration_seconds_sum{collector=\"%s\"} %.6f\n", st.Name, st.TotalDuration.Seconds())
+				fmt.Fprintf(&sb, "watchdog_collector_duration_seconds_count{collector=\"%s\"} %d\n", st.Name, st.TotalCount)
+			}
+
+			sb.WriteString("# HELP watchdog_collector_up Collector operational status (1=latest collection succeeded, 0=latest collection failed or not run)\n")
+			sb.WriteString("# TYPE watchdog_collector_up gauge\n")
+			for _, st := range e.collectorStatuses {
+				upVal := 0
+				if st.HasRun && st.LastError == "" {
+					upVal = 1
+				}
+				fmt.Fprintf(&sb, "watchdog_collector_up{collector=\"%s\"} %d\n", st.Name, upVal)
+			}
+		}
+
 		return sb.String()
 	}
 

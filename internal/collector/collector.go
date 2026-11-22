@@ -11,11 +11,17 @@ import (
 
 // Status represents the operational status of a collector.
 type Status struct {
-	Name        string        `json:"name"`
-	Enabled     bool          `json:"enabled"`
-	LastSuccess time.Time     `json:"last_success"`
-	LastError   string        `json:"last_error,omitempty"`
-	Duration    time.Duration `json:"duration"`
+	Name          string        `json:"name"`
+	Enabled       bool          `json:"enabled"`
+	LastSuccess   time.Time     `json:"last_success"`
+	LastError     string        `json:"last_error,omitempty"`
+	Duration      time.Duration `json:"duration"`
+	Failures      int64         `json:"failures"`
+	SuccessCount  int64         `json:"success_count"`
+	TotalCount    int64         `json:"total_count"`
+	TotalDuration time.Duration `json:"total_duration"`
+	Buckets       [12]int64     `json:"buckets"`
+	HasRun        bool          `json:"has_run"`
 }
 
 // Collector is the base interface that all metric collectors must implement.
@@ -148,11 +154,26 @@ func (m *Manager) CollectAll(ctx context.Context) (*model.SystemSnapshot, error)
 			m.mu.Lock()
 			if st, ok := m.statuses[n]; ok {
 				st.Duration = dur
+				st.TotalCount++
+				st.TotalDuration += dur
+				sec := dur.Seconds()
+				bounds := [11]float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0}
+				for i, b := range bounds {
+					if sec <= b {
+						st.Buckets[i]++
+					}
+				}
+				st.Buckets[11]++ // +Inf bucket
+
 				if err != nil {
+					st.Failures++
 					st.LastError = err.Error()
+					st.HasRun = true
 				} else {
 					st.LastSuccess = time.Now()
 					st.LastError = ""
+					st.SuccessCount++
+					st.HasRun = true
 				}
 			}
 			m.mu.Unlock()
