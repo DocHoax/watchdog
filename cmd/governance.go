@@ -2983,7 +2983,7 @@ var auditRecordCmd = &cobra.Command{
 			event.Outcome = model.AuditOutcomeSuccess
 		}
 
-		if err := client.RecordAuditEvent(ctx, event); err != nil {
+		if _, err := client.RecordAuditEvent(ctx, event); err != nil {
 			return NewExitError(ExitNetworkError, "failed to record audit event: %w", err)
 		}
 		fmt.Printf("✓ Recorded governance audit event %s\n", event.Action)
