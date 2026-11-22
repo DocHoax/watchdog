@@ -45,3 +45,25 @@ func BenchmarkCollector_CoreMetrics(b *testing.B) {
 		require.NoError(b, err)
 	}
 }
+
+// BenchmarkCollector_Process benchmarks process collection.
+func BenchmarkCollector_Process(b *testing.B) {
+	c := NewProcessCollector()
+	ctx := context.Background()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = c.Collect(ctx)
+	}
+}
+
+// BenchmarkCollector_Port benchmarks port collection.
+func BenchmarkCollector_Port(b *testing.B) {
+	c := NewPortCollector()
+	ctx := context.Background()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = c.Collect(ctx)
+	}
+}

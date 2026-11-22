@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func (c *PortCollector) GetListeningPorts(ctx context.Context) ([]model.PortInfo
 	}
 
 	procNameCache := make(map[int32]string)
-	var ports []model.PortInfo
+	ports := make([]model.PortInfo, 0, len(conns))
 	seen := make(map[string]bool)
 
 	for _, conn := range conns {
@@ -57,7 +58,7 @@ func (c *PortCollector) GetListeningPorts(ctx context.Context) ([]model.PortInfo
 			proto = "UDP"
 		}
 
-		key := proto + ":" + conn.Laddr.IP + ":" + string(rune(conn.Laddr.Port))
+		key := fmt.Sprintf("%s:%s:%d", proto, conn.Laddr.IP, conn.Laddr.Port)
 		if seen[key] {
 			continue
 		}

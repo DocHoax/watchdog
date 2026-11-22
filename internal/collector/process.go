@@ -37,7 +37,7 @@ func (c *ProcessCollector) GetProcesses(ctx context.Context, limit int, sortBy s
 		return nil, fmt.Errorf("failed to retrieve processes: %w", err)
 	}
 
-	var procList []model.ProcessInfo
+	procList := make([]model.ProcessInfo, 0, len(procs))
 	var runningCount, sleepingCount, stoppedCount, zombieCount int
 
 	filterLower := strings.ToLower(filter)
