@@ -102,7 +102,7 @@ func govFixtureFinding() model.ComplianceFinding {
 		TargetNodeID:  "node-prod-01",
 		PolicyID:      "pol-cpu-threshold",
 		RuleID:        "rule-cpu-pct",
-		RuleName:      "CPU Utilization Threshold",
+		RuleName:      "rule-cpu-pct",
 		Category:      model.PolicyCategoryResourceThresholds,
 		Severity:      model.SeverityWarning,
 		Status:        model.FindingStatusOpen,
@@ -1476,7 +1476,7 @@ func TestCmd_Gov_Findings_List(t *testing.T) {
 	if !strings.Contains(out, "fnd-cpu-node01") {
 		t.Errorf("expected finding ID in output, got: %s", out)
 	}
-	if !strings.Contains(out, "CPU Utilization Threshold") {
+	if !strings.Contains(out, "rule-cpu-pct") {
 		t.Errorf("expected rule name in output, got: %s", out)
 	}
 }
