@@ -392,11 +392,11 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 	}
 
 	revision := model.PolicyRevision{
-		PolicyID:    "pol-cpu-threshold",
-		Revision:    1,
-		Author:      "operator",
-		Changelog:   "Initial revision",
-		PublishedAt: now,
+		PolicyID:      "pol-cpu-threshold",
+		Revision:      1,
+		CreatedBy:     "operator",
+		ChangeSummary: "Initial revision",
+		CreatedAt:     now,
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -513,7 +513,7 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 			encode(map[string]any{
 				"org_id": "org-prod-01",
 				"hierarchy": []*model.FleetGroupHierarchyNode{
-					{Group: group, Children: nil, Depth: 0},
+					{Group: group, Children: nil, TotalNodeCount: 1, SubgroupCount: 0},
 				},
 				"count": 1,
 			})
@@ -536,12 +536,10 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 
 		case path == "/api/v1/governance/nodes/node-prod-01/ownership/resolved" && method == http.MethodGet:
 			encode(model.ResolvedOwnership{
-				NodeID: "node-prod-01",
-				OrgID:  "org-prod-01",
-				Resolved: &model.NodeOwnershipMetadata{
-					OwnerTeam:    "platform-team",
-					ContactEmail: "platform@example.com",
-				},
+				NodeID:       "node-prod-01",
+				OrgID:        "org-prod-01",
+				OwnerTeam:    "platform-team",
+				ContactEmail: "platform@example.com",
 			})
 
 		// ---- policies ----
@@ -577,7 +575,7 @@ func setupGovernanceMockServer(t *testing.T) *httptest.Server {
 			_ = json.NewDecoder(r.Body).Decode(&rev)
 			rev.PolicyID = "pol-cpu-threshold"
 			rev.Revision = 2
-			rev.PublishedAt = now
+			rev.CreatedAt = now
 			w.WriteHeader(http.StatusCreated)
 			encode(rev)
 
