@@ -1,0 +1,7 @@
+goos: linux
+goarch: amd64
+pkg: github.com/DocHoax/watchdog/internal/collector
+cpu: Intel(R) Core(TM) i3-5010U CPU @ 2.10GHz
+BenchmarkProcessCollector_GetProcesses-4   	     206	 178937748 ns/op	22321384 B/op	  167848 allocs/op
+PASS
+ok  	github.com/DocHoax/watchdog/internal/collector	54.459s

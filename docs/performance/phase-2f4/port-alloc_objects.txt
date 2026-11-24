@@ -1,0 +1,57 @@
+File: collector.test
+Type: alloc_objects
+Time: Nov 23, 2026 at 2:21pm (GMT)
+Showing nodes accounting for 46314897, 98.55% of 46997918 total
+Dropped 60 nodes (cum <= 234989)
+      flat  flat%   sum%        cum   cum%
+  10917995 23.23% 23.23%   34309938 73.00%  github.com/shirou/gopsutil/v4/net.getProcInodes
+   8218770 17.49% 40.72%   12445931 26.48%  os.readlink
+   6135926 13.06% 53.77%    6141520 13.07%  fmt.Sprintf
+   4882532 10.39% 64.16%    4882532 10.39%  syscall.ByteSliceFromString
+   4729047 10.06% 74.23%    4729047 10.06%  strings.genSplit
+   4047095  8.61% 82.84%    4047095  8.61%  os.newUnixDirent
+   2014493  4.29% 87.12%   11740069 24.98%  github.com/shirou/gopsutil/v4/net.statsFromInodesWithContext
+   1562370  3.32% 90.45%    5611714 11.94%  os.(*File).readdir
+   1142300  2.43% 92.88%    1142300  2.43%  strings.Fields
+   1087688  2.31% 95.19%    2178254  4.63%  github.com/shirou/gopsutil/v4/net.processUnix
+    310367  0.66% 95.85%     752764  1.60%  os.ReadFile
+    268936  0.57% 96.42%     268936  0.57%  strings.(*Builder).grow
+    262159  0.56% 96.98%     262159  0.56%  os.newFile
+    251232  0.53% 97.52%    1103225  2.35%  os.openFileNolog
+    131074  0.28% 97.80%     393224  0.84%  github.com/shirou/gopsutil/v4/internal/common.GetEnvWithContext
+    125909  0.27% 98.06%    5610152 11.94%  github.com/shirou/gopsutil/v4/net.(*process).fillFromStatus
+    120154  0.26% 98.32%     262150  0.56%  github.com/shirou/gopsutil/v4/internal/common.combine
+     83776  0.18% 98.50%     515352  1.10%  github.com/shirou/gopsutil/v4/net.processInet
+      7023 0.015% 98.51%     356283  0.76%  github.com/shirou/gopsutil/v4/process.NewProcessWithContext
+      5634 0.012% 98.52%     303108  0.64%  github.com/shirou/gopsutil/v4/net.PidsWithContext
+      5461 0.012% 98.54%     257254  0.55%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromTIDStatWithContext
+      4956 0.011% 98.55%   46997497   100%  github.com/DocHoax/watchdog/internal/collector.(*PortCollector).GetListeningPorts
+         0     0% 98.55%   46997497   100%  github.com/DocHoax/watchdog/internal/collector.BenchmarkPortCollector_GetListeningPorts
+         0     0% 98.55%     393224  0.84%  github.com/shirou/gopsutil/v4/internal/common.HostProcWithContext (inline)
+         0     0% 98.55%    5610152 11.94%  github.com/shirou/gopsutil/v4/net.(*process).getUids (inline)
+         0     0% 98.55%   46440684 98.81%  github.com/shirou/gopsutil/v4/net.ConnectionsPidMaxWithContext (inline)
+         0     0% 98.55%   46440684 98.81%  github.com/shirou/gopsutil/v4/net.ConnectionsPidWithContext
+         0     0% 98.55%   46440684 98.81%  github.com/shirou/gopsutil/v4/net.ConnectionsWithContext (inline)
+         0     0% 98.55%   46440684 98.81%  github.com/shirou/gopsutil/v4/net.connectionsPidMaxWithoutUidsWithContext
+         0     0% 98.55%     344070  0.73%  github.com/shirou/gopsutil/v4/net.decodeAddress
+         0     0% 98.55%   34700615 73.83%  github.com/shirou/gopsutil/v4/net.getProcInodesAllWithContext
+         0     0% 98.55%     257254  0.55%  github.com/shirou/gopsutil/v4/process.(*Process).CreateTimeWithContext
+         0     0% 98.55%     257254  0.55%  github.com/shirou/gopsutil/v4/process.(*Process).createTimeWithContext
+         0     0% 98.55%     257254  0.55%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatWithContext
+         0     0% 98.55%    5472621 11.64%  os.(*File).ReadDir
+         0     0% 98.55%    1103225  2.35%  os.Open (inline)
+         0     0% 98.55%    1103225  2.35%  os.OpenFile
+         0     0% 98.55%   12445931 26.48%  os.Readlink (inline)
+         0     0% 98.55%     655371  1.39%  os.ignoringEINTR (inline)
+         0     0% 98.55%     589834  1.26%  os.open
+         0     0% 98.55%     589834  1.26%  os.openFileNolog.func1
+         0     0% 98.55%     268936  0.57%  strings.(*Builder).Grow
+         0     0% 98.55%     288850  0.61%  strings.Split (inline)
+         0     0% 98.55%    4440197  9.45%  strings.SplitN (inline)
+         0     0% 98.55%    4882532 10.39%  syscall.BytePtrFromString (inline)
+         0     0% 98.55%     589834  1.26%  syscall.Open (inline)
+         0     0% 98.55%    4227161  8.99%  syscall.Readlink (inline)
+         0     0% 98.55%     589834  1.26%  syscall.openat
+         0     0% 98.55%    4227161  8.99%  syscall.readlinkat
+         0     0% 98.55%   46977336   100%  testing.(*B).launch
+         0     0% 98.55%   46997497   100%  testing.(*B).runN

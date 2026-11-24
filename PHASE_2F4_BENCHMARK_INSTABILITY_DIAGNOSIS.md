@@ -1,4 +1,4 @@
-# Phase 2F.2.4 Benchmark Instability Diagnosis
+# Phase 2F.2.4 Live-System Benchmark Variability Diagnosis
 
 ## Investigation timestamp
 
@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Provide a rigorous technical accuracy review and evidence classification for the benchmark variance observed during Phase 2F.2.4 (FullCycle variance ~25.4%, Process GetProcesses variance ~56.3%).
+Provide a technical accuracy review and evidence classification for the benchmark variance observed during the Phase 2F.2.4 live-system baseline (FullCycle range ~25.4%, Process GetProcesses range ~56.3%). The benchmark host was not isolated; these observations are descriptive and environment-dependent.
 
 ---
 
@@ -58,4 +58,4 @@ Provide a rigorous technical accuracy review and evidence classification for the
 
 ## Conclusion
 
-The observed benchmark variance is influenced by structural concurrency and host environment characteristics, but several environmental factors (paging activity, thermal throttling, disk seek latency on `/proc`) lack direct instrumentation during benchmark runs and remain unverified hypotheses. Future benchmarking requires dedicated instrumentation (or an isolated, quiet host) to establish causal relationships.
+The observed benchmark variance occurred on a live Linux host where collectors execute concurrently during FullCycle measurements. Concurrent scheduling and environmental conditions are plausible contributors, but the available evidence does not establish their causal impact on specific benchmark samples. Supporting benchmark output and preserved pprof text summaries are in [`docs/performance/phase-2f4/`](docs/performance/phase-2f4/). The original binary `.prof` files are unavailable, so the text summaries' binary source files cannot be independently verified.

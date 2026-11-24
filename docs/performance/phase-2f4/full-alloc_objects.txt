@@ -1,0 +1,100 @@
+File: collector.test
+Type: alloc_objects
+Time: Nov 23, 2026 at 2:20pm (GMT)
+Showing nodes accounting for 24832757, 98.66% of 25169653 total
+Dropped 124 nodes (cum <= 125848)
+      flat  flat%   sum%        cum   cum%
+   7282939 28.94% 28.94%    7282939 28.94%  strings.genSplit
+   3418674 13.58% 42.52%    3418674 13.58%  strings.(*Builder).grow
+   1955281  7.77% 50.29%    6296458 25.02%  github.com/shirou/gopsutil/v4/net.getProcInodes
+   1896963  7.54% 57.82%    2596028 10.31%  os.readlink
+   1354425  5.38% 63.20%    1354425  5.38%  syscall.ByteSliceFromString
+   1239757  4.93% 68.13%    1239757  4.93%  os.newFile
+    843827  3.35% 71.48%     843827  3.35%  os.newUnixDirent
+    789175  3.14% 74.62%     821943  3.27%  fmt.Sprintf
+    717327  2.85% 77.47%    7015548 27.87%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatusWithContext
+    626784  2.49% 79.96%    2322823  9.23%  os.ReadFile
+    578320  2.30% 82.26%     578320  2.30%  strings.Fields
+    557061  2.21% 84.47%    1321663  5.25%  github.com/shirou/gopsutil/v4/internal/common.GetEnvWithContext
+    395224  1.57% 86.04%     507079  2.01%  github.com/shirou/gopsutil/v4/process.splitProcStat
+    393229  1.56% 87.60%     764602  3.04%  github.com/shirou/gopsutil/v4/internal/common.combine
+    363677  1.44% 89.05%    2245301  8.92%  github.com/shirou/gopsutil/v4/net.statsFromInodesWithContext
+    357991  1.42% 90.47%     357991  1.42%  os.(*File).Stat
+    357282  1.42% 91.89%    1202841  4.78%  os.(*File).readdir
+    327696  1.30% 93.19%    3548700 14.10%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromTIDStatWithContext
+    245247  0.97% 94.16%    1752752  6.96%  github.com/shirou/gopsutil/v4/internal/common.ReadLinesOffsetN
+    215614  0.86% 95.02%     427796  1.70%  github.com/shirou/gopsutil/v4/net.processUnix
+    196610  0.78% 95.80%     196610  0.78%  strconv.formatBits
+    126822   0.5% 96.31%     126822   0.5%  bufio.NewReaderSize (inline)
+    122887  0.49% 96.79%     525814  2.09%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatmWithContext
+    103766  0.41% 97.21%     377615  1.50%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromCommWithContext
+     95574  0.38% 97.59%     407552  1.62%  github.com/shirou/gopsutil/v4/process.(*Process).fillSliceFromCmdlineWithContext
+     87384  0.35% 97.93%    1916965  7.62%  os.openFileNolog
+     82826  0.33% 98.26%    1210394  4.81%  github.com/shirou/gopsutil/v4/net.(*process).fillFromStatus
+     47519  0.19% 98.45%    3736419 14.84%  github.com/shirou/gopsutil/v4/mem.fillFromMeminfoWithContext
+     25751   0.1% 98.55%    1079454  4.29%  github.com/shirou/gopsutil/v4/process.NewProcessWithContext
+     20229  0.08% 98.63%     278577  1.11%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromCmdlineWithContext
+      3847 0.015% 98.65%    4150651 16.49%  github.com/DocHoax/watchdog/internal/collector.(*NetworkCollector).GetNetworkInfo
+      2500 0.0099% 98.66%    4503863 17.89%  github.com/DocHoax/watchdog/internal/collector.(*PortCollector).GetListeningPorts
+       321 0.0013% 98.66%   16075928 63.87%  github.com/DocHoax/watchdog/internal/collector.(*ProcessCollector).GetProcesses
+       228 0.00091% 98.66%    1069125  4.25%  github.com/shirou/gopsutil/v4/process.ProcessesWithContext
+         0     0% 98.66%    2353702  9.35%  bufio.(*Reader).ReadString
+         0     0% 98.66%     126822   0.5%  bufio.NewReader (inline)
+         0     0% 98.66%     154823  0.62%  github.com/DocHoax/watchdog/internal/collector.(*CPUCollector).Collect
+         0     0% 98.66%     154823  0.62%  github.com/DocHoax/watchdog/internal/collector.(*CPUCollector).GetCPUInfo
+         0     0% 98.66%   25168756   100%  github.com/DocHoax/watchdog/internal/collector.(*Manager).CollectAll.func1
+         0     0% 98.66%    4150651 16.49%  github.com/DocHoax/watchdog/internal/collector.(*NetworkCollector).Collect
+         0     0% 98.66%    4503863 17.89%  github.com/DocHoax/watchdog/internal/collector.(*PortCollector).Collect
+         0     0% 98.66%   16075928 63.87%  github.com/DocHoax/watchdog/internal/collector.(*ProcessCollector).Collect
+         0     0% 98.66%    1754009  6.97%  github.com/shirou/gopsutil/v4/internal/common.BootTimeWithContext
+         0     0% 98.66%    1321663  5.25%  github.com/shirou/gopsutil/v4/internal/common.HostProcWithContext (inline)
+         0     0% 98.66%    1409939  5.60%  github.com/shirou/gopsutil/v4/internal/common.ReadLine
+         0     0% 98.66%    1752624  6.96%  github.com/shirou/gopsutil/v4/internal/common.ReadLines (inline)
+         0     0% 98.66%    1754009  6.97%  github.com/shirou/gopsutil/v4/internal/common.readBootTimeStat
+         0     0% 98.66%    3736419 14.84%  github.com/shirou/gopsutil/v4/mem.VirtualMemoryWithContext (inline)
+         0     0% 98.66%    1210394  4.81%  github.com/shirou/gopsutil/v4/net.(*process).getUids (inline)
+         0     0% 98.66%    8609284 34.21%  github.com/shirou/gopsutil/v4/net.ConnectionsPidMaxWithContext (inline)
+         0     0% 98.66%    8609284 34.21%  github.com/shirou/gopsutil/v4/net.ConnectionsPidWithContext
+         0     0% 98.66%    8609284 34.21%  github.com/shirou/gopsutil/v4/net.ConnectionsWithContext (inline)
+         0     0% 98.66%    8609284 34.21%  github.com/shirou/gopsutil/v4/net.connectionsPidMaxWithoutUidsWithContext
+         0     0% 98.66%    6363983 25.28%  github.com/shirou/gopsutil/v4/net.getProcInodesAllWithContext
+         0     0% 98.66%    1864460  7.41%  github.com/shirou/gopsutil/v4/process.(*Process).CPUPercentWithContext
+         0     0% 98.66%     407552  1.62%  github.com/shirou/gopsutil/v4/process.(*Process).CmdlineSliceWithContext (inline)
+         0     0% 98.66%     278577  1.11%  github.com/shirou/gopsutil/v4/process.(*Process).CmdlineWithContext (inline)
+         0     0% 98.66%     727271  2.89%  github.com/shirou/gopsutil/v4/process.(*Process).CreateTimeWithContext
+         0     0% 98.66%     174769  0.69%  github.com/shirou/gopsutil/v4/process.(*Process).ExeWithContext (inline)
+         0     0% 98.66%     525814  2.09%  github.com/shirou/gopsutil/v4/process.(*Process).MemoryInfoWithContext (inline)
+         0     0% 98.66%    4011567 15.94%  github.com/shirou/gopsutil/v4/process.(*Process).MemoryPercentWithContext
+         0     0% 98.66%    1073124  4.26%  github.com/shirou/gopsutil/v4/process.(*Process).NameWithContext (inline)
+         0     0% 98.66%    2298983  9.13%  github.com/shirou/gopsutil/v4/process.(*Process).NumThreadsWithContext (inline)
+         0     0% 98.66%     956969  3.80%  github.com/shirou/gopsutil/v4/process.(*Process).PpidWithContext
+         0     0% 98.66%    1964211  7.80%  github.com/shirou/gopsutil/v4/process.(*Process).StatusWithContext (inline)
+         0     0% 98.66%     873271  3.47%  github.com/shirou/gopsutil/v4/process.(*Process).TimesWithContext
+         0     0% 98.66%    2056845  8.17%  github.com/shirou/gopsutil/v4/process.(*Process).UidsWithContext (inline)
+         0     0% 98.66%    2146253  8.53%  github.com/shirou/gopsutil/v4/process.(*Process).UsernameWithContext
+         0     0% 98.66%    1718460  6.83%  github.com/shirou/gopsutil/v4/process.(*Process).createTimeWithContext
+         0     0% 98.66%     174769  0.69%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromExeWithContext
+         0     0% 98.66%    3548700 14.10%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatWithContext
+         0     0% 98.66%    1073124  4.26%  github.com/shirou/gopsutil/v4/process.(*Process).fillNameWithContext
+         0     0% 98.66%     326432  1.30%  github.com/shirou/gopsutil/v4/process.PidExistsWithContext
+         0     0% 98.66%    1133475  4.50%  os.(*File).ReadDir
+         0     0% 98.66%    1916965  7.62%  os.Open (inline)
+         0     0% 98.66%    1916965  7.62%  os.OpenFile
+         0     0% 98.66%    2596028 10.31%  os.Readlink (inline)
+         0     0% 98.66%     622592  2.47%  os.ignoringEINTR (inline)
+         0     0% 98.66%     589824  2.34%  os.open
+         0     0% 98.66%     589824  2.34%  os.openFileNolog.func1
+         0     0% 98.66%     469678  1.87%  path/filepath.Join (inline)
+         0     0% 98.66%     469678  1.87%  path/filepath.join
+         0     0% 98.66%     196610  0.78%  strconv.FormatInt
+         0     0% 98.66%     196610  0.78%  strconv.Itoa (inline)
+         0     0% 98.66%    3418674 13.58%  strings.(*Builder).Grow
+         0     0% 98.66%     507908  2.02%  strings.Join
+         0     0% 98.66%     557064  2.21%  strings.Replace
+         0     0% 98.66%    1783212  7.08%  strings.Split (inline)
+         0     0% 98.66%    5499727 21.85%  strings.SplitN (inline)
+         0     0% 98.66%    1354425  5.38%  syscall.BytePtrFromString (inline)
+         0     0% 98.66%     589824  2.34%  syscall.Open (inline)
+         0     0% 98.66%     699065  2.78%  syscall.Readlink (inline)
+         0     0% 98.66%     589824  2.34%  syscall.openat
+         0     0% 98.66%     699065  2.78%  syscall.readlinkat

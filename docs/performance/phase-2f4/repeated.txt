@@ -1,0 +1,46 @@
+goos: linux
+goarch: amd64
+pkg: github.com/DocHoax/watchdog/internal/collector
+cpu: Intel(R) Core(TM) i3-5010U CPU @ 2.10GHz
+BenchmarkCollector_FullCycle-4               	       9	 373253814 ns/op	30296058 B/op	  272563 allocs/op
+BenchmarkCollector_FullCycle-4               	      10	 361696748 ns/op	30251568 B/op	  271946 allocs/op
+BenchmarkCollector_FullCycle-4               	       9	 375457070 ns/op	30339962 B/op	  272715 allocs/op
+BenchmarkCollector_FullCycle-4               	       9	 370322072 ns/op	30162077 B/op	  271198 allocs/op
+BenchmarkCollector_FullCycle-4               	       9	 360918381 ns/op	30135329 B/op	  270973 allocs/op
+BenchmarkCollector_FullCycle-4               	      10	 365204791 ns/op	30156661 B/op	  271100 allocs/op
+BenchmarkCollector_FullCycle-4               	       9	 396104722 ns/op	30168854 B/op	  271020 allocs/op
+BenchmarkCollector_FullCycle-4               	       9	 422181538 ns/op	30220728 B/op	  271493 allocs/op
+BenchmarkCollector_FullCycle-4               	       8	 391295805 ns/op	30209944 B/op	  271405 allocs/op
+BenchmarkCollector_FullCycle-4               	       8	 452774538 ns/op	30231904 B/op	  271745 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     190	  17478762 ns/op	  506086 B/op	    3513 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     228	  16918344 ns/op	  506841 B/op	    3514 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     201	  16082236 ns/op	  506529 B/op	    3514 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     192	  16812320 ns/op	  506437 B/op	    3514 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     224	  16685648 ns/op	  506459 B/op	    3513 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     213	  16597860 ns/op	  506451 B/op	    3513 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     223	  16741254 ns/op	  506197 B/op	    3512 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     200	  15742817 ns/op	  506452 B/op	    3512 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     194	  16969439 ns/op	  506529 B/op	    3513 allocs/op
+BenchmarkCollector_CoreMetrics-4             	     224	  16828364 ns/op	  506328 B/op	    3512 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      20	 174180555 ns/op	22001360 B/op	  165442 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      21	 180690889 ns/op	22061490 B/op	  165892 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      19	 182349741 ns/op	22074335 B/op	  165998 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      19	 199059702 ns/op	22097360 B/op	  166165 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      12	 272198674 ns/op	22089631 B/op	  166086 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      18	 180628790 ns/op	22151085 B/op	  166556 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      19	 179899985 ns/op	22093317 B/op	  166131 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      20	 188527214 ns/op	22224744 B/op	  167131 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      22	 184057685 ns/op	22232774 B/op	  167200 allocs/op
+BenchmarkProcessCollector_GetProcesses-4     	      18	 192076216 ns/op	22236026 B/op	  167227 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	      94	  41182571 ns/op	 3532560 B/op	   50053 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	      85	  38858063 ns/op	 3537202 B/op	   50141 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	      96	  40105580 ns/op	 3530177 B/op	   50120 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	     100	  38337823 ns/op	 3530395 B/op	   50133 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	     100	  37881952 ns/op	 3522669 B/op	   49957 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	      96	  39994764 ns/op	 3529356 B/op	   50110 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	      90	  37343020 ns/op	 3523291 B/op	   49957 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	     100	  38438093 ns/op	 3528529 B/op	   50073 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	     100	  38937967 ns/op	 3515319 B/op	   49759 allocs/op
+BenchmarkPortCollector_GetListeningPorts-4   	      92	  43857603 ns/op	 3520430 B/op	   49807 allocs/op
+PASS
+ok  	github.com/DocHoax/watchdog/internal/collector	181.974s

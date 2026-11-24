@@ -1,0 +1,8 @@
+command: go vet ./...
+started_at=2026-11-23T15:34:24+00:00
+git_head_before=e77f8742764bfea71f46e855fbc920800555841a
+--- stdout and stderr ---
+--- command metadata ---
+ended_at=2026-11-23T15:34:27+00:00
+exit_code=0
+git_head_after=e77f8742764bfea71f46e855fbc920800555841a

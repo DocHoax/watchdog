@@ -1,0 +1,93 @@
+File: collector.test
+Type: alloc_space
+Time: Nov 23, 2026 at 2:20pm (GMT)
+Showing nodes accounting for 2864.89MB, 97.52% of 2937.71MB total
+Dropped 131 nodes (cum <= 14.69MB)
+      flat  flat%   sum%        cum   cum%
+  600.87MB 20.45% 20.45%   717.89MB 24.44%  os.ReadFile
+  495.43MB 16.86% 37.32%   495.43MB 16.86%  bufio.NewReaderSize (inline)
+  323.09MB 11.00% 48.32%   323.09MB 11.00%  strings.genSplit
+  251.24MB  8.55% 56.87%   251.24MB  8.55%  strings.(*Builder).grow
+  149.70MB  5.10% 61.96%   806.24MB 27.44%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatusWithContext
+  140.51MB  4.78% 66.75%   155.52MB  5.29%  os.readlink
+  138.09MB  4.70% 71.45%   138.09MB  4.70%  strings.Fields
+  123.09MB  4.19% 75.64%   218.67MB  7.44%  github.com/shirou/gopsutil/v4/process.splitProcStat
+   89.64MB  3.05% 78.69%   172.38MB  5.87%  github.com/shirou/gopsutil/v4/net.processUnix
+   71.01MB  2.42% 81.11%    71.01MB  2.42%  os.(*File).Stat
+   59.05MB  2.01% 83.12%   215.48MB  7.33%  github.com/shirou/gopsutil/v4/internal/common.ReadLinesOffsetN
+   54.55MB  1.86% 84.97%   315.67MB 10.75%  github.com/shirou/gopsutil/v4/net.getProcInodes
+      53MB  1.80% 86.78%       53MB  1.80%  os.newFile
+   51.50MB  1.75% 88.53%    51.50MB  1.75%  os.newUnixDirent
+   48.61MB  1.65% 90.19%   106.16MB  3.61%  os.(*File).readdir
+   30.55MB  1.04% 91.23%   135.65MB  4.62%  github.com/shirou/gopsutil/v4/net.(*process).fillFromStatus
+   27.50MB  0.94% 92.16%    27.50MB  0.94%  syscall.ByteSliceFromString
+   23.72MB  0.81% 92.97%    23.72MB  0.81%  github.com/shirou/gopsutil/v4/net.updateMap (inline)
+      20MB  0.68% 93.65%   929.44MB 31.64%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromTIDStatWithContext
+      18MB  0.61% 94.26%       24MB  0.82%  github.com/shirou/gopsutil/v4/internal/common.combine
+      17MB  0.58% 94.84%    17.50MB   0.6%  fmt.Sprintf
+   12.89MB  0.44% 95.28%    19.01MB  0.65%  io.copyBuffer
+   12.07MB  0.41% 95.69%   337.11MB 11.48%  github.com/shirou/gopsutil/v4/net.statsFromInodesWithContext
+    8.50MB  0.29% 95.98%    32.50MB  1.11%  github.com/shirou/gopsutil/v4/internal/common.GetEnvWithContext
+    7.50MB  0.26% 96.24%    61.02MB  2.08%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatmWithContext
+    6.23MB  0.21% 96.45%  2154.41MB 73.34%  github.com/DocHoax/watchdog/internal/collector.(*ProcessCollector).GetProcesses
+       6MB   0.2% 96.65%   263.95MB  8.98%  github.com/shirou/gopsutil/v4/mem.fillFromMeminfoWithContext
+    5.50MB  0.19% 96.84%   264.02MB  8.99%  github.com/shirou/gopsutil/v4/process.NewProcessWithContext
+       4MB  0.14% 96.98%    30.52MB  1.04%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromCmdlineWithContext
+       4MB  0.14% 97.11%    39.51MB  1.34%  github.com/shirou/gopsutil/v4/process.(*Process).fillSliceFromCmdlineWithContext
+       4MB  0.14% 97.25%       68MB  2.31%  os.openFileNolog
+    3.02MB   0.1% 97.35%   343.97MB 11.71%  github.com/DocHoax/watchdog/internal/collector.(*NetworkCollector).GetNetworkInfo
+       2MB 0.068% 97.42%   359.61MB 12.24%  github.com/DocHoax/watchdog/internal/collector.(*PortCollector).GetListeningPorts
+       2MB 0.068% 97.49%    27.51MB  0.94%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromCommWithContext
+    0.50MB 0.017% 97.50%   258.51MB  8.80%  github.com/shirou/gopsutil/v4/process.ProcessesWithContext
+    0.50MB 0.017% 97.52%    17.07MB  0.58%  github.com/shirou/gopsutil/v4/sensors.TemperaturesWithContext
+         0     0% 97.52%   233.74MB  7.96%  bufio.(*Reader).ReadString
+         0     0% 97.52%   495.43MB 16.86%  bufio.NewReader (inline)
+         0     0% 97.52%    30.60MB  1.04%  github.com/DocHoax/watchdog/internal/collector.(*CPUCollector).Collect
+         0     0% 97.52%    30.60MB  1.04%  github.com/DocHoax/watchdog/internal/collector.(*CPUCollector).GetCPUInfo
+         0     0% 97.52%  2918.70MB 99.35%  github.com/DocHoax/watchdog/internal/collector.(*Manager).CollectAll.func1
+         0     0% 97.52%   343.97MB 11.71%  github.com/DocHoax/watchdog/internal/collector.(*NetworkCollector).Collect
+         0     0% 97.52%   359.61MB 12.24%  github.com/DocHoax/watchdog/internal/collector.(*PortCollector).Collect
+         0     0% 97.52%  2154.41MB 73.34%  github.com/DocHoax/watchdog/internal/collector.(*ProcessCollector).Collect
+         0     0% 97.52%   597.24MB 20.33%  github.com/shirou/gopsutil/v4/internal/common.BootTimeWithContext
+         0     0% 97.52%    32.50MB  1.11%  github.com/shirou/gopsutil/v4/internal/common.HostProcWithContext (inline)
+         0     0% 97.52%   589.24MB 20.06%  github.com/shirou/gopsutil/v4/internal/common.ReadLine
+         0     0% 97.52%   214.97MB  7.32%  github.com/shirou/gopsutil/v4/internal/common.ReadLines (inline)
+         0     0% 97.52%   597.24MB 20.33%  github.com/shirou/gopsutil/v4/internal/common.readBootTimeStat
+         0     0% 97.52%   263.95MB  8.98%  github.com/shirou/gopsutil/v4/mem.VirtualMemoryWithContext (inline)
+         0     0% 97.52%   135.65MB  4.62%  github.com/shirou/gopsutil/v4/net.(*process).getUids (inline)
+         0     0% 97.52%   683.53MB 23.27%  github.com/shirou/gopsutil/v4/net.ConnectionsPidMaxWithContext (inline)
+         0     0% 97.52%   683.53MB 23.27%  github.com/shirou/gopsutil/v4/net.ConnectionsPidWithContext
+         0     0% 97.52%   683.53MB 23.27%  github.com/shirou/gopsutil/v4/net.ConnectionsWithContext (inline)
+         0     0% 97.52%   683.53MB 23.27%  github.com/shirou/gopsutil/v4/net.connectionsPidMaxWithoutUidsWithContext
+         0     0% 97.52%   346.42MB 11.79%  github.com/shirou/gopsutil/v4/net.getProcInodesAllWithContext
+         0     0% 97.52%   464.47MB 15.81%  github.com/shirou/gopsutil/v4/process.(*Process).CPUPercentWithContext
+         0     0% 97.52%    39.51MB  1.34%  github.com/shirou/gopsutil/v4/process.(*Process).CmdlineSliceWithContext (inline)
+         0     0% 97.52%    30.52MB  1.04%  github.com/shirou/gopsutil/v4/process.(*Process).CmdlineWithContext (inline)
+         0     0% 97.52%   244.01MB  8.31%  github.com/shirou/gopsutil/v4/process.(*Process).CreateTimeWithContext
+         0     0% 97.52%    61.02MB  2.08%  github.com/shirou/gopsutil/v4/process.(*Process).MemoryInfoWithContext (inline)
+         0     0% 97.52%   295.45MB 10.06%  github.com/shirou/gopsutil/v4/process.(*Process).MemoryPercentWithContext
+         0     0% 97.52%   106.58MB  3.63%  github.com/shirou/gopsutil/v4/process.(*Process).NameWithContext (inline)
+         0     0% 97.52%   253.23MB  8.62%  github.com/shirou/gopsutil/v4/process.(*Process).NumThreadsWithContext (inline)
+         0     0% 97.52%   220.95MB  7.52%  github.com/shirou/gopsutil/v4/process.(*Process).PpidWithContext
+         0     0% 97.52%   237.22MB  8.08%  github.com/shirou/gopsutil/v4/process.(*Process).StatusWithContext (inline)
+         0     0% 97.52%   243.53MB  8.29%  github.com/shirou/gopsutil/v4/process.(*Process).TimesWithContext
+         0     0% 97.52%   236.72MB  8.06%  github.com/shirou/gopsutil/v4/process.(*Process).UidsWithContext (inline)
+         0     0% 97.52%   251.23MB  8.55%  github.com/shirou/gopsutil/v4/process.(*Process).UsernameWithContext
+         0     0% 97.52%   464.96MB 15.83%  github.com/shirou/gopsutil/v4/process.(*Process).createTimeWithContext
+         0     0% 97.52%   929.44MB 31.64%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatWithContext
+         0     0% 97.52%   106.58MB  3.63%  github.com/shirou/gopsutil/v4/process.(*Process).fillNameWithContext
+         0     0% 97.52%    19.01MB  0.65%  io.Copy (inline)
+         0     0% 97.52%    96.10MB  3.27%  os.(*File).ReadDir
+         0     0% 97.52%    19.01MB  0.65%  os.(*File).WriteTo
+         0     0% 97.52%       68MB  2.31%  os.Open (inline)
+         0     0% 97.52%       68MB  2.31%  os.OpenFile
+         0     0% 97.52%   155.52MB  5.29%  os.Readlink (inline)
+         0     0% 97.52%    19.01MB  0.65%  os.genericWriteTo
+         0     0% 97.52%    19.01MB  0.65%  os/exec.(*Cmd).Start.func2
+         0     0% 97.52%    19.01MB  0.65%  os/exec.(*Cmd).writerDescriptor.func1
+         0     0% 97.52%   251.24MB  8.55%  strings.(*Builder).Grow
+         0     0% 97.52%   155.59MB  5.30%  strings.Split (inline)
+         0     0% 97.52%   167.51MB  5.70%  strings.SplitN (inline)
+         0     0% 97.52%    27.50MB  0.94%  syscall.BytePtrFromString (inline)
+         0     0% 97.52%       15MB  0.51%  syscall.Readlink (inline)
+         0     0% 97.52%       15MB  0.51%  syscall.readlinkat

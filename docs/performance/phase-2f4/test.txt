@@ -1,0 +1,29 @@
+command: go test ./...
+started_at=2026-11-23T15:33:17+00:00
+git_head_before=e77f8742764bfea71f46e855fbc920800555841a
+--- stdout and stderr ---
+?   	github.com/DocHoax/watchdog	[no test files]
+ok  	github.com/DocHoax/watchdog/cmd	(cached)
+ok  	github.com/DocHoax/watchdog/internal/alerts	(cached)
+ok  	github.com/DocHoax/watchdog/internal/anomaly	(cached)
+ok  	github.com/DocHoax/watchdog/internal/audit	(cached)
+ok  	github.com/DocHoax/watchdog/internal/collector	(cached)
+ok  	github.com/DocHoax/watchdog/internal/config	(cached)
+ok  	github.com/DocHoax/watchdog/internal/diagnostics	(cached)
+ok  	github.com/DocHoax/watchdog/internal/fleet	(cached)
+ok  	github.com/DocHoax/watchdog/internal/governance	(cached)
+ok  	github.com/DocHoax/watchdog/internal/incidents	(cached)
+ok  	github.com/DocHoax/watchdog/internal/intelligence	(cached)
+ok  	github.com/DocHoax/watchdog/internal/logger	(cached)
+ok  	github.com/DocHoax/watchdog/internal/mcp	(cached)
+ok  	github.com/DocHoax/watchdog/internal/reporting	(cached)
+ok  	github.com/DocHoax/watchdog/internal/server	(cached)
+ok  	github.com/DocHoax/watchdog/internal/storage	(cached)
+ok  	github.com/DocHoax/watchdog/internal/topology	(cached)
+ok  	github.com/DocHoax/watchdog/internal/tui	(cached)
+ok  	github.com/DocHoax/watchdog/pkg/model	(cached)
+ok  	github.com/DocHoax/watchdog/pkg/util	(cached)
+--- command metadata ---
+ended_at=2026-11-23T15:33:32+00:00
+exit_code=0
+git_head_after=e77f8742764bfea71f46e855fbc920800555841a

@@ -1,10 +1,12 @@
-# Phase 2F.2.4 Controlled Linux Performance Investigation
+# Phase 2F.2.4 Live-System Linux Collector Performance Baseline
 
 ## 1. Executive summary
 
 This investigation establishes a live-system Linux baseline for Watchdog's collector subsystem at commit `f1f651d3f455f809760ec9a39dd8165667558cd0`. It adds two benchmark-only tests for the independent process and port collectors, collects repeated benchmark measurements, and captures CPU and heap profiles for full-cycle, process, and port workloads.
 
-The measurements show that **process inspection is the largest isolated collector workload** under the tested host conditions. Process collection performs substantial repeated `/proc` file inspection through gopsutil. Port collection is materially cheaper than process collection but has a distinct socket/inode discovery cost. These are measured observations from isolated benchmark runs; no production optimization was implemented.
+Measurements were collected on a live Linux host with active desktop workloads. The benchmark environment was not isolated: it had four logical CPUs and no CPU pinning, scheduler isolation, dedicated benchmark host, or filesystem cache control. Results are descriptive and environment-dependent; they establish a baseline, not statistically conclusive proof of an optimization opportunity.
+
+The measurements show that **process inspection is the largest isolated collector workload** under the tested host conditions. Process collection performs substantial repeated `/proc` inspection through gopsutil. Port collection is materially cheaper than process collection but has a distinct socket/inode discovery cost. These are measured observations; no production optimization was implemented.
 
 Important distinction: isolated benchmark timings (e.g., `BenchmarkProcessCollector_GetProcesses` at ~174–272 ms/op) are **not additive** to the concurrent `FullCycle` wall-clock measurement (~361–453 ms/op) because collectors run in parallel in `Manager.CollectAll`. Cumulative CPU profile attribution reflects sampled Go CPU time in call trees, not wall-clock contribution.
 
@@ -31,7 +33,7 @@ Captured on the benchmark host:
 | CPU governor | `schedutil` on observed CPUs |
 | Repository | `/home/muhammad/Projects/watchdog` |
 
-At the readiness check, available memory was approximately 3.3–3.4 GiB and swap use was approximately 1.17 GiB. During the 60-second preflight, 1-minute load declined from approximately 1.28 to 1.06 and then measured 1.19. CPU samples varied, with meaningful desktop and I/O activity still present. Chrome, VS Code, GNOME Shell, Omniroute, and the agent process were active. This is therefore a controlled live-host baseline, not an isolated or dedicated benchmark machine.
+At the readiness check, available memory was approximately 3.3–3.4 GiB and swap occupancy was approximately 1.17 GiB. During the 60-second preflight, 1-minute load declined from approximately 1.28 to 1.06 and then measured 1.19. CPU samples varied, with meaningful desktop and I/O activity still present. Chrome, VS Code, GNOME Shell, Omniroute, and the agent process were active. These live-host measurements were not isolated or collected on a dedicated benchmark machine; the captured conditions do not establish which factors caused benchmark variance.
 
 A first benchmark attempt under heavier activity produced unacceptable full-cycle variance and was not used as the primary result. The final repeated run below was retained, but the limitations section records the host interference.
 
@@ -49,7 +51,7 @@ Permitted source change:
 
 - `internal/collector/collector_linux_benchmark_test.go`: live-system benchmark tests for `ProcessCollector.GetProcesses` and `PortCollector.GetListeningPorts`.
 
-Report and raw binary profiles are not stored in the repository except for this report. Raw artifacts remain under `/tmp/watchdog-phase-2f4/`.
+The original raw benchmark output and preserved text profile summaries are in [`docs/performance/phase-2f4/`](docs/performance/phase-2f4/). The original binary `.prof` files were reportedly stored under `/tmp/watchdog-phase-2f4/profiles/`, but they are unavailable in the current environment and are not committed. Therefore, the text summaries' binary source files cannot be independently verified. The summaries are treated as preserved pprof text output, not as independently reproducible evidence.
 
 ## 4. Benchmark methodology
 
@@ -66,11 +68,7 @@ Primary repeated command:
 go test ./internal/collector -run '^$' -bench 'BenchmarkCollector_|BenchmarkProcessCollector_|BenchmarkPortCollector_' -benchmem -count=10 -benchtime=3s
 ```
 
-Raw output:
-
-```text
-/tmp/watchdog-phase-2f4/benchmarks/repeated.txt
-```
+Original raw output: [`docs/performance/phase-2f4/repeated.txt`](docs/performance/phase-2f4/repeated.txt). A separate copy was reportedly preserved at `/tmp/watchdog-phase-2f4/benchmarks/repeated.txt`, but that temporary path is unavailable in the current environment.
 
 Profile commands used 30 seconds per workload:
 
@@ -80,7 +78,7 @@ go test ./internal/collector -run '^$' -bench '^BenchmarkProcessCollector_GetPro
 go test ./internal/collector -run '^$' -bench '^BenchmarkPortCollector_GetListeningPorts$' -benchtime=30s -cpuprofile=/tmp/watchdog-phase-2f4/profiles/port-cpu.prof
 ```
 
-Equivalent commands with `-memprofile` produced the three memory profiles. Text reports were generated with `go tool pprof -text`, selecting `alloc_space`, `alloc_objects`, `inuse_space`, and `inuse_objects` as applicable.
+Equivalent commands with `-memprofile` produced the three memory profiles. Text reports were generated with `go tool pprof -text`, selecting `alloc_space`, `alloc_objects`, `inuse_space`, and `inuse_objects` as applicable. The brief `*-cpu.txt` and `*-mem.txt` files record separate profiling-run benchmark outputs with different iteration counts; they are not samples from the repeated 10-run dataset in `repeated.txt`.
 
 ## 5. Repeated benchmark results
 
@@ -111,7 +109,7 @@ These ranges and coefficients of variation are descriptive only. `benchstat` was
 
 ## 6. CPU profile findings
 
-Profiles and extracted reports are under `/tmp/watchdog-phase-2f4/profiles/`.
+Extracted profile summaries are preserved under [`docs/performance/phase-2f4/`](docs/performance/phase-2f4/), with original `.prof` files under `/tmp/watchdog-phase-2f4/profiles/`. CPU summaries: `full-cpu-top.txt`, `full-cpu-cum.txt`, `process-cpu-top.txt`, `process-cpu-cum.txt`, `port-cpu-top.txt`, and `port-cpu-cum.txt`. Memory summaries: each workload's `*-alloc_space.txt`, `*-alloc_objects.txt`, `*-inuse_space.txt`, and `*-inuse_objects.txt`.
 
 ### Full cycle
 
@@ -123,10 +121,11 @@ The profile also showed runtime allocation/GC work and gopsutil process parsing,
 
 The process profile showed:
 
-- `internal/runtime/syscall.Syscall6`: approximately 55.9% flat.
-- `os.ReadFile`: approximately 39.0% cumulative.
-- `fillFromStatWithContext` / `fillFromTIDStatWithContext`: approximately 37.5% cumulative.
-- `fillFromStatusWithContext`: approximately 24.0% cumulative.
+- `internal/runtime/syscall.Syscall6`: approximately 55.94% flat (`process-cpu-top.txt`, `flat%` column).
+- `os.ReadFile`: approximately 39.01% cumulative (`process-cpu-cum.txt`, `cum%` column).
+- `fillFromStatWithContext`: approximately 37.48% cumulative (`process-cpu-cum.txt`, `cum%` column).
+- `fillFromTIDStatWithContext`: approximately 37.46% cumulative (`process-cpu-cum.txt`, `cum%` column).
+- `fillFromStatusWithContext`: approximately 23.98% cumulative (`process-cpu-cum.txt`, `cum%` column).
 - `CPUPercentWithContext`: approximately 19.2% cumulative.
 - `MemoryPercentWithContext`: approximately 12.0% cumulative.
 
@@ -136,9 +135,9 @@ This is direct evidence that the tested process workload spends substantial samp
 
 The port profile showed:
 
-- `internal/runtime/syscall.Syscall6`: approximately 64.1% flat.
-- `gopsutil/v4/net.getProcInodes`: approximately 65.1% cumulative.
-- `os.(*File).readdir`: approximately 10.5% cumulative.
+- `internal/runtime/syscall.Syscall6`: approximately 64.07% flat (`port-cpu-top.txt`, `flat%` column).
+- `gopsutil/v4/net.getProcInodes`: approximately 65.09% cumulative (`port-cpu-cum.txt`, `cum%` column).
+- `os.(*File).readdir`: approximately 10.52% cumulative (`port-cpu-cum.txt`, `cum%` column).
 - Formatting and parsing functions were visible but smaller than socket/inode discovery.
 
 The evidence supports a socket/inode discovery bottleneck in the port workload, with syscall wrapper attribution treated cautiously as described above.
@@ -169,7 +168,7 @@ Allocation-object profiles similarly showed process string splitting and gopsuti
 
 ### Retained heap
 
-The `inuse_space` and `inuse_objects` reports showed zero sampled retained heap in these benchmark profile captures. This is not evidence that the code allocates nothing; it indicates that the short-lived benchmark's retained heap was not represented in the captured post-GC profile. The large `alloc_space` and `alloc_objects` totals describe allocation volume, not a memory leak.
+The six `inuse_space` and `inuse_objects` files are valid pprof text outputs, not empty files: each contains the pprof header and table followed by `Showing nodes accounting for 0, 0% of 0 total`. The FullCycle, Process, and Port files are identical within each profile type where the zero-result output is byte-identical, but identical text does not prove identical underlying profile conditions. These outputs report zero retained samples in the captured profiles; this is not evidence that the code allocates nothing. It indicates that the short-lived benchmark's retained heap was not represented in the captured post-GC profile. The large `alloc_space` and `alloc_objects` totals describe allocation volume, not a memory leak.
 
 ## 8. Ranked bottlenecks
 
@@ -233,7 +232,7 @@ The expected benefit is worth testing because process collection is the largest 
 
 ## 11. Validation
 
-The following commands completed successfully:
+The preserved validation files record successful results for the following commands:
 
 ```text
 go test ./...
@@ -242,7 +241,7 @@ go vet ./...
 go build ./...
 ```
 
-Raw validation outputs are under `/tmp/watchdog-phase-2f4/validation/`.
+Validation outputs are stored in [`docs/performance/phase-2f4/`](docs/performance/phase-2f4/). Each records the command, start and end timestamps, exit code, and unchanged full HEAD SHA before and after execution. The previously referenced `/tmp/watchdog-phase-2f4/final-validation/` artifacts are unavailable in the current environment, so this audit cannot independently establish that the preserved files are faithful copies of those original artifacts; the claims here are limited to the metadata and output contained in the preserved files.
 
 ## 12. Explicit scope statement
 
