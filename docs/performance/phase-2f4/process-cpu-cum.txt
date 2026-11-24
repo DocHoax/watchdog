@@ -1,0 +1,202 @@
+File: collector.test
+Type: cpu
+Time: Nov 23, 2026 at 2:17pm (GMT)
+Duration: 54.92s, Total samples = 63.42s (115.47%)
+Showing nodes accounting for 53.58s, 84.48% of 63.42s total
+Dropped 427 nodes (cum <= 0.32s)
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%     55.39s 87.34%  testing.(*B).runN
+     0.07s  0.11%  0.11%     55.38s 87.32%  github.com/DocHoax/watchdog/internal/collector.(*ProcessCollector).GetProcesses
+         0     0%  0.11%     55.38s 87.32%  github.com/DocHoax/watchdog/internal/collector.BenchmarkProcessCollector_GetProcesses
+         0     0%  0.11%     55.20s 87.04%  testing.(*B).launch
+    35.48s 55.94% 56.05%     35.48s 55.94%  internal/runtime/syscall.Syscall6
+     0.18s  0.28% 56.34%     31.35s 49.43%  syscall.RawSyscall6
+     0.11s  0.17% 56.51%        25s 39.42%  syscall.Syscall
+     0.13s   0.2% 56.72%     24.74s 39.01%  os.ReadFile
+     0.01s 0.016% 56.73%     23.77s 37.48%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatWithContext
+     0.10s  0.16% 56.89%     23.76s 37.46%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromTIDStatWithContext
+     0.01s 0.016% 56.91%     16.06s 25.32%  os.Open (inline)
+     0.06s 0.095% 57.00%     16.05s 25.31%  os.OpenFile
+     0.03s 0.047% 57.05%     15.98s 25.20%  os.openFileNolog
+     0.02s 0.032% 57.08%     15.77s 24.87%  os.(*File).Read
+     0.08s  0.13% 57.21%     15.65s 24.68%  internal/poll.(*FD).Read
+         0     0% 57.21%     15.65s 24.68%  os.(*File).read (inline)
+         0     0% 57.21%     15.38s 24.25%  internal/poll.ignoringEINTRIO (inline)
+     0.03s 0.047% 57.25%     15.26s 24.06%  syscall.Read (inline)
+     0.01s 0.016% 57.27%     15.23s 24.01%  syscall.read
+     0.41s  0.65% 57.92%     15.21s 23.98%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatusWithContext
+     0.02s 0.032% 57.95%     14.02s 22.11%  github.com/shirou/gopsutil/v4/internal/common.BootTimeWithContext
+     0.02s 0.032% 57.98%     13.94s 21.98%  github.com/shirou/gopsutil/v4/internal/common.readBootTimeStat
+     0.03s 0.047% 58.03%     13.53s 21.33%  github.com/shirou/gopsutil/v4/internal/common.ReadLine
+         0     0% 58.03%     12.18s 19.21%  github.com/shirou/gopsutil/v4/process.(*Process).CPUPercentWithContext
+     0.02s 0.032% 58.06%     11.79s 18.59%  github.com/shirou/gopsutil/v4/process.(*Process).createTimeWithContext
+     0.04s 0.063% 58.12%      8.73s 13.77%  bufio.(*Reader).ReadString
+     0.05s 0.079% 58.20%      8.51s 13.42%  syscall.Syscall6
+     0.08s  0.13% 58.33%      8.49s 13.39%  os.newFile
+     0.02s 0.032% 58.36%      8.04s 12.68%  os.ignoringEINTR (inline)
+     0.08s  0.13% 58.48%      7.77s 12.25%  bufio.(*Reader).collectFragments
+     0.14s  0.22% 58.70%      7.69s 12.13%  bufio.(*Reader).ReadSlice
+     0.01s 0.016% 58.72%      7.61s 12.00%  github.com/shirou/gopsutil/v4/process.(*Process).MemoryPercentWithContext
+     0.01s 0.016% 58.74%      7.56s 11.92%  github.com/shirou/gopsutil/v4/process.ProcessesWithContext
+     0.06s 0.095% 58.83%      7.43s 11.72%  os.openFileNolog.func1
+     0.03s 0.047% 58.88%      7.38s 11.64%  bufio.(*Reader).fill
+         0     0% 58.88%      7.38s 11.64%  github.com/shirou/gopsutil/v4/process.NewProcessWithContext
+     0.04s 0.063% 58.94%      7.37s 11.62%  os.open
+         0     0% 58.94%      7.33s 11.56%  syscall.Open (inline)
+     0.03s 0.047% 58.99%      7.33s 11.56%  syscall.openat
+     1.78s  2.81% 61.79%      6.81s 10.74%  runtime.mallocgc
+     0.01s 0.016% 61.81%      6.07s  9.57%  github.com/shirou/gopsutil/v4/process.(*Process).TimesWithContext
+         0     0% 61.81%      5.94s  9.37%  github.com/shirou/gopsutil/v4/process.(*Process).PpidWithContext
+     0.11s  0.17% 61.98%      5.92s  9.33%  runtime.systemstack
+         0     0% 61.98%      5.74s  9.05%  github.com/shirou/gopsutil/v4/process.(*Process).CreateTimeWithContext
+         0     0% 61.98%      5.67s  8.94%  github.com/shirou/gopsutil/v4/mem.VirtualMemoryWithContext (inline)
+     0.27s  0.43% 62.41%      5.67s  8.94%  github.com/shirou/gopsutil/v4/mem.fillFromMeminfoWithContext
+         0     0% 62.41%      4.91s  7.74%  github.com/shirou/gopsutil/v4/process.(*Process).UsernameWithContext
+     0.03s 0.047% 62.46%      4.87s  7.68%  syscall.SetNonblock
+     0.03s 0.047% 62.50%      4.84s  7.63%  syscall.fcntl
+         0     0% 62.50%      4.73s  7.46%  github.com/shirou/gopsutil/v4/process.(*Process).StatusWithContext (inline)
+     0.01s 0.016% 62.52%      4.45s  7.02%  os.(*File).Close
+     0.01s 0.016% 62.54%      4.44s  7.00%  os.(*file).close
+     0.01s 0.016% 62.55%      4.31s  6.80%  github.com/shirou/gopsutil/v4/process.(*Process).NumThreadsWithContext (inline)
+         0     0% 62.55%      4.02s  6.34%  github.com/shirou/gopsutil/v4/process.(*Process).UidsWithContext (inline)
+     0.11s  0.17% 62.72%      3.95s  6.23%  runtime.makeslice
+     0.01s 0.016% 62.74%      3.88s  6.12%  internal/poll.(*FD).Close
+         0     0% 62.74%      3.81s  6.01%  github.com/shirou/gopsutil/v4/process.(*Process).NameWithContext (inline)
+         0     0% 62.74%      3.81s  6.01%  github.com/shirou/gopsutil/v4/process.(*Process).fillNameWithContext
+     0.01s 0.016% 62.76%      3.77s  5.94%  internal/poll.(*FD).decref
+     0.02s 0.032% 62.79%      3.72s  5.87%  internal/poll.(*FD).destroy
+         0     0% 62.79%      3.66s  5.77%  github.com/shirou/gopsutil/v4/internal/common.ReadLines (inline)
+     0.08s  0.13% 62.91%      3.66s  5.77%  github.com/shirou/gopsutil/v4/internal/common.ReadLinesOffsetN
+         0     0% 62.91%      3.66s  5.77%  runtime.gcBgMarkWorker
+         0     0% 62.91%      3.47s  5.47%  github.com/shirou/gopsutil/v4/process.(*Process).MemoryInfoWithContext (inline)
+     0.01s 0.016% 62.93%      3.47s  5.47%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatmWithContext
+     0.48s  0.76% 63.69%      3.19s  5.03%  strings.genSplit
+         0     0% 63.69%      3.10s  4.89%  runtime.gcBgMarkWorker.func2
+     0.07s  0.11% 63.80%      3.10s  4.89%  runtime.gcDrain
+     0.01s 0.016% 63.81%      2.85s  4.49%  syscall.Close
+     0.03s 0.047% 63.86%      2.82s  4.45%  internal/runtime/syscall.EpollCtl (inline)
+     0.02s 0.032% 63.89%      2.78s  4.38%  internal/poll.(*SysFile).destroy (inline)
+     0.01s 0.016% 63.91%      2.72s  4.29%  runtime.schedule
+     0.02s 0.032% 63.94%      2.69s  4.24%  internal/poll.(*FD).Init
+     0.02s 0.032% 63.97%      2.67s  4.21%  internal/poll.(*pollDesc).init
+     0.10s  0.16% 64.13%      2.64s  4.16%  internal/poll.runtime_pollOpen
+     0.09s  0.14% 64.27%      2.63s  4.15%  runtime.findRunnable
+     0.85s  1.34% 65.61%      2.58s  4.07%  runtime.scanobject
+     0.01s 0.016% 65.63%      2.54s  4.01%  runtime.mcall
+         0     0% 65.63%      2.42s  3.82%  runtime.park_m
+         0     0% 65.63%      2.32s  3.66%  github.com/shirou/gopsutil/v4/process.(*Process).CmdlineSliceWithContext (inline)
+         0     0% 65.63%      2.32s  3.66%  github.com/shirou/gopsutil/v4/process.(*Process).fillSliceFromCmdlineWithContext
+     0.01s 0.016% 65.64%      2.12s  3.34%  runtime.netpollopen
+         0     0% 65.64%      2.07s  3.26%  github.com/shirou/gopsutil/v4/process.(*Process).CmdlineWithContext (inline)
+         0     0% 65.64%      2.07s  3.26%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromCmdlineWithContext
+     0.02s 0.032% 65.67%      1.90s  3.00%  strings.SplitN (inline)
+     0.08s  0.13% 65.80%      1.85s  2.92%  os.(*File).Stat
+         0     0% 65.80%      1.75s  2.76%  runtime.gcDrainMarkWorkerDedicated (inline)
+     0.07s  0.11% 65.91%      1.68s  2.65%  runtime.netpoll
+         0     0% 65.91%      1.65s  2.60%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromCommWithContext
+         0     0% 65.91%      1.62s  2.55%  github.com/shirou/gopsutil/v4/process.PidExistsWithContext
+     0.03s 0.047% 65.96%      1.55s  2.44%  internal/runtime/syscall.EpollWait
+     0.01s 0.016% 65.97%      1.38s  2.18%  internal/poll.(*FD).Fstat
+         0     0% 65.97%      1.35s  2.13%  runtime.gcDrainMarkWorkerIdle (inline)
+     0.12s  0.19% 66.16%      1.33s  2.10%  github.com/shirou/gopsutil/v4/internal/common.GetEnvWithContext
+         0     0% 66.16%      1.33s  2.10%  github.com/shirou/gopsutil/v4/internal/common.HostProcWithContext (inline)
+         0     0% 66.16%      1.33s  2.10%  internal/poll.(*FD).Fstat.func1 (inline)
+         0     0% 66.16%      1.33s  2.10%  internal/poll.ignoringEINTR (inline)
+         0     0% 66.16%      1.33s  2.10%  syscall.Fstat
+     0.01s 0.016% 66.18%      1.32s  2.08%  strings.Split (inline)
+     0.05s 0.079% 66.26%      1.28s  2.02%  runtime.bgsweep
+     0.09s  0.14% 66.40%      1.27s  2.00%  strings.(*Builder).Grow
+     0.03s 0.047% 66.45%      1.23s  1.94%  runtime.(*mcache).nextFree
+     0.18s  0.28% 66.73%      1.18s  1.86%  strings.(*Builder).grow
+     0.03s 0.047% 66.78%      1.17s  1.84%  runtime.(*mcache).refill
+     0.37s  0.58% 67.36%      1.14s  1.80%  runtime.exitsyscall
+     0.05s 0.079% 67.44%      1.13s  1.78%  github.com/shirou/gopsutil/v4/process.splitProcStat
+     0.16s  0.25% 67.69%      1.09s  1.72%  runtime.SetFinalizer
+     0.10s  0.16% 67.85%         1s  1.58%  internal/bytealg.MakeNoZero
+         0     0% 67.85%      0.99s  1.56%  bufio.NewReader (inline)
+         0     0% 67.85%      0.99s  1.56%  bufio.NewReaderSize (inline)
+     0.12s  0.19% 68.04%      0.94s  1.48%  runtime.newobject
+     0.93s  1.47% 69.50%      0.93s  1.47%  runtime.memclrNoHeapPointers
+     0.12s  0.19% 69.69%      0.91s  1.43%  runtime.heapSetType
+     0.03s 0.047% 69.74%      0.90s  1.42%  runtime.entersyscall
+         0     0% 69.74%      0.88s  1.39%  os/user.LookupId
+     0.67s  1.06% 70.80%      0.87s  1.37%  runtime.typePointers.next
+         0     0% 70.80%      0.86s  1.36%  os/user.lookupUnixUid
+         0     0% 70.80%      0.86s  1.36%  os/user.lookupUserId
+     0.86s  1.36% 72.15%      0.86s  1.36%  runtime.nextFreeFast (inline)
+     0.16s  0.25% 72.41%      0.84s  1.32%  runtime.reentersyscall
+     0.03s 0.047% 72.45%      0.81s  1.28%  runtime.growslice
+     0.58s  0.91% 73.37%      0.80s  1.26%  strings.Fields
+     0.58s  0.91% 74.28%      0.79s  1.25%  runtime.(*mspan).writeHeapBitsSmall
+         0     0% 74.28%      0.78s  1.23%  os/user.retryWithBuffer
+         0     0% 74.28%      0.77s  1.21%  github.com/shirou/gopsutil/v4/process.isMount
+         0     0% 74.28%      0.77s  1.21%  internal/poll.(*pollDesc).close (inline)
+         0     0% 74.28%      0.77s  1.21%  internal/poll.runtime_pollClose
+     0.06s 0.095% 74.38%      0.76s  1.20%  runtime.(*mcentral).cacheSpan
+     0.02s 0.032% 74.41%      0.74s  1.17%  github.com/shirou/gopsutil/v4/internal/common.combine
+     0.04s 0.063% 74.47%      0.74s  1.17%  runtime.lock (inline)
+     0.01s 0.016% 74.49%      0.73s  1.15%  os/user._C_getpwuid_r
+         0     0% 74.49%      0.73s  1.15%  os/user.lookupUnixUid.func1
+     0.69s  1.09% 75.58%      0.73s  1.15%  runtime.cgocall
+         0     0% 75.58%      0.73s  1.15%  runtime.unlock (inline)
+     0.02s 0.032% 75.61%      0.73s  1.15%  runtime.unlockWithRank (inline)
+     0.01s 0.016% 75.62%      0.72s  1.14%  runtime.netpollclose
+     0.02s 0.032% 75.65%      0.72s  1.14%  strings.Index (inline)
+     0.02s 0.032% 75.69%      0.71s  1.12%  os/user._Cfunc_mygetpwuid_r
+     0.63s  0.99% 76.68%      0.71s  1.12%  runtime.unlock2
+     0.06s 0.095% 76.77%      0.71s  1.12%  strings.Replace
+     0.21s  0.33% 77.11%      0.70s  1.10%  internal/stringslite.Index
+     0.59s  0.93% 78.04%      0.70s  1.10%  runtime.lock2
+         0     0% 78.04%      0.70s  1.10%  runtime.lockWithRank (inline)
+     0.01s 0.016% 78.05%      0.66s  1.04%  runtime.markroot
+     0.10s  0.16% 78.21%      0.66s  1.04%  runtime.sweepone
+         0     0% 78.21%      0.59s  0.93%  github.com/shirou/gopsutil/v4/process.(*Process).ExeWithContext (inline)
+         0     0% 78.21%      0.59s  0.93%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromExeWithContext
+         0     0% 78.21%      0.59s  0.93%  syscall.fstatat
+     0.01s 0.016% 78.22%      0.58s  0.91%  runtime.slicebytetostring
+         0     0% 78.22%      0.55s  0.87%  runtime.(*mcentral).grow
+     0.46s  0.73% 78.95%      0.55s  0.87%  runtime.casgstatus
+     0.13s   0.2% 79.15%      0.54s  0.85%  runtime.(*sweepLocked).sweep
+         0     0% 79.15%      0.53s  0.84%  path/filepath.Join (inline)
+     0.02s 0.032% 79.19%      0.53s  0.84%  path/filepath.join
+     0.32s   0.5% 79.69%      0.53s  0.84%  runtime.exitsyscallfast
+     0.38s   0.6% 80.29%      0.53s  0.84%  runtime.findObject
+         0     0% 80.29%      0.52s  0.82%  runtime.gcMarkDone
+         0     0% 80.29%      0.51s   0.8%  os.Readlink (inline)
+         0     0% 80.29%      0.51s   0.8%  os.readlink
+     0.50s  0.79% 81.08%      0.50s  0.79%  runtime.futex
+         0     0% 81.08%      0.50s  0.79%  syscall.Readlink (inline)
+     0.01s 0.016% 81.09%      0.50s  0.79%  syscall.readlinkat
+     0.03s 0.047% 81.14%      0.49s  0.77%  runtime.(*mcentral).uncacheSpan
+     0.46s  0.73% 81.87%      0.47s  0.74%  strconv.ParseUint
+         0     0% 81.87%      0.46s  0.73%  runtime.(*mheap).alloc
+         0     0% 81.87%      0.46s  0.73%  runtime.(*mheap).alloc.func1
+     0.03s 0.047% 81.91%      0.46s  0.73%  runtime.(*mheap).allocSpan
+     0.13s   0.2% 82.12%      0.46s  0.73%  runtime.deductAssistCredit
+     0.27s  0.43% 82.54%      0.44s  0.69%  runtime.scanblock
+     0.01s 0.016% 82.56%      0.42s  0.66%  golang.org/x/sys/unix.Fstatat
+         0     0% 82.56%      0.42s  0.66%  golang.org/x/sys/unix.Lstat (inline)
+     0.41s  0.65% 83.21%      0.41s  0.65%  runtime.memmove
+     0.10s  0.16% 83.36%      0.40s  0.63%  runtime.greyobject
+     0.39s  0.61% 83.98%      0.39s  0.61%  indexbytebody
+         0     0% 83.98%      0.39s  0.61%  runtime.markrootBlock
+         0     0% 83.98%      0.38s   0.6%  golang.org/x/sys/unix.Getpriority
+         0     0% 83.98%      0.38s   0.6%  os.FindProcess (inline)
+         0     0% 83.98%      0.38s   0.6%  os.findProcess
+         0     0% 83.98%      0.38s   0.6%  runtime.goschedImpl
+     0.03s 0.047% 84.03%      0.36s  0.57%  runtime.SetFinalizer.func2
+         0     0% 84.03%      0.36s  0.57%  runtime.newstack
+     0.12s  0.19% 84.22%      0.36s  0.57%  strings.Count
+         0     0% 84.22%      0.35s  0.55%  runtime.morestack
+     0.06s 0.095% 84.31%      0.35s  0.55%  strings.Join
+     0.05s 0.079% 84.39%      0.33s  0.52%  internal/stringslite.IndexByte (inline)
+         0     0% 84.39%      0.33s  0.52%  os.Lstat
+     0.04s 0.063% 84.45%      0.33s  0.52%  runtime.addfinalizer
+         0     0% 84.45%      0.33s  0.52%  runtime.gcAssistAlloc
+         0     0% 84.45%      0.33s  0.52%  runtime.gcAssistAlloc.func1
+         0     0% 84.45%      0.33s  0.52%  runtime.gcAssistAlloc1
+         0     0% 84.45%      0.33s  0.52%  runtime.gopreempt_m (inline)
+         0     0% 84.45%      0.32s   0.5%  os.lstatNolog
+     0.01s 0.016% 84.47%      0.32s   0.5%  os.pidfdFind
+     0.01s 0.016% 84.48%      0.32s   0.5%  runtime.SetFinalizer.func1
+         0     0% 84.48%      0.32s   0.5%  runtime.gcDrainN

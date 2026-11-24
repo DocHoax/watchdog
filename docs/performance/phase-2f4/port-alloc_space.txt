@@ -1,0 +1,59 @@
+File: collector.test
+Type: alloc_space
+Time: Nov 23, 2026 at 2:21pm (GMT)
+Showing nodes accounting for 3484.07MB, 98.46% of 3538.67MB total
+Dropped 58 nodes (cum <= 17.69MB)
+      flat  flat%   sum%        cum   cum%
+  632.07MB 17.86% 17.86%   722.07MB 20.41%  os.readlink
+  629.17MB 17.78% 35.64%   662.17MB 18.71%  os.ReadFile
+  476.23MB 13.46% 49.10%   914.82MB 25.85%  github.com/shirou/gopsutil/v4/net.processUnix
+  280.26MB  7.92% 57.02%  1575.79MB 44.53%  github.com/shirou/gopsutil/v4/net.getProcInodes
+  247.02MB  6.98% 64.00%   247.02MB  6.98%  os.newUnixDirent
+  233.55MB  6.60% 70.60%   490.64MB 13.87%  os.(*File).readdir
+  217.08MB  6.13% 76.73%   217.08MB  6.13%  strings.genSplit
+  143.02MB  4.04% 80.78%   143.02MB  4.04%  strings.Fields
+     121MB  3.42% 84.20%      123MB  3.48%  fmt.Sprintf
+  104.18MB  2.94% 87.14%   640.67MB 18.10%  github.com/shirou/gopsutil/v4/net.(*process).fillFromStatus
+     101MB  2.85% 89.99%      101MB  2.85%  syscall.ByteSliceFromString
+   94.56MB  2.67% 92.67%    94.56MB  2.67%  github.com/shirou/gopsutil/v4/net.updateMap (inline)
+   79.92MB  2.26% 94.92%  1734.98MB 49.03%  github.com/shirou/gopsutil/v4/net.statsFromInodesWithContext
+   22.53MB  0.64% 95.56%    63.58MB  1.80%  github.com/shirou/gopsutil/v4/net.processInet
+   19.50MB  0.55% 96.11%    19.50MB  0.55%  os.(*File).Stat
+   18.50MB  0.52% 96.63%    18.50MB  0.52%  os.newFile
+   18.39MB  0.52% 97.15%    18.39MB  0.52%  bytes.genSplit
+   18.07MB  0.51% 97.66%    18.07MB  0.51%  bufio.NewReaderSize (inline)
+   11.50MB  0.32% 97.99%       40MB  1.13%  os.openFileNolog
+    8.53MB  0.24% 98.23%  3537.66MB   100%  github.com/DocHoax/watchdog/internal/collector.(*PortCollector).GetListeningPorts
+    3.50MB 0.099% 98.33%    22.02MB  0.62%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatusWithContext
+    2.50MB 0.071% 98.40%    37.18MB  1.05%  github.com/shirou/gopsutil/v4/net.PidsWithContext
+    1.50MB 0.042% 98.44%    58.60MB  1.66%  github.com/shirou/gopsutil/v4/process.NewProcessWithContext
+    0.50MB 0.014% 98.46%    53.10MB  1.50%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromTIDStatWithContext
+         0     0% 98.46%    18.07MB  0.51%  bufio.NewReader (inline)
+         0     0% 98.46%    18.39MB  0.52%  bytes.Split (inline)
+         0     0% 98.46%  3537.66MB   100%  github.com/DocHoax/watchdog/internal/collector.BenchmarkPortCollector_GetListeningPorts
+         0     0% 98.46%    32.08MB  0.91%  github.com/shirou/gopsutil/v4/internal/common.BootTimeWithContext
+         0     0% 98.46%    31.58MB  0.89%  github.com/shirou/gopsutil/v4/internal/common.ReadLine
+         0     0% 98.46%    32.08MB  0.91%  github.com/shirou/gopsutil/v4/internal/common.readBootTimeStat
+         0     0% 98.46%   640.67MB 18.10%  github.com/shirou/gopsutil/v4/net.(*process).getUids (inline)
+         0     0% 98.46%  3442.52MB 97.28%  github.com/shirou/gopsutil/v4/net.ConnectionsPidMaxWithContext (inline)
+         0     0% 98.46%  3442.52MB 97.28%  github.com/shirou/gopsutil/v4/net.ConnectionsPidWithContext
+         0     0% 98.46%  3442.52MB 97.28%  github.com/shirou/gopsutil/v4/net.ConnectionsWithContext (inline)
+         0     0% 98.46%  3442.52MB 97.28%  github.com/shirou/gopsutil/v4/net.connectionsPidMaxWithoutUidsWithContext
+         0     0% 98.46%  1707.53MB 48.25%  github.com/shirou/gopsutil/v4/net.getProcInodesAllWithContext
+         0     0% 98.46%    53.10MB  1.50%  github.com/shirou/gopsutil/v4/process.(*Process).CreateTimeWithContext
+         0     0% 98.46%    28.02MB  0.79%  github.com/shirou/gopsutil/v4/process.(*Process).NameWithContext (inline)
+         0     0% 98.46%    53.10MB  1.50%  github.com/shirou/gopsutil/v4/process.(*Process).createTimeWithContext
+         0     0% 98.46%    53.10MB  1.50%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatWithContext
+         0     0% 98.46%    28.02MB  0.79%  github.com/shirou/gopsutil/v4/process.(*Process).fillNameWithContext
+         0     0% 98.46%   460.46MB 13.01%  os.(*File).ReadDir
+         0     0% 98.46%    30.18MB  0.85%  os.(*File).Readdirnames
+         0     0% 98.46%       40MB  1.13%  os.Open (inline)
+         0     0% 98.46%       40MB  1.13%  os.OpenFile
+         0     0% 98.46%   722.07MB 20.41%  os.Readlink (inline)
+         0     0% 98.46%    83.57MB  2.36%  strings.Split (inline)
+         0     0% 98.46%   133.50MB  3.77%  strings.SplitN (inline)
+         0     0% 98.46%      101MB  2.85%  syscall.BytePtrFromString (inline)
+         0     0% 98.46%       90MB  2.54%  syscall.Readlink (inline)
+         0     0% 98.46%       90MB  2.54%  syscall.readlinkat
+         0     0% 98.46%  3533.52MB 99.85%  testing.(*B).launch
+         0     0% 98.46%  3537.66MB   100%  testing.(*B).runN

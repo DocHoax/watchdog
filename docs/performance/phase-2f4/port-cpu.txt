@@ -1,0 +1,7 @@
+goos: linux
+goarch: amd64
+pkg: github.com/DocHoax/watchdog/internal/collector
+cpu: Intel(R) Core(TM) i3-5010U CPU @ 2.10GHz
+BenchmarkPortCollector_GetListeningPorts-4   	     952	  37314067 ns/op	 3524442 B/op	   49478 allocs/op
+PASS
+ok  	github.com/DocHoax/watchdog/internal/collector	39.546s

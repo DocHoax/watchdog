@@ -1,0 +1,66 @@
+File: collector.test
+Type: alloc_space
+Time: Nov 23, 2026 at 2:20pm (GMT)
+Showing nodes accounting for 6418.20MB, 98.31% of 6528.26MB total
+Dropped 67 nodes (cum <= 32.64MB)
+      flat  flat%   sum%        cum   cum%
+ 1521.43MB 23.31% 23.31%  1521.43MB 23.31%  bufio.NewReaderSize (inline)
+ 1409.04MB 21.58% 44.89%  1747.60MB 26.77%  os.ReadFile
+  850.73MB 13.03% 57.92%   850.73MB 13.03%  strings.genSplit
+  761.20MB 11.66% 69.58%   761.20MB 11.66%  strings.(*Builder).grow
+  440.58MB  6.75% 76.33%  2434.20MB 37.29%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatusWithContext
+  370.26MB  5.67% 82.00%   633.99MB  9.71%  github.com/shirou/gopsutil/v4/process.splitProcStat
+  297.73MB  4.56% 86.56%   297.73MB  4.56%  strings.Fields
+  223.04MB  3.42% 89.98%   223.04MB  3.42%  os.(*File).Stat
+  152.11MB  2.33% 92.31%   614.39MB  9.41%  github.com/shirou/gopsutil/v4/internal/common.ReadLinesOffsetN
+  132.01MB  2.02% 94.33%   132.01MB  2.02%  os.newFile
+      54MB  0.83% 95.16%    76.50MB  1.17%  github.com/shirou/gopsutil/v4/internal/common.combine
+   36.54MB  0.56% 95.72%    36.54MB  0.56%  os/user.retryWithBuffer
+   32.01MB  0.49% 96.21%   805.40MB 12.34%  github.com/shirou/gopsutil/v4/mem.fillFromMeminfoWithContext
+   28.98MB  0.44% 96.65%  6527.76MB   100%  github.com/DocHoax/watchdog/internal/collector.(*ProcessCollector).GetProcesses
+      28MB  0.43% 97.08%  2748.93MB 42.11%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromTIDStatWithContext
+   24.50MB  0.38% 97.46%      101MB  1.55%  github.com/shirou/gopsutil/v4/internal/common.GetEnvWithContext
+      22MB  0.34% 97.79%   178.55MB  2.74%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatmWithContext
+      12MB  0.18% 97.98%   731.47MB 11.20%  github.com/shirou/gopsutil/v4/process.NewProcessWithContext
+   10.51MB  0.16% 98.14%   113.06MB  1.73%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromCmdlineWithContext
+       8MB  0.12% 98.26%   123.54MB  1.89%  github.com/shirou/gopsutil/v4/process.(*Process).fillSliceFromCmdlineWithContext
+    2.50MB 0.038% 98.30%   743.02MB 11.38%  github.com/shirou/gopsutil/v4/process.ProcessesWithContext
+       1MB 0.015% 98.31%    84.03MB  1.29%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromCommWithContext
+         0     0% 98.31%   698.70MB 10.70%  bufio.(*Reader).ReadString
+         0     0% 98.31%  1521.43MB 23.31%  bufio.NewReader (inline)
+         0     0% 98.31%  6527.76MB   100%  github.com/DocHoax/watchdog/internal/collector.BenchmarkProcessCollector_GetProcesses
+         0     0% 98.31%  1818.36MB 27.85%  github.com/shirou/gopsutil/v4/internal/common.BootTimeWithContext
+         0     0% 98.31%      101MB  1.55%  github.com/shirou/gopsutil/v4/internal/common.HostProcWithContext (inline)
+         0     0% 98.31%  1801.85MB 27.60%  github.com/shirou/gopsutil/v4/internal/common.ReadLine
+         0     0% 98.31%   614.39MB  9.41%  github.com/shirou/gopsutil/v4/internal/common.ReadLines (inline)
+         0     0% 98.31%  1818.36MB 27.85%  github.com/shirou/gopsutil/v4/internal/common.readBootTimeStat
+         0     0% 98.31%   805.40MB 12.34%  github.com/shirou/gopsutil/v4/mem.VirtualMemoryWithContext (inline)
+         0     0% 98.31%  1385.54MB 21.22%  github.com/shirou/gopsutil/v4/process.(*Process).CPUPercentWithContext
+         0     0% 98.31%   123.54MB  1.89%  github.com/shirou/gopsutil/v4/process.(*Process).CmdlineSliceWithContext (inline)
+         0     0% 98.31%   113.06MB  1.73%  github.com/shirou/gopsutil/v4/process.(*Process).CmdlineWithContext (inline)
+         0     0% 98.31%   671.46MB 10.29%  github.com/shirou/gopsutil/v4/process.(*Process).CreateTimeWithContext
+         0     0% 98.31%   178.55MB  2.74%  github.com/shirou/gopsutil/v4/process.(*Process).MemoryInfoWithContext (inline)
+         0     0% 98.31%   898.43MB 13.76%  github.com/shirou/gopsutil/v4/process.(*Process).MemoryPercentWithContext
+         0     0% 98.31%   355.75MB  5.45%  github.com/shirou/gopsutil/v4/process.(*Process).NameWithContext (inline)
+         0     0% 98.31%   717.66MB 10.99%  github.com/shirou/gopsutil/v4/process.(*Process).NumThreadsWithContext (inline)
+         0     0% 98.31%   691.94MB 10.60%  github.com/shirou/gopsutil/v4/process.(*Process).PpidWithContext
+         0     0% 98.31%   741.67MB 11.36%  github.com/shirou/gopsutil/v4/process.(*Process).StatusWithContext (inline)
+         0     0% 98.31%   687.55MB 10.53%  github.com/shirou/gopsutil/v4/process.(*Process).TimesWithContext
+         0     0% 98.31%   703.14MB 10.77%  github.com/shirou/gopsutil/v4/process.(*Process).UidsWithContext (inline)
+         0     0% 98.31%   747.17MB 11.45%  github.com/shirou/gopsutil/v4/process.(*Process).UsernameWithContext
+         0     0% 98.31%  1369.45MB 20.98%  github.com/shirou/gopsutil/v4/process.(*Process).createTimeWithContext
+         0     0% 98.31%  2748.93MB 42.11%  github.com/shirou/gopsutil/v4/process.(*Process).fillFromStatWithContext
+         0     0% 98.31%   355.75MB  5.45%  github.com/shirou/gopsutil/v4/process.(*Process).fillNameWithContext
+         0     0% 98.31%    48.01MB  0.74%  github.com/shirou/gopsutil/v4/process.PidExistsWithContext
+         0     0% 98.31%   159.51MB  2.44%  os.Open (inline)
+         0     0% 98.31%   159.51MB  2.44%  os.OpenFile
+         0     0% 98.31%   159.51MB  2.44%  os.openFileNolog
+         0     0% 98.31%    44.04MB  0.67%  os/user.LookupId
+         0     0% 98.31%    39.54MB  0.61%  os/user.lookupUnixUid
+         0     0% 98.31%    39.54MB  0.61%  os/user.lookupUserId
+         0     0% 98.31%   761.20MB 11.66%  strings.(*Builder).Grow
+         0     0% 98.31%       34MB  0.52%  strings.Replace
+         0     0% 98.31%   404.21MB  6.19%  strings.Split (inline)
+         0     0% 98.31%   446.51MB  6.84%  strings.SplitN (inline)
+         0     0% 98.31%  6507.23MB 99.68%  testing.(*B).launch
+         0     0% 98.31%  6527.76MB   100%  testing.(*B).runN
