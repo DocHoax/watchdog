@@ -12,12 +12,135 @@ import (
 	"github.com/shirou/gopsutil/v4/process"
 )
 
-// ProcessCollector gathers running process details.
-type ProcessCollector struct{}
+// ProcessProvider abstracts gopsutil process provider operations for testability.
+type ProcessProvider interface {
+	ProcessesWithContext(ctx context.Context) ([]ProcessHandle, error)
+	NewProcessWithContext(ctx context.Context, pid int32) (ProcessHandle, error)
+}
 
-// NewProcessCollector creates a new ProcessCollector instance.
+// ProcessHandle abstracts individual process attribute queries mirroring gopsutil v4 Process methods.
+type ProcessHandle interface {
+	PID() int32
+	NameWithContext(ctx context.Context) (string, error)
+	PpidWithContext(ctx context.Context) (int32, error)
+	CPUPercentWithContext(ctx context.Context) (float64, error)
+	MemoryPercentWithContext(ctx context.Context) (float32, error)
+	MemoryInfoWithContext(ctx context.Context) (*process.MemoryInfoStat, error)
+	NumThreadsWithContext(ctx context.Context) (int32, error)
+	UsernameWithContext(ctx context.Context) (string, error)
+	StatusWithContext(ctx context.Context) ([]string, error)
+	CreateTimeWithContext(ctx context.Context) (int64, error)
+	CmdlineWithContext(ctx context.Context) (string, error)
+	ExeWithContext(ctx context.Context) (string, error)
+	NiceWithContext(ctx context.Context) (int32, error)
+	IOCountersWithContext(ctx context.Context) (*process.IOCountersStat, error)
+}
+
+// gopsutilProvider implements ProcessProvider using gopsutil package functions.
+type gopsutilProvider struct{}
+
+func (g *gopsutilProvider) ProcessesWithContext(ctx context.Context) ([]ProcessHandle, error) {
+	procs, err := process.ProcessesWithContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	handles := make([]ProcessHandle, len(procs))
+	for i, p := range procs {
+		handles[i] = &gopsutilHandle{p: p}
+	}
+	return handles, nil
+}
+
+func (g *gopsutilProvider) NewProcessWithContext(ctx context.Context, pid int32) (ProcessHandle, error) {
+	p, err := process.NewProcessWithContext(ctx, pid)
+	if err != nil {
+		return nil, err
+	}
+	return &gopsutilHandle{p: p}, nil
+}
+
+// gopsutilHandle implements ProcessHandle wrapping *process.Process.
+type gopsutilHandle struct {
+	p *process.Process
+}
+
+func (h *gopsutilHandle) PID() int32 {
+	return h.p.Pid
+}
+
+func (h *gopsutilHandle) NameWithContext(ctx context.Context) (string, error) {
+	return h.p.NameWithContext(ctx)
+}
+
+func (h *gopsutilHandle) PpidWithContext(ctx context.Context) (int32, error) {
+	return h.p.PpidWithContext(ctx)
+}
+
+func (h *gopsutilHandle) CPUPercentWithContext(ctx context.Context) (float64, error) {
+	return h.p.CPUPercentWithContext(ctx)
+}
+
+func (h *gopsutilHandle) MemoryPercentWithContext(ctx context.Context) (float32, error) {
+	return h.p.MemoryPercentWithContext(ctx)
+}
+
+func (h *gopsutilHandle) MemoryInfoWithContext(ctx context.Context) (*process.MemoryInfoStat, error) {
+	return h.p.MemoryInfoWithContext(ctx)
+}
+
+func (h *gopsutilHandle) NumThreadsWithContext(ctx context.Context) (int32, error) {
+	return h.p.NumThreadsWithContext(ctx)
+}
+
+func (h *gopsutilHandle) UsernameWithContext(ctx context.Context) (string, error) {
+	return h.p.UsernameWithContext(ctx)
+}
+
+func (h *gopsutilHandle) StatusWithContext(ctx context.Context) ([]string, error) {
+	return h.p.StatusWithContext(ctx)
+}
+
+func (h *gopsutilHandle) CreateTimeWithContext(ctx context.Context) (int64, error) {
+	return h.p.CreateTimeWithContext(ctx)
+}
+
+func (h *gopsutilHandle) CmdlineWithContext(ctx context.Context) (string, error) {
+	return h.p.CmdlineWithContext(ctx)
+}
+
+func (h *gopsutilHandle) ExeWithContext(ctx context.Context) (string, error) {
+	return h.p.ExeWithContext(ctx)
+}
+
+func (h *gopsutilHandle) NiceWithContext(ctx context.Context) (int32, error) {
+	return h.p.NiceWithContext(ctx)
+}
+
+func (h *gopsutilHandle) IOCountersWithContext(ctx context.Context) (*process.IOCountersStat, error) {
+	return h.p.IOCountersWithContext(ctx)
+}
+
+// ProcessCollector gathers running process details.
+type ProcessCollector struct {
+	provider ProcessProvider
+}
+
+// NewProcessCollector creates a new ProcessCollector instance using default production gopsutil provider.
 func NewProcessCollector() *ProcessCollector {
-	return &ProcessCollector{}
+	return &ProcessCollector{
+		provider: &gopsutilProvider{},
+	}
+}
+
+// newProcessCollector creates a ProcessCollector with an injected provider for unit testing.
+// If provider is nil, it falls back to the default production gopsutil provider.
+func newProcessCollector(provider ProcessProvider) *ProcessCollector {
+	if provider == nil {
+		provider = &gopsutilProvider{}
+	}
+	return &ProcessCollector{
+		provider: provider,
+	}
 }
 
 // Name returns the identifier of the collector.
@@ -32,7 +155,12 @@ func (c *ProcessCollector) Collect(ctx context.Context) (any, error) {
 
 // GetProcesses retrieves all processes or top N sorted processes with filtering.
 func (c *ProcessCollector) GetProcesses(ctx context.Context, limit int, sortBy string, filter string) (*model.ProcessSummary, error) {
-	procs, err := process.ProcessesWithContext(ctx)
+	provider := c.provider
+	if provider == nil {
+		provider = &gopsutilProvider{}
+	}
+
+	procs, err := provider.ProcessesWithContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve processes: %w", err)
 	}
@@ -43,7 +171,13 @@ func (c *ProcessCollector) GetProcesses(ctx context.Context, limit int, sortBy s
 	filterLower := strings.ToLower(filter)
 
 	for _, p := range procs {
-		pid := p.Pid
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		pid := p.PID()
 		name, _ := p.NameWithContext(ctx)
 		if name == "" {
 			name = fmt.Sprintf("PID-%d", pid)
@@ -153,7 +287,12 @@ func (c *ProcessCollector) GetProcesses(ctx context.Context, limit int, sortBy s
 
 // GetProcessDetails fetches full metadata for a single PID.
 func (c *ProcessCollector) GetProcessDetails(ctx context.Context, pid int32) (*model.ProcessInfo, error) {
-	p, err := process.NewProcessWithContext(ctx, pid)
+	provider := c.provider
+	if provider == nil {
+		provider = &gopsutilProvider{}
+	}
+
+	p, err := provider.NewProcessWithContext(ctx, pid)
 	if err != nil {
 		return nil, fmt.Errorf("process with PID %d not found: %w", pid, err)
 	}
