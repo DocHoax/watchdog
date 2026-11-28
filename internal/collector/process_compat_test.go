@@ -12,23 +12,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Mock ProcessProvider and ProcessHandle for deterministic unit testing.
+// Mock processProvider and processHandle for deterministic unit testing.
 
 type mockProcessProvider struct {
-	processes []ProcessHandle
+	processes []processHandle
 	listErr   error
-	procMap   map[int32]ProcessHandle
+	procMap   map[int32]processHandle
 	getErr    error
 }
 
-func (m *mockProcessProvider) ProcessesWithContext(ctx context.Context) ([]ProcessHandle, error) {
+func (m *mockProcessProvider) ProcessesWithContext(ctx context.Context) ([]processHandle, error) {
 	if m.listErr != nil {
 		return nil, m.listErr
 	}
 	return m.processes, nil
 }
 
-func (m *mockProcessProvider) NewProcessWithContext(ctx context.Context, pid int32) (ProcessHandle, error) {
+func (m *mockProcessProvider) NewProcessWithContext(ctx context.Context, pid int32) (processHandle, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
@@ -58,11 +58,20 @@ type mockProcessHandle struct {
 	statusErr  error
 	memInfoErr error
 	ioCountErr error
+	cpuErr     error
+	memPctErr  error
+
+	nameCallCount int
+	onName        func()
 }
 
 func (h *mockProcessHandle) PID() int32 { return h.pid }
 
 func (h *mockProcessHandle) NameWithContext(ctx context.Context) (string, error) {
+	h.nameCallCount++
+	if h.onName != nil {
+		h.onName()
+	}
 	if h.nameErr != nil {
 		return "", h.nameErr
 	}
@@ -74,10 +83,16 @@ func (h *mockProcessHandle) PpidWithContext(ctx context.Context) (int32, error) 
 }
 
 func (h *mockProcessHandle) CPUPercentWithContext(ctx context.Context) (float64, error) {
+	if h.cpuErr != nil {
+		return 0, h.cpuErr
+	}
 	return h.cpuPct, nil
 }
 
 func (h *mockProcessHandle) MemoryPercentWithContext(ctx context.Context) (float32, error) {
+	if h.memPctErr != nil {
+		return 0, h.memPctErr
+	}
 	return h.memPct, nil
 }
 
@@ -126,9 +141,10 @@ func (h *mockProcessHandle) IOCountersWithContext(ctx context.Context) (*process
 	return h.ioCounters, nil
 }
 
-// Unit Tests exercising production methods via mock provider
+// Unit Tests exercising production methods with explicit assertions
 
 func TestMock_GetProcesses_EnumerationAndSummary(t *testing.T) {
+	// 1. Timestamp precision: using 1700000000123 ms (1700000000 seconds and 123 milliseconds)
 	h1 := &mockProcessHandle{
 		pid:        100,
 		ppid:       1,
@@ -139,27 +155,27 @@ func TestMock_GetProcesses_EnumerationAndSummary(t *testing.T) {
 		numThreads: 4,
 		username:   "muhammad",
 		status:     []string{"R"},
-		createTime: 1700000000000, // 1700000000 seconds in ms
+		createTime: 1700000000123,
 		cmdline:    "/bin/test1 --arg",
 		exe:        "/bin/test1",
 	}
 	h2 := &mockProcessHandle{
 		pid:        101,
 		ppid:       1,
-		name:       "", // tests name fallback to PID-%d
+		name:       "", // name fallback to PID-%d
 		cpuPct:     10.0,
 		memPct:     5.0,
 		memInfo:    &process.MemoryInfoStat{RSS: 51200, VMS: 102400},
 		numThreads: 2,
 		username:   "root",
-		status:     []string{"S"}, // Sleeping count
+		status:     []string{"S"},
 		createTime: 1700000000000,
 		cmdline:    "/bin/test2",
 		exe:        "/bin/test2",
 	}
 
 	provider := &mockProcessProvider{
-		processes: []ProcessHandle{h1, h2},
+		processes: []processHandle{h1, h2},
 	}
 	c := newProcessCollector(provider)
 	ctx := context.Background()
@@ -171,37 +187,80 @@ func TestMock_GetProcesses_EnumerationAndSummary(t *testing.T) {
 	assert.Equal(t, 2, summary.TotalCount)
 	assert.Equal(t, 1, summary.RunningCount)
 	assert.Equal(t, 1, summary.SleepingCount)
-	assert.Equal(t, "test-proc-1", summary.Processes[0].Name)
-	assert.Equal(t, "PID-101", summary.Processes[1].Name) // Fallback verified
+	assert.Equal(t, 0, summary.StoppedCount)
+	assert.Equal(t, 0, summary.ZombieCount)
+
+	// Assert CPU and Memory percentage propagation
+	assert.Equal(t, 45.5, summary.Processes[0].CPUPercent)
+	assert.InDelta(t, 12.3, summary.Processes[0].MemoryPercent, 0.001)
+
+	// Assert RSS and VMS propagation
 	assert.Equal(t, uint64(102400), summary.Processes[0].MemoryRSS)
+	assert.Equal(t, uint64(204800), summary.Processes[0].MemoryVMS)
+
+	// Assert exact sub-second timestamp preservation (1700000000123 ms -> 1700000000 sec, 123*1e6 nsec)
+	expectedTime := time.Unix(1700000000, 123*int64(time.Millisecond))
+	assert.Equal(t, expectedTime, summary.Processes[0].CreateTime)
+
+	// Assert Name fallback
+	assert.Equal(t, "test-proc-1", summary.Processes[0].Name)
+	assert.Equal(t, "PID-101", summary.Processes[1].Name)
+
+	// Assert raw process status and summary counters
+	assert.Equal(t, "R", summary.Processes[0].Status)
+	assert.Equal(t, "S", summary.Processes[1].Status)
 }
 
 func TestMock_GetProcesses_SortingAndFiltering(t *testing.T) {
-	h1 := &mockProcessHandle{pid: 1, name: "alpha", cpuPct: 10.0, memInfo: &process.MemoryInfoStat{RSS: 100}, status: []string{"S"}}
+	h1 := &mockProcessHandle{pid: 10, name: "alpha", cpuPct: 10.0, memInfo: &process.MemoryInfoStat{RSS: 100}, status: []string{"S"}}
 	h2 := &mockProcessHandle{pid: 2, name: "beta", cpuPct: 90.0, memInfo: &process.MemoryInfoStat{RSS: 500}, status: []string{"R"}}
-	h3 := &mockProcessHandle{pid: 3, name: "gamma", cpuPct: 50.0, memInfo: &process.MemoryInfoStat{RSS: 300}, status: []string{"S"}}
+	h3 := &mockProcessHandle{pid: 30, name: "gamma", cpuPct: 50.0, memInfo: &process.MemoryInfoStat{RSS: 300}, status: []string{"S"}}
 
 	provider := &mockProcessProvider{
-		processes: []ProcessHandle{h1, h2, h3},
+		processes: []processHandle{h1, h2, h3},
 	}
 	c := newProcessCollector(provider)
 	ctx := context.Background()
 
-	// Sort by CPU (default desc)
-	summaryCPU, err := c.GetProcesses(ctx, 0, "cpu", "")
+	// Sorting by CPU desc
+	sumCPU, err := c.GetProcesses(ctx, 0, "cpu", "")
 	require.NoError(t, err)
-	assert.Equal(t, int32(2), summaryCPU.Processes[0].PID) // 90.0% CPU
+	assert.Equal(t, int32(2), sumCPU.Processes[0].PID)
+	assert.Equal(t, int32(30), sumCPU.Processes[1].PID)
+	assert.Equal(t, int32(10), sumCPU.Processes[2].PID)
 
-	// Sort by memory RSS desc
-	summaryMem, err := c.GetProcesses(ctx, 0, "mem", "")
+	// Sorting by Memory RSS desc
+	sumMem, err := c.GetProcesses(ctx, 0, "mem", "")
 	require.NoError(t, err)
-	assert.Equal(t, int32(2), summaryMem.Processes[0].PID) // 500 RSS
+	assert.Equal(t, int32(2), sumMem.Processes[0].PID)
+	assert.Equal(t, int32(30), sumMem.Processes[1].PID)
+	assert.Equal(t, int32(10), sumMem.Processes[2].PID)
 
-	// Filter by name "gamma" or PID "3"
-	summaryFilter, err := c.GetProcesses(ctx, 0, "pid", "gamma")
+	// Sorting by PID asc
+	sumPID, err := c.GetProcesses(ctx, 0, "pid", "")
 	require.NoError(t, err)
-	assert.Equal(t, 1, summaryFilter.TotalCount)
-	assert.Equal(t, int32(3), summaryFilter.Processes[0].PID)
+	assert.Equal(t, int32(2), sumPID.Processes[0].PID)
+	assert.Equal(t, int32(10), sumPID.Processes[1].PID)
+	assert.Equal(t, int32(30), sumPID.Processes[2].PID)
+
+	// Sorting by Name asc
+	sumName, err := c.GetProcesses(ctx, 0, "name", "")
+	require.NoError(t, err)
+	assert.Equal(t, "alpha", sumName.Processes[0].Name)
+	assert.Equal(t, "beta", sumName.Processes[1].Name)
+	assert.Equal(t, "gamma", sumName.Processes[2].Name)
+
+	// Filtering independently by process name ("gamma")
+	sumFilterName, err := c.GetProcesses(ctx, 0, "cpu", "gamma")
+	require.NoError(t, err)
+	assert.Equal(t, 1, sumFilterName.TotalCount)
+	assert.Equal(t, int32(30), sumFilterName.Processes[0].PID)
+
+	// Filtering independently by PID ("10")
+	sumFilterPID, err := c.GetProcesses(ctx, 0, "cpu", "10")
+	require.NoError(t, err)
+	assert.Equal(t, 1, sumFilterPID.TotalCount)
+	assert.Equal(t, int32(10), sumFilterPID.Processes[0].PID)
 }
 
 func TestMock_GetProcessDetails_SuccessAndIOCounters(t *testing.T) {
@@ -215,7 +274,7 @@ func TestMock_GetProcessDetails_SuccessAndIOCounters(t *testing.T) {
 		numThreads: 8,
 		username:   "service",
 		status:     []string{"R"},
-		createTime: 1700000000000,
+		createTime: 1700000000123,
 		cmdline:    "worker --port 8080",
 		exe:        "/usr/bin/worker",
 		nice:       -5,
@@ -223,7 +282,7 @@ func TestMock_GetProcessDetails_SuccessAndIOCounters(t *testing.T) {
 	}
 
 	provider := &mockProcessProvider{
-		procMap: map[int32]ProcessHandle{500: h},
+		procMap: map[int32]processHandle{500: h},
 	}
 	c := newProcessCollector(provider)
 	ctx := context.Background()
@@ -235,33 +294,122 @@ func TestMock_GetProcessDetails_SuccessAndIOCounters(t *testing.T) {
 	assert.Equal(t, int32(500), details.PID)
 	assert.Equal(t, "worker", details.Name)
 	assert.Equal(t, int32(-5), details.Nice)
+	// Verify raw I/O byte-counter propagation (ReadBytesSec and WriteBytesSec retain raw byte counts)
 	assert.Equal(t, float64(1024), details.ReadBytesSec)
 	assert.Equal(t, float64(2048), details.WriteBytesSec)
-	assert.Equal(t, time.Unix(1700000000, 0), details.CreateTime)
+	assert.Equal(t, time.Unix(1700000000, 123*int64(time.Millisecond)), details.CreateTime)
 }
 
-func TestMock_ErrorHandling_EnumerationAndLookup(t *testing.T) {
-	// Provider enumeration error
-	providerErr := &mockProcessProvider{listErr: errors.New("procfs read error")}
-	cErr := newProcessCollector(providerErr)
-	_, err := cErr.GetProcesses(context.Background(), 10, "cpu", "")
-	assert.Error(t, err)
-
-	// PID lookup not found error
-	providerNotFound := &mockProcessProvider{getErr: os.ErrNotExist}
-	cNotFound := newProcessCollector(providerNotFound)
-	_, errNotFound := cNotFound.GetProcessDetails(context.Background(), 999)
-	assert.Error(t, errNotFound)
-}
-
-func TestMock_ContextCancellation(t *testing.T) {
-	h := &mockProcessHandle{pid: 1, name: "slow", status: []string{"S"}}
-	provider := &mockProcessProvider{processes: []ProcessHandle{h}}
+func TestMock_PreCancelledContext(t *testing.T) {
+	h := &mockProcessHandle{pid: 1, name: "proc1", status: []string{"S"}}
+	provider := &mockProcessProvider{processes: []processHandle{h}}
 	c := newProcessCollector(provider)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately
+	cancel() // Pre-cancelled
 
 	_, err := c.GetProcesses(ctx, 10, "cpu", "")
 	assert.Error(t, err)
+	assert.True(t, errors.Is(err, context.Canceled))
+}
+
+func TestMock_CancellationDuringIteration(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	h1 := &mockProcessHandle{
+		pid:    1,
+		name:   "proc1",
+		status: []string{"S"},
+		onName: func() {
+			cancel() // Cancel context when processing the first process
+		},
+	}
+	h2 := &mockProcessHandle{
+		pid:    2,
+		name:   "proc2",
+		status: []string{"S"},
+	}
+
+	provider := &mockProcessProvider{
+		processes: []processHandle{h1, h2},
+	}
+	c := newProcessCollector(provider)
+
+	summary, err := c.GetProcesses(ctx, 10, "cpu", "")
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, summary)
+
+	// Verify that the second process's metadata methods were not called
+	assert.Equal(t, 1, h1.nameCallCount)
+	assert.Equal(t, 0, h2.nameCallCount) // h2 was not processed due to loop termination on ctx.Done() after h1
+}
+
+func TestMock_ErrorBehaviorAndMetadataErrors(t *testing.T) {
+	// 1. Provider enumeration failure (using assert.ErrorIs)
+	listErr := errors.New("enumeration failed")
+	providerErr := &mockProcessProvider{listErr: listErr}
+	cErr := newProcessCollector(providerErr)
+	_, err := cErr.GetProcesses(context.Background(), 10, "cpu", "")
+	assert.ErrorIs(t, err, listErr)
+
+	// 2. PID lookup failure (not found)
+	providerNotFound := &mockProcessProvider{getErr: os.ErrNotExist}
+	cNotFound := newProcessCollector(providerNotFound)
+	_, errNotFound := cNotFound.GetProcessDetails(context.Background(), 999)
+	assert.ErrorIs(t, errNotFound, os.ErrNotExist)
+
+	// 3. Metadata errors & fallback verification (CPUPercent, MemoryPercent, MemoryInfo, IOCounters errors)
+	hErr := &mockProcessHandle{
+		pid:        123,
+		name:       "err-proc",
+		cpuErr:     errors.New("cpu error"),
+		memPctErr:  errors.New("mem pct error"),
+		memInfoErr: errors.New("mem info error"),
+		ioCountErr: errors.New("io error"),
+		statusErr:  errors.New("status error"),
+	}
+	providerMetaErr := &mockProcessProvider{
+		processes: []processHandle{hErr},
+		procMap:   map[int32]processHandle{123: hErr},
+	}
+	cMeta := newProcessCollector(providerMetaErr)
+
+	// Verify GetProcesses handles underlying handle errors gracefully (defaults/zero values)
+	summary, err := cMeta.GetProcesses(context.Background(), 10, "cpu", "")
+	require.NoError(t, err)
+	require.Len(t, summary.Processes, 1)
+	assert.Equal(t, float64(0), summary.Processes[0].CPUPercent)
+	assert.Equal(t, float32(0), summary.Processes[0].MemoryPercent)
+	assert.Equal(t, uint64(0), summary.Processes[0].MemoryRSS)
+	assert.Equal(t, uint64(0), summary.Processes[0].MemoryVMS)
+	assert.Equal(t, "Unknown", summary.Processes[0].Status) // Fallback for status error / empty slice
+
+	// Verify GetProcessDetails handles underlying handle errors gracefully (including zero ReadBytesSec and WriteBytesSec on IOCounters error)
+	details, err := cMeta.GetProcessDetails(context.Background(), 123)
+	require.NoError(t, err)
+	assert.Equal(t, int32(123), details.PID)
+	assert.Equal(t, float64(0), details.CPUPercent)
+	assert.Equal(t, float32(0), details.MemoryPercent)
+	assert.Equal(t, uint64(0), details.MemoryRSS)
+	assert.Equal(t, "Unknown", details.Status)
+	assert.Equal(t, float64(0), details.ReadBytesSec)
+	assert.Equal(t, float64(0), details.WriteBytesSec)
+}
+
+func TestNewProcessCollector_DefaultProvider(t *testing.T) {
+	// 4. Default provider verification
+	// Confirm NewProcessCollector installs the gopsutilProvider implementation.
+	cDefault := NewProcessCollector()
+	assert.NotNil(t, cDefault)
+	assert.NotNil(t, cDefault.provider)
+	_, isGopsutil := cDefault.provider.(*gopsutilProvider)
+	assert.True(t, isGopsutil, "expected default provider to be *gopsutilProvider")
+
+	// Confirm newProcessCollector(nil) does the same.
+	cNil := newProcessCollector(nil)
+	assert.NotNil(t, cNil)
+	assert.NotNil(t, cNil.provider)
+	_, isGopsutilNil := cNil.provider.(*gopsutilProvider)
+	assert.True(t, isGopsutilNil, "expected nil provider fallback to be *gopsutilProvider")
 }

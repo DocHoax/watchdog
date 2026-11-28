@@ -12,14 +12,14 @@ import (
 	"github.com/shirou/gopsutil/v4/process"
 )
 
-// ProcessProvider abstracts gopsutil process provider operations for testability.
-type ProcessProvider interface {
-	ProcessesWithContext(ctx context.Context) ([]ProcessHandle, error)
-	NewProcessWithContext(ctx context.Context, pid int32) (ProcessHandle, error)
+// processProvider abstracts gopsutil process provider operations for testability.
+type processProvider interface {
+	ProcessesWithContext(ctx context.Context) ([]processHandle, error)
+	NewProcessWithContext(ctx context.Context, pid int32) (processHandle, error)
 }
 
-// ProcessHandle abstracts individual process attribute queries mirroring gopsutil v4 Process methods.
-type ProcessHandle interface {
+// processHandle abstracts individual process attribute queries mirroring gopsutil v4 Process methods.
+type processHandle interface {
 	PID() int32
 	NameWithContext(ctx context.Context) (string, error)
 	PpidWithContext(ctx context.Context) (int32, error)
@@ -36,22 +36,22 @@ type ProcessHandle interface {
 	IOCountersWithContext(ctx context.Context) (*process.IOCountersStat, error)
 }
 
-// gopsutilProvider implements ProcessProvider using gopsutil package functions.
+// gopsutilProvider implements processProvider using gopsutil package functions.
 type gopsutilProvider struct{}
 
-func (g *gopsutilProvider) ProcessesWithContext(ctx context.Context) ([]ProcessHandle, error) {
+func (g *gopsutilProvider) ProcessesWithContext(ctx context.Context) ([]processHandle, error) {
 	procs, err := process.ProcessesWithContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	handles := make([]ProcessHandle, len(procs))
+	handles := make([]processHandle, len(procs))
 	for i, p := range procs {
 		handles[i] = &gopsutilHandle{p: p}
 	}
 	return handles, nil
 }
 
-func (g *gopsutilProvider) NewProcessWithContext(ctx context.Context, pid int32) (ProcessHandle, error) {
+func (g *gopsutilProvider) NewProcessWithContext(ctx context.Context, pid int32) (processHandle, error) {
 	p, err := process.NewProcessWithContext(ctx, pid)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func (h *gopsutilHandle) IOCountersWithContext(ctx context.Context) (*process.IO
 
 // ProcessCollector gathers running process details.
 type ProcessCollector struct {
-	provider ProcessProvider
+	provider processProvider
 }
 
 // NewProcessCollector creates a new ProcessCollector instance using default production gopsutil provider.
@@ -134,7 +134,7 @@ func NewProcessCollector() *ProcessCollector {
 
 // newProcessCollector creates a ProcessCollector with an injected provider for unit testing.
 // If provider is nil, it falls back to the default production gopsutil provider.
-func newProcessCollector(provider ProcessProvider) *ProcessCollector {
+func newProcessCollector(provider processProvider) *ProcessCollector {
 	if provider == nil {
 		provider = &gopsutilProvider{}
 	}
