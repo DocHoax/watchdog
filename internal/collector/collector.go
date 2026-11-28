@@ -2,10 +2,13 @@ package collector
 
 import (
 	"context"
+	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/DocHoax/watchdog/internal/config"
+	"github.com/DocHoax/watchdog/internal/logger"
 	"github.com/DocHoax/watchdog/pkg/model"
 )
 
@@ -148,7 +151,31 @@ func (m *Manager) CollectAll(ctx context.Context) (*model.SystemSnapshot, error)
 		go func(n string, c Collector) {
 			defer wg.Done()
 			start := time.Now()
-			res, err := c.Collect(ctx)
+
+			var res any
+			var err error
+			var normalReturn bool
+
+			func() {
+				defer func() {
+					if !normalReturn {
+						if r := recover(); r != nil {
+							stack := debug.Stack()
+							log := logger.GetDefault()
+							log.Error("collector panicked", "collector", n, "panic", r, "stack", string(stack))
+						} else {
+							stack := debug.Stack()
+							log := logger.GetDefault()
+							log.Error("collector panicked with nil", "collector", n, "stack", string(stack))
+						}
+						// Sanitize public error message: never expose raw panic value or stack trace in LastError
+						err = fmt.Errorf("collector panic (details available in internal logs)")
+					}
+				}()
+				res, err = c.Collect(ctx)
+				normalReturn = true
+			}()
+
 			dur := time.Since(start)
 
 			m.mu.Lock()
